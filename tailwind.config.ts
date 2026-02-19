@@ -47,6 +47,26 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        surface: {
+          "0": "hsl(var(--surface-0))",
+          "1": "hsl(var(--surface-1))",
+          "2": "hsl(var(--surface-2))",
+          "3": "hsl(var(--surface-3))",
+        },
+        tag: {
+          calidad: "hsl(var(--tag-calidad))",
+          sap: "hsl(var(--tag-sap))",
+          core: "hsl(var(--tag-core))",
+          desarrollo: "hsl(var(--tag-desarrollo))",
+          dl: "hsl(var(--tag-dl))",
+          rend: "hsl(var(--tag-rend))",
+        },
+        status: {
+          todo: "hsl(var(--status-todo))",
+          progress: "hsl(var(--status-progress))",
+          done: "hsl(var(--status-done))",
+          blocked: "hsl(var(--status-blocked))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
