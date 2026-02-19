@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { KanbanBoard } from '@/components/KanbanBoard';
 import { TimelineView } from '@/components/TimelineView';
 import { CriticalPending } from '@/components/CriticalPending';
-import { NotesPanel } from '@/components/NotesPanel';
 import { loadState, saveState, DashboardState } from '@/lib/store';
 import { Atencion, KanbanColumn } from '@/types/qa';
 import { LayoutDashboard, Kanban, GanttChart } from 'lucide-react';
@@ -38,6 +37,14 @@ const Index = () => {
     }));
   };
 
+  const reorderColumns = (columns: KanbanColumn[]) => {
+    setState(s => ({ ...s, columns }));
+  };
+
+  const renameColumn = (id: string, title: string) => {
+    setState(s => ({ ...s, columns: s.columns.map(c => c.id === id ? { ...c, title } : c) }));
+  };
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       {/* Header */}
@@ -66,32 +73,32 @@ const Index = () => {
           onAddAtencion={addAtencion}
           onAddColumn={addColumn}
           onDeleteColumn={deleteColumn}
+          onReorderColumns={reorderColumns}
+          onRenameColumn={renameColumn}
         />
       </section>
 
-      {/* Bottom Grid: Timeline + Side Panels */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Timeline */}
-        <section className="lg:col-span-2 bg-surface-1 border border-border rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <GanttChart className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Timeline</h2>
-          </div>
-          <TimelineView atenciones={state.atenciones} tags={state.tags} />
-        </section>
-
-        {/* Side Panels */}
-        <div className="space-y-4">
-          <CriticalPending
-            items={state.criticalItems}
-            onUpdate={items => setState(s => ({ ...s, criticalItems: items }))}
-          />
-          <NotesPanel
-            notes={state.notes}
-            onUpdate={notes => setState(s => ({ ...s, notes }))}
-          />
+      {/* Timeline */}
+      <section className="mb-6 bg-surface-1 border border-border rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <GanttChart className="w-4 h-4 text-primary" />
+          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Timeline</h2>
         </div>
-      </div>
+        <TimelineView
+          atenciones={state.atenciones}
+          tags={state.tags}
+          onUpdateAtencion={updateAtencion}
+          onAddAtencion={addAtencion}
+        />
+      </section>
+
+      {/* Critical Pending - Full Width */}
+      <section>
+        <CriticalPending
+          items={state.criticalItems}
+          onUpdate={items => setState(s => ({ ...s, criticalItems: items }))}
+        />
+      </section>
     </div>
   );
 };

@@ -37,6 +37,8 @@ export interface Atencion {
   comments: string;
   startDate?: string;
   endDate?: string;
+  delayStartDate?: string;
+  delayEndDate?: string;
   timelineNote?: string;
 }
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Atencion, KanbanColumn, Tag, CHECKLIST_ITEMS } from '@/types/qa';
 import { KanbanCard } from './KanbanCard';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, GripVertical, Pencil, Check } from 'lucide-react';
 
 interface Props {
   columns: KanbanColumn[];
@@ -12,14 +12,19 @@ interface Props {
   onAddAtencion: (a: Atencion) => void;
   onAddColumn: (col: KanbanColumn) => void;
   onDeleteColumn: (id: string) => void;
+  onReorderColumns: (columns: KanbanColumn[]) => void;
+  onRenameColumn: (id: string, title: string) => void;
 }
 
-export function KanbanBoard({ columns, atenciones, tags, onUpdateAtencion, onDeleteAtencion, onAddAtencion, onAddColumn, onDeleteColumn }: Props) {
+export function KanbanBoard({ columns, atenciones, tags, onUpdateAtencion, onDeleteAtencion, onAddAtencion, onAddColumn, onDeleteColumn, onReorderColumns, onRenameColumn }: Props) {
   const [addingToCol, setAddingToCol] = useState<string | null>(null);
   const [newCode, setNewCode] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showAddCol, setShowAddCol] = useState(false);
   const [newColTitle, setNewColTitle] = useState('');
+  const [editingColId, setEditingColId] = useState<string | null>(null);
+  const [editColTitle, setEditColTitle] = useState('');
+  const [dragColId, setDragColId] = useState<string | null>(null);
 
   const handleAddAtencion = (colId: string) => {
     if (!newCode.trim()) return;
@@ -47,13 +52,53 @@ export function KanbanBoard({ columns, atenciones, tags, onUpdateAtencion, onDel
 
   const handleDragStart = (e: React.DragEvent, atencionId: string) => {
     e.dataTransfer.setData('atencionId', atencionId);
+    e.dataTransfer.setData('type', 'card');
   };
 
   const handleDrop = (e: React.DragEvent, colId: string) => {
     e.preventDefault();
-    const atencionId = e.dataTransfer.getData('atencionId');
-    const atencion = atenciones.find(a => a.id === atencionId);
-    if (atencion) onUpdateAtencion({ ...atencion, columnId: colId });
+    const type = e.dataTransfer.getData('type');
+    if (type === 'card') {
+      const atencionId = e.dataTransfer.getData('atencionId');
+      const atencion = atenciones.find(a => a.id === atencionId);
+      if (atencion) onUpdateAtencion({ ...atencion, columnId: colId });
+    }
+  };
+
+  const handleColDragStart = (e: React.DragEvent, colId: string) => {
+    e.dataTransfer.setData('colId', colId);
+    e.dataTransfer.setData('type', 'column');
+    setDragColId(colId);
+  };
+
+  const handleColDrop = (e: React.DragEvent, targetColId: string) => {
+    e.preventDefault();
+    const type = e.dataTransfer.getData('type');
+    if (type === 'column') {
+      const sourceColId = e.dataTransfer.getData('colId');
+      if (sourceColId === targetColId) return;
+      const newCols = [...columns];
+      const srcIdx = newCols.findIndex(c => c.id === sourceColId);
+      const tgtIdx = newCols.findIndex(c => c.id === targetColId);
+      const [moved] = newCols.splice(srcIdx, 1);
+      newCols.splice(tgtIdx, 0, moved);
+      onReorderColumns(newCols);
+    } else {
+      handleDrop(e, targetColId);
+    }
+    setDragColId(null);
+  };
+
+  const startEditCol = (col: KanbanColumn) => {
+    setEditingColId(col.id);
+    setEditColTitle(col.title);
+  };
+
+  const saveEditCol = () => {
+    if (editingColId && editColTitle.trim()) {
+      onRenameColumn(editingColId, editColTitle.trim());
+    }
+    setEditingColId(null);
   };
 
   return (
@@ -63,16 +108,36 @@ export function KanbanBoard({ columns, atenciones, tags, onUpdateAtencion, onDel
         return (
           <div
             key={col.id}
-            className="flex-shrink-0 w-56 bg-surface-1 rounded-xl border border-border"
+            className={`flex-shrink-0 w-56 bg-surface-1 rounded-xl border border-border transition-opacity ${dragColId === col.id ? 'opacity-50' : ''}`}
             onDragOver={e => e.preventDefault()}
-            onDrop={e => handleDrop(e, col.id)}
+            onDrop={e => handleColDrop(e, col.id)}
           >
-            <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
-              <div className="flex items-center gap-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{col.title}</h3>
-                <span className="text-[10px] bg-surface-3 text-muted-foreground px-1.5 py-0.5 rounded-full font-mono">{colAtenciones.length}</span>
+            <div
+              className="flex items-center justify-between px-3 py-2.5 border-b border-border cursor-grab active:cursor-grabbing"
+              draggable
+              onDragStart={e => handleColDragStart(e, col.id)}
+              onDragEnd={() => setDragColId(null)}
+            >
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                {editingColId === col.id ? (
+                  <input
+                    value={editColTitle}
+                    onChange={e => setEditColTitle(e.target.value)}
+                    className="bg-surface-0 border border-border rounded px-1.5 py-0.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary flex-1 min-w-0"
+                    autoFocus
+                    onKeyDown={e => e.key === 'Enter' && saveEditCol()}
+                    onBlur={saveEditCol}
+                  />
+                ) : (
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate">{col.title}</h3>
+                )}
+                <span className="text-[10px] bg-surface-3 text-muted-foreground px-1.5 py-0.5 rounded-full font-mono flex-shrink-0">{colAtenciones.length}</span>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-shrink-0">
+                <button onClick={() => editingColId === col.id ? saveEditCol() : startEditCol(col)} className="text-muted-foreground hover:text-primary">
+                  {editingColId === col.id ? <Check className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
+                </button>
                 <button onClick={() => setAddingToCol(col.id)} className="text-muted-foreground hover:text-primary">
                   <Plus className="w-3.5 h-3.5" />
                 </button>
