@@ -40,6 +40,7 @@ export interface Atencion {
   delayStartDate?: string;
   delayEndDate?: string;
   timelineNote?: string;
+  barLabel?: string;
 }
 
 export interface KanbanColumn {
