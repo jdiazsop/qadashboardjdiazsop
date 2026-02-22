@@ -135,8 +135,6 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
   const startEdit = (a: Atencion) => {
     setEditingId(a.id);
     setEditData({
-      startDate: a.startDate ?? '',
-      endDate: a.endDate ?? '',
       delayEndDate: a.delayEndDate ?? '',
       delayLabel: a.delayLabel ?? '',
       timelineNote: a.timelineNote ?? '',
@@ -144,7 +142,8 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     });
   };
   const saveEdit = (a: Atencion) => {
-    onUpdateAtencion({ ...a, ...editData });
+    // Only save editable fields (delays, texts, realStartDate) — planned dates are auto-calculated
+    onUpdateAtencion({ ...a, delayEndDate: editData.delayEndDate || undefined, delayLabel: editData.delayLabel || undefined, timelineNote: editData.timelineNote || undefined, realStartDate: editData.realStartDate || undefined });
     setEditingId(null);
   };
   const cancelEdit = () => setEditingId(null);
@@ -174,7 +173,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       delayEndDate: newItem.delayEndDate || undefined,
       delayLabel: newItem.delayLabel || undefined,
       timelineNote: newItem.timelineNote || undefined,
-      manualDates: true,
+      
     });
     setNewItem({ code: '', startDate: '', endDate: '', delayEndDate: '', delayLabel: '', timelineNote: '' });
     setShowAdd(false);
@@ -500,14 +499,16 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                       <div className="bg-surface-2/80 border-b border-primary/30 px-2 py-2 space-y-1.5">
                         <div className="grid grid-cols-2 gap-1.5">
                           <div>
-                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Plan</label>
-                            <input type="date" value={editData.startDate || ''} onChange={e => setEditData(p => ({ ...p, startDate: e.target.value }))}
-                              className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Plan (auto)</label>
+                            <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
+                              {a.startDate || '—'}
+                            </div>
                           </div>
                           <div>
-                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Plan</label>
-                            <input type="date" value={editData.endDate || ''} onChange={e => setEditData(p => ({ ...p, endDate: e.target.value }))}
-                              className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Plan (auto)</label>
+                            <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
+                              {a.endDate || '—'}
+                            </div>
                           </div>
                           <div>
                             <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Real</label>
