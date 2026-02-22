@@ -1,6 +1,6 @@
 import { Atencion, KanbanColumn, CriticalItem, NoteItem, DEFAULT_TAGS, Tag, CHECKLIST_ITEMS } from '@/types/qa';
 
-const STORAGE_KEY = 'qa-dashboard-v4';
+const STORAGE_KEY = 'qa-dashboard-v5';
 
 export interface DashboardState {
   columns: KanbanColumn[];
@@ -66,7 +66,17 @@ const defaultAppState: AppState = {
 export function loadAppState(): AppState {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed: AppState = JSON.parse(saved);
+      // Always use fresh tags from code
+      return {
+        ...parsed,
+        tabs: parsed.tabs.map(tab => ({
+          ...tab,
+          state: { ...tab.state, tags: DEFAULT_TAGS },
+        })),
+      };
+    }
   } catch {}
   return defaultAppState;
 }
