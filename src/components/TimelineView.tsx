@@ -482,7 +482,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       );
     }
 
-    // Real end marker — show whenever realEndDate is explicitly set
+    // Real end marker — show whenever realEndDate is explicitly set (always white)
     let realEndMarker = null;
     if (realEndDate && endDate) {
       const realEndIdx = differenceInCalendarDays(parseISO(realEndDate), rangeStart);
@@ -496,11 +496,11 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
           title={`Fin real: ${realEndDate}${isLate ? ' (atraso)' : ''}`}
         >
           <CheckCircle2
-            className={isLate ? 'text-white' : 'text-green-400'}
+            className="text-white"
             style={{ width: 10, height: 10 }}
           />
           <div
-            className={`w-0.5 ${isLate ? 'bg-white/80' : 'bg-green-400/60'}`}
+            className="w-0.5 bg-white/80"
             style={{ height: barH + 2 }}
           />
         </div>
@@ -651,7 +651,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
             Inicio real
           </span>
           <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            <CheckCircle2 className="w-3 h-3 text-green-400" />
+            <CheckCircle2 className="w-3 h-3 text-white" />
             Fin real
           </span>
         </div>
