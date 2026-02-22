@@ -60,6 +60,9 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [editingCycleId, setEditingCycleId] = useState<string | null>(null);
   const [editCycleData, setEditCycleData] = useState<Partial<TestCycle>>({});
+  const [editingCycleLabelId, setEditingCycleLabelId] = useState<string | null>(null);
+  const [editingCycleNoteId, setEditingCycleNoteId] = useState<string | null>(null);
+  const [editingCycleDelayId, setEditingCycleDelayId] = useState<string | null>(null);
   const [newItem, setNewItem] = useState({
     code: '', startDate: '', endDate: '',
     delayEndDate: '', delayLabel: '', timelineNote: '',
@@ -208,6 +211,30 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     setEditingDelayLabelId(null);
   };
 
+  const saveCycleLabel = (atencion: Atencion, cycleId: string, val: string) => {
+    const newCycles = (atencion.cycles ?? []).map(c =>
+      c.id === cycleId ? { ...c, label: val || c.label } : c
+    );
+    onUpdateAtencion({ ...atencion, cycles: newCycles });
+    setEditingCycleLabelId(null);
+  };
+
+  const saveCycleNote = (atencion: Atencion, cycleId: string, val: string) => {
+    const newCycles = (atencion.cycles ?? []).map(c =>
+      c.id === cycleId ? { ...c, note: val } : c
+    );
+    onUpdateAtencion({ ...atencion, cycles: newCycles });
+    setEditingCycleNoteId(null);
+  };
+
+  const saveCycleDelayLabel = (atencion: Atencion, cycleId: string, val: string) => {
+    const newCycles = (atencion.cycles ?? []).map(c =>
+      c.id === cycleId ? { ...c, delayLabel: val } : c
+    );
+    onUpdateAtencion({ ...atencion, cycles: newCycles });
+    setEditingCycleDelayId(null);
+  };
+
   const handleAdd = () => {
     if (!newItem.code.trim() || !newItem.startDate || !newItem.endDate) return;
     onAddAtencion({
@@ -284,6 +311,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     delayLabel: string | undefined,
     isMainRow: boolean,
     atencionForEdit?: Atencion,
+    cycleForEdit?: TestCycle,
   ) {
     if (!startDate || !endDate) return null;
     const startIdx = differenceInCalendarDays(parseISO(startDate), rangeStart);
@@ -372,7 +400,10 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
               paddingLeft: 3,
               paddingRight: 3,
             }}
-            onDoubleClick={() => isMainRow && atencionForEdit && setEditingDelayLabelId(atencionForEdit.id)}
+            onDoubleClick={() => {
+              if (isMainRow && atencionForEdit) setEditingDelayLabelId(atencionForEdit.id);
+              if (!isMainRow && cycleForEdit && atencionForEdit) setEditingCycleDelayId(cycleForEdit.id);
+            }}
           >
             {isMainRow && atencionForEdit && editingDelayLabelId === atencionForEdit.id ? (
               <input
@@ -387,9 +418,22 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                 placeholder="Texto atraso"
                 onClick={e => e.stopPropagation()}
               />
+            ) : !isMainRow && cycleForEdit && atencionForEdit && editingCycleDelayId === cycleForEdit.id ? (
+              <input
+                autoFocus
+                defaultValue={cycleForEdit.delayLabel ?? ''}
+                onBlur={e => saveCycleDelayLabel(atencionForEdit, cycleForEdit.id, e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') saveCycleDelayLabel(atencionForEdit, cycleForEdit.id, (e.target as HTMLInputElement).value);
+                  if (e.key === 'Escape') setEditingCycleDelayId(null);
+                }}
+                className="w-full bg-transparent border-none outline-none text-[8px] font-semibold text-white placeholder:text-white/60"
+                placeholder="Texto atraso"
+                onClick={e => e.stopPropagation()}
+              />
             ) : (
               <span className="text-[10px] font-semibold truncate leading-none text-white" style={{ fontSize: isMainRow ? 10 : 8 }}>
-                {isMainRow ? (delayLabel || '') : (delayLabel || '')}
+                {delayLabel || ''}
               </span>
             )}
           </div>
@@ -592,7 +636,27 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                         <div key={c.id}>
                           <div style={{ height: SUB_ROW_H }}
                             className="flex items-center gap-1 pl-8 pr-1.5 border-b border-border/20 bg-surface-2/30 group/cycle">
-                            <span className="text-[9px] font-mono text-muted-foreground truncate flex-1">{c.label}</span>
+                            {editingCycleLabelId === c.id ? (
+                              <input
+                                autoFocus
+                                defaultValue={c.label}
+                                onBlur={e => saveCycleLabel(a, c.id, e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') saveCycleLabel(a, c.id, (e.target as HTMLInputElement).value);
+                                  if (e.key === 'Escape') setEditingCycleLabelId(null);
+                                }}
+                                className="text-[9px] font-mono bg-surface-0 border border-border rounded px-1 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary flex-1 min-w-0"
+                                onClick={e => e.stopPropagation()}
+                              />
+                            ) : (
+                              <span
+                                className="text-[9px] font-mono text-muted-foreground truncate flex-1 cursor-text hover:text-foreground transition-colors"
+                                onClick={() => setEditingCycleLabelId(c.id)}
+                                title="Clic para editar nombre"
+                              >
+                                {c.label}
+                              </span>
+                            )}
                             {c.realStartDate && <MapPin className="w-2.5 h-2.5 text-amber-500 shrink-0" />}
                             <div className="shrink-0 flex gap-0.5">
                               {isCycleEditing ? (
@@ -804,7 +868,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                                 );
                               })}
 
-                              {renderBar(c.startDate, c.endDate, computeCycleDelay(c), c.realStartDate, CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false)}
+                              {renderBar(c.startDate, c.endDate, computeCycleDelay(c), c.realStartDate, CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false, a, c)}
 
                               {/* Cycle note */}
                               {(() => {
@@ -819,9 +883,27 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                                 }
                                 return (
                                   <div className="absolute flex items-center" style={{ left: cBarEnd + 4, top: 0, bottom: 0, whiteSpace: 'nowrap' }}>
-                                    <span className="text-[9px] text-muted-foreground truncate">
-                                      {c.note || ''}
-                                    </span>
+                                    {editingCycleNoteId === c.id ? (
+                                      <input
+                                        autoFocus
+                                        defaultValue={c.note ?? ''}
+                                        onBlur={e => saveCycleNote(a, c.id, e.target.value)}
+                                        onKeyDown={e => {
+                                          if (e.key === 'Enter') saveCycleNote(a, c.id, (e.target as HTMLInputElement).value);
+                                          if (e.key === 'Escape') setEditingCycleNoteId(null);
+                                        }}
+                                        className="bg-surface-2 border border-border rounded px-1.5 py-0.5 text-[9px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary w-44"
+                                        onClick={e => e.stopPropagation()}
+                                      />
+                                    ) : (
+                                      <span
+                                        className="text-[9px] text-muted-foreground truncate cursor-text hover:text-foreground px-0.5 rounded hover:bg-surface-2/60 transition-colors"
+                                        onClick={() => setEditingCycleNoteId(c.id)}
+                                        title="Clic para editar nota"
+                                      >
+                                        {c.note || <span className="text-muted-foreground/30 italic">+ nota</span>}
+                                      </span>
+                                    )}
                                   </div>
                                 );
                               })()}
