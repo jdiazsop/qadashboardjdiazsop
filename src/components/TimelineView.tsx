@@ -471,29 +471,25 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       );
     }
 
-    // Real end marker — show whenever realEndDate is set (on time or late)
+    // Real end marker — show whenever realEndDate is explicitly set
     let realEndMarker = null;
-    const effectiveRealEnd = realEndDate || delayEndDate;
-    if (effectiveRealEnd && endDate) {
-      const realEndIdx = differenceInCalendarDays(parseISO(effectiveRealEnd), rangeStart);
+    if (realEndDate && endDate) {
+      const realEndIdx = differenceInCalendarDays(parseISO(realEndDate), rangeStart);
       const endIdx2 = differenceInCalendarDays(parseISO(endDate), rangeStart);
       const isLate = realEndIdx > endIdx2;
-      // Position: at end of delay bar if late, or within planned bar if on time
-      const markerLeft = isLate
-        ? (realEndIdx * colWidth + colWidth / 2)
-        : (realEndIdx * colWidth + colWidth / 2);
+      const markerLeft = realEndIdx * colWidth + colWidth / 2;
       realEndMarker = (
         <div
-          className="absolute z-10 flex flex-col items-center"
+          className="absolute z-20 flex flex-col items-center"
           style={{ left: markerLeft, top: barTop - 4 }}
-          title={`Fin real: ${effectiveRealEnd}${isLate ? ' (atraso)' : ''}`}
+          title={`Fin real: ${realEndDate}${isLate ? ' (atraso)' : ''}`}
         >
           <CheckCircle2
-            className={isLate ? 'text-red-400' : 'text-green-400'}
+            className={isLate ? 'text-white' : 'text-green-400'}
             style={{ width: 10, height: 10 }}
           />
           <div
-            className={`w-0.5 ${isLate ? 'bg-red-400/60' : 'bg-green-400/60'}`}
+            className={`w-0.5 ${isLate ? 'bg-white/80' : 'bg-green-400/60'}`}
             style={{ height: barH + 2 }}
           />
         </div>
