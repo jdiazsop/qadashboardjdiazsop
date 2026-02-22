@@ -67,8 +67,27 @@ export function KanbanCard({ atencion, tags, onUpdate, onDelete }: Props) {
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-1 mb-4">
-              {atencionTags.map(t => <TagBadge key={t.id} tag={t} />)}
+            <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Tags</h3>
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {tags
+                .sort((a, b) => (a.kind === 'estado' ? -1 : 1) - (b.kind === 'estado' ? -1 : 1))
+                .map(t => {
+                  const isSelected = atencion.tags.includes(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        const newTags = isSelected
+                          ? atencion.tags.filter(id => id !== t.id)
+                          : [...atencion.tags, t.id];
+                        onUpdate({ ...atencion, tags: newTags });
+                      }}
+                      className={`transition-all ${isSelected ? 'ring-2 ring-primary scale-105' : 'opacity-40 hover:opacity-70'}`}
+                    >
+                      <TagBadge tag={t} />
+                    </button>
+                  );
+                })}
             </div>
 
             <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Checklist de Entregables</h3>
