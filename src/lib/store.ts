@@ -1,6 +1,6 @@
 import { Atencion, KanbanColumn, CriticalItem, NoteItem, DEFAULT_TAGS, Tag, CHECKLIST_ITEMS } from '@/types/qa';
 
-const STORAGE_KEY = 'qa-dashboard-v12';
+const STORAGE_KEY = 'qa-dashboard-v13';
 
 export interface DashboardState {
   columns: KanbanColumn[];
@@ -41,7 +41,7 @@ const defaultDashboard: DashboardState = {
         { id: 'c1-1', label: 'C1', startDate: '2026-01-26', endDate: '2026-01-30', realStartDate: '2026-01-26' },
         { id: 'c1-2', label: 'C2', startDate: '2026-01-31', endDate: '2026-02-05', realStartDate: '2026-02-01' },
         { id: 'c1-3', label: 'C3', startDate: '2026-02-06', endDate: '2026-02-10', realStartDate: '2026-02-06' },
-        { id: 'c1-4', label: 'C4', startDate: '2026-02-11', endDate: '2026-02-14', delayEndDate: '2026-02-17', delayLabel: 'Atrasos Dev', realStartDate: '2026-02-12' },
+        { id: 'c1-4', label: 'C4', startDate: '2026-02-11', endDate: '2026-02-14', realEndDate: '2026-02-17', delayLabel: 'Atrasos Dev', realStartDate: '2026-02-12' },
       ],
     },
     {
@@ -51,7 +51,7 @@ const defaultDashboard: DashboardState = {
       cycles: [
         { id: 'c2-1', label: 'C1', startDate: '2026-01-27', endDate: '2026-02-03', realStartDate: '2026-01-27' },
         { id: 'c2-2', label: 'C2', startDate: '2026-02-04', endDate: '2026-02-10', realStartDate: '2026-02-05' },
-        { id: 'c2-3', label: 'C3', startDate: '2026-02-11', endDate: '2026-02-14', delayEndDate: '2026-02-19', delayLabel: 'Atraso Dev', realStartDate: '2026-02-12' },
+        { id: 'c2-3', label: 'C3', startDate: '2026-02-11', endDate: '2026-02-14', realEndDate: '2026-02-19', delayLabel: 'Atraso Dev', realStartDate: '2026-02-12' },
       ],
     },
     {
@@ -69,7 +69,7 @@ const defaultDashboard: DashboardState = {
       timelineNote: 'A la espera que dev entregue para iniciar C1', sortOrder: 0,
       cycles: [
         { id: 'c4-1', label: 'C1', startDate: '2026-01-20', endDate: '2026-02-02', realStartDate: '2026-01-20' },
-        { id: 'c4-2', label: 'C2', startDate: '2026-02-03', endDate: '2026-02-17', delayEndDate: '2026-02-20', delayLabel: 'Atrasos Dev', realStartDate: '2026-02-04' },
+        { id: 'c4-2', label: 'C2', startDate: '2026-02-03', endDate: '2026-02-17', realEndDate: '2026-02-20', delayLabel: 'Atrasos Dev', realStartDate: '2026-02-04' },
       ],
     },
     {
@@ -87,7 +87,7 @@ const defaultDashboard: DashboardState = {
       timelineNote: 'A la espera que dev entregue para iniciar C2', sortOrder: 5,
       cycles: [
         { id: 'c6-1', label: 'C1', startDate: '2026-01-27', endDate: '2026-02-09', realStartDate: '2026-01-27' },
-        { id: 'c6-2', label: 'C2', startDate: '2026-02-10', endDate: '2026-02-17', delayEndDate: '2026-02-24', delayLabel: 'Atrasos Dev', realStartDate: '2026-02-11' },
+        { id: 'c6-2', label: 'C2', startDate: '2026-02-10', endDate: '2026-02-17', realEndDate: '2026-02-24', delayLabel: 'Atrasos Dev', realStartDate: '2026-02-11' },
       ],
     },
     {
