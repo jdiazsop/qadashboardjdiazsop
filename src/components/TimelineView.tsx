@@ -417,6 +417,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     atencionForEdit?: Atencion,
     cycleForEdit?: TestCycle,
     tooltipAbove?: boolean,
+    realEndDate?: string,
   ) {
     if (!startDate || !endDate) return null;
     const startIdx = differenceInCalendarDays(parseISO(startDate), rangeStart);
@@ -465,22 +466,33 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       );
     }
 
-    // If realEndDate (fin real) is before endDate, show marker at the real end within planned bar
+    // Real end marker — show whenever realEndDate is set (on time or late)
     let realEndMarker = null;
-    if (delayEndDate) {
-      const delayEndIdx = differenceInCalendarDays(parseISO(delayEndDate), rangeStart);
-      if (delayEndIdx <= endIdx) {
-        const realEndLeft = delayEndIdx * colWidth + colWidth / 2;
-        realEndMarker = (
+    const effectiveRealEnd = realEndDate || delayEndDate;
+    if (effectiveRealEnd && endDate) {
+      const realEndIdx = differenceInCalendarDays(parseISO(effectiveRealEnd), rangeStart);
+      const endIdx2 = differenceInCalendarDays(parseISO(endDate), rangeStart);
+      const isLate = realEndIdx > endIdx2;
+      // Position: at end of delay bar if late, or within planned bar if on time
+      const markerLeft = isLate
+        ? (realEndIdx * colWidth + colWidth / 2)
+        : (realEndIdx * colWidth + colWidth / 2);
+      realEndMarker = (
+        <div
+          className="absolute z-10 flex flex-col items-center"
+          style={{ left: markerLeft, top: barTop - 4 }}
+          title={`Fin real: ${effectiveRealEnd}${isLate ? ' (atraso)' : ''}`}
+        >
+          <CheckCircle2
+            className={isLate ? 'text-red-400' : 'text-green-400'}
+            style={{ width: 10, height: 10 }}
+          />
           <div
-            className="absolute z-10"
-            style={{ left: realEndLeft, top: barTop, height: barH }}
-            title={`Fin real: ${delayEndDate}`}
-          >
-            <div className="w-0.5 h-full bg-green-400" />
-          </div>
-        );
-      }
+            className={`w-0.5 ${isLate ? 'bg-red-400/60' : 'bg-green-400/60'}`}
+            style={{ height: barH + 2 }}
+          />
+        </div>
+      );
     }
 
     const canDrag = !isMainRow && cycleForEdit && atencionForEdit;
@@ -625,6 +637,10 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
           <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <MapPin className="w-3 h-3 text-amber-500" />
             Inicio real
+          </span>
+          <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <CheckCircle2 className="w-3 h-3 text-green-400" />
+            Fin real
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -990,7 +1006,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                           );
                         })}
 
-                        {renderBar(a.startDate, a.endDate, a.delayEndDate, a.realStartDate, barColor, BAR_H, BAR_TOP, a.code, a.delayLabel, true, a, undefined, rowIdx >= items.length - 2)}
+                        {renderBar(a.startDate, a.endDate, a.delayEndDate, a.realStartDate, barColor, BAR_H, BAR_TOP, a.code, a.delayLabel, true, a, undefined, rowIdx >= items.length - 2, undefined)}
 
                         {/* Note to the right */}
                         <div
@@ -1041,7 +1057,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                                 );
                               })}
 
-                              {renderBar(c.startDate, c.endDate, computeCycleDelay(c), c.realStartDate, c.completed ? BAR_GREEN : CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false, a, c, rowIdx >= items.length - 2)}
+                              {renderBar(c.startDate, c.endDate, computeCycleDelay(c), c.realStartDate, c.completed ? BAR_GREEN : CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false, a, c, rowIdx >= items.length - 2, c.realEndDate)}
 
                               {/* Cycle note */}
                               {(() => {
