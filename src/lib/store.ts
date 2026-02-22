@@ -151,6 +151,14 @@ const defaultAppState: AppState = {
   activeTabId: 'finanzas',
 };
 
+// Build lookup of default cycles by atencion code for migration
+const defaultCyclesByCode = new Map<string, Atencion['cycles']>();
+defaultDashboard.atenciones.forEach(a => {
+  if (a.cycles && a.cycles.length > 0) {
+    defaultCyclesByCode.set(a.code, a.cycles);
+  }
+});
+
 export function loadAppState(): AppState {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -163,17 +171,24 @@ export function loadAppState(): AppState {
           state: {
             ...tab.state,
             tags: DEFAULT_TAGS,
-            // Migrate old cycle delayEndDate → realEndDate
-            atenciones: (tab.state.atenciones ?? []).map(a => ({
-              ...a,
-              cycles: (a.cycles ?? []).map((c: any) => {
+            atenciones: (tab.state.atenciones ?? []).map(a => {
+              // Migrate old cycle delayEndDate → realEndDate
+              let cycles = (a.cycles ?? []).map((c: any) => {
                 if (c.delayEndDate && !c.realEndDate) {
                   const { delayEndDate, ...rest } = c;
                   return { ...rest, realEndDate: delayEndDate };
                 }
                 return c;
-              }),
-            })),
+              });
+              // If no cycles, inject defaults by matching code
+              if (cycles.length === 0) {
+                const defaultCycles = defaultCyclesByCode.get(a.code);
+                if (defaultCycles) {
+                  cycles = defaultCycles;
+                }
+              }
+              return { ...a, cycles };
+            }),
           },
         })),
       };
