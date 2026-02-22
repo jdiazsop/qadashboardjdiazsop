@@ -160,7 +160,21 @@ export function loadAppState(): AppState {
         ...parsed,
         tabs: parsed.tabs.map(tab => ({
           ...tab,
-          state: { ...tab.state, tags: DEFAULT_TAGS },
+          state: {
+            ...tab.state,
+            tags: DEFAULT_TAGS,
+            // Migrate old cycle delayEndDate → realEndDate
+            atenciones: (tab.state.atenciones ?? []).map(a => ({
+              ...a,
+              cycles: (a.cycles ?? []).map((c: any) => {
+                if (c.delayEndDate && !c.realEndDate) {
+                  const { delayEndDate, ...rest } = c;
+                  return { ...rest, realEndDate: delayEndDate };
+                }
+                return c;
+              }),
+            })),
+          },
         })),
       };
     }
