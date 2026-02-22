@@ -1,6 +1,6 @@
 import { Atencion, KanbanColumn, CriticalItem, NoteItem, DEFAULT_TAGS, Tag, CHECKLIST_ITEMS } from '@/types/qa';
 
-const STORAGE_KEY = 'qa-dashboard-v2';
+const STORAGE_KEY = 'qa-dashboard-v3';
 
 export interface DashboardState {
   columns: KanbanColumn[];
@@ -10,7 +10,18 @@ export interface DashboardState {
   tags: Tag[];
 }
 
-const defaultState: DashboardState = {
+export interface ProjectTab {
+  id: string;
+  name: string;
+  state: DashboardState;
+}
+
+export interface AppState {
+  tabs: ProjectTab[];
+  activeTabId: string;
+}
+
+const defaultDashboard: DashboardState = {
   columns: [
     { id: 'remaining', title: 'Remaining' },
     { id: 'munoz', title: 'Muñoz' },
@@ -20,17 +31,17 @@ const defaultState: DashboardState = {
     { id: 'completado', title: 'Completado (UAT + Rend + EH)' },
   ],
   atenciones: [
-    { id: '1', code: 'RQ2024-889', tags: ['calidad'], progress: 100, columnId: 'morales', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-01-26', endDate: '2026-02-10', delayEndDate: '2026-02-17', delayLabel: 'Atrasos Dev - C4', timelineNote: 'Termino UAT, falta regularizar docs' },
-    { id: '2', code: 'RQ2024-887', tags: ['desarrollo'], progress: 100, columnId: 'munoz', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-01-27', endDate: '2026-02-14', delayEndDate: '2026-02-19', delayLabel: 'Atraso Entrega Dev', timelineNote: 'A la espera de desarrollo para iniciar C4' },
-    { id: '3', code: 'RQ2024-960', tags: ['desarrollo'], progress: 100, columnId: 'morales', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-10', endDate: '2026-02-28', timelineNote: 'A la espera que dev entregue para iniciar C1' },
-    { id: '4', code: 'RQ2024-961', tags: ['desarrollo'], progress: 100, columnId: 'munoz', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-01-20', endDate: '2026-02-17', delayEndDate: '2026-02-20', delayLabel: 'Atrasos Dev - C2', timelineNote: 'A la espera que dev entregue para iniciar C1' },
-    { id: '5', code: 'RQ2024-962', tags: ['calidad'], progress: 100, columnId: 'morales', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-05', endDate: '2026-02-28', timelineNote: 'En ejecución de pruebas - C1 (Soporte Oscco)' },
-    { id: '6', code: 'RQ2026-4', tags: ['desarrollo'], progress: 100, columnId: 'ortiz', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-01-27', endDate: '2026-02-17', delayEndDate: '2026-02-24', delayLabel: 'Atrasos Dev - C2', timelineNote: 'A la espera que dev entregue para iniciar C2' },
-    { id: '7', code: 'RQ2026-7', tags: ['calidad'], progress: 100, columnId: 'ortiz', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-10', endDate: '2026-02-28' },
-    { id: '8', code: 'RQ2025-914', tags: ['calidad'], progress: 100, columnId: 'remaining', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-10', endDate: '2026-02-28' },
-    { id: '9', code: 'RQ2025-982', tags: ['calidad'], progress: 100, columnId: 'remaining', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-17', endDate: '2026-03-20' },
-    { id: '10', code: 'RQ2026-34', tags: ['desarrollo'], progress: 100, columnId: 'remaining', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-23', endDate: '2026-03-10' },
-    { id: '11', code: 'RQ2026-2', tags: ['desarrollo'], progress: 100, columnId: 'remaining', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-25', endDate: '2026-03-12' },
+    { id: '1', code: 'RQ2024-889', tags: ['calidad'], progress: 100, columnId: 'morales', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-01-26', endDate: '2026-02-10', delayEndDate: '2026-02-17', delayLabel: 'Atrasos Dev - C4', timelineNote: 'Termino UAT, falta regularizar docs', sortOrder: 1 },
+    { id: '2', code: 'RQ2024-887', tags: ['desarrollo'], progress: 100, columnId: 'munoz', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-01-27', endDate: '2026-02-14', delayEndDate: '2026-02-19', delayLabel: 'Atraso Entrega Dev', timelineNote: 'A la espera de desarrollo para iniciar C4', sortOrder: 2 },
+    { id: '3', code: 'RQ2024-960', tags: ['desarrollo'], progress: 100, columnId: 'morales', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-10', endDate: '2026-02-28', timelineNote: 'A la espera que dev entregue para iniciar C1', sortOrder: 3 },
+    { id: '4', code: 'RQ2024-961', tags: ['desarrollo'], progress: 100, columnId: 'munoz', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-01-20', endDate: '2026-02-17', delayEndDate: '2026-02-20', delayLabel: 'Atrasos Dev - C2', timelineNote: 'A la espera que dev entregue para iniciar C1', sortOrder: 0 },
+    { id: '5', code: 'RQ2024-962', tags: ['calidad'], progress: 100, columnId: 'morales', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-05', endDate: '2026-02-28', timelineNote: 'En ejecución de pruebas - C1 (Soporte Oscco)', sortOrder: 4 },
+    { id: '6', code: 'RQ2026-4', tags: ['desarrollo'], progress: 100, columnId: 'ortiz', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-01-27', endDate: '2026-02-17', delayEndDate: '2026-02-24', delayLabel: 'Atrasos Dev - C2', timelineNote: 'A la espera que dev entregue para iniciar C2', sortOrder: 5 },
+    { id: '7', code: 'RQ2026-7', tags: ['calidad'], progress: 100, columnId: 'ortiz', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-10', endDate: '2026-02-28', sortOrder: 6 },
+    { id: '8', code: 'RQ2026-914', tags: ['calidad'], progress: 100, columnId: 'remaining', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-10', endDate: '2026-02-28', sortOrder: 7 },
+    { id: '9', code: 'RQ2026-982', tags: ['calidad'], progress: 100, columnId: 'remaining', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-17', endDate: '2026-03-20', sortOrder: 8 },
+    { id: '10', code: 'RQ2026-34', tags: ['desarrollo'], progress: 100, columnId: 'remaining', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-23', endDate: '2026-03-10', sortOrder: 9 },
+    { id: '11', code: 'RQ2026-2', tags: ['desarrollo'], progress: 100, columnId: 'remaining', checklist: CHECKLIST_ITEMS.map(() => false), comments: '', startDate: '2026-02-25', endDate: '2026-03-12', sortOrder: 10 },
   ],
   criticalItems: [
     { id: '1', text: 'DL: Culminar la generación de data, 65%, Morales', done: false },
@@ -45,14 +56,32 @@ const defaultState: DashboardState = {
   tags: DEFAULT_TAGS,
 };
 
-export function loadState(): DashboardState {
+const defaultAppState: AppState = {
+  tabs: [
+    { id: 'finanzas', name: 'BC Finanzas', state: defaultDashboard },
+  ],
+  activeTabId: 'finanzas',
+};
+
+export function loadAppState(): AppState {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) return JSON.parse(saved);
   } catch {}
-  return defaultState;
+  return defaultAppState;
 }
 
-export function saveState(state: DashboardState) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+export function saveAppState(appState: AppState) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+}
+
+// Legacy compat
+export function loadState(): DashboardState {
+  const app = loadAppState();
+  const tab = app.tabs.find(t => t.id === app.activeTabId);
+  return tab?.state ?? defaultDashboard;
+}
+
+export function saveState(_state: DashboardState) {
+  // no-op, handled by AppState now
 }

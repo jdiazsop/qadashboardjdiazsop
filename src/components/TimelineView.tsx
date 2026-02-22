@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Atencion, Tag, CHECKLIST_ITEMS } from '@/types/qa';
+import { Atencion, Tag, KanbanColumn, CHECKLIST_ITEMS } from '@/types/qa';
 import { TagBadge } from './TagBadge';
-import { Plus, Pencil, Check, X } from 'lucide-react';
+import { Plus, Pencil, Check, X, Eye, EyeOff, GripVertical } from 'lucide-react';
 import {
   format,
   eachDayOfInterval,
@@ -14,24 +14,31 @@ import { es } from 'date-fns/locale';
 interface Props {
   atenciones: Atencion[];
   tags: Tag[];
+  columns: KanbanColumn[];
   onUpdateAtencion: (a: Atencion) => void;
   onAddAtencion: (a: Atencion) => void;
+  onReorderAtenciones: (atenciones: Atencion[]) => void;
 }
 
-// Bar colors: blue = in progress, green = completed (kanban column "completado"), red = delay
 const BAR_BLUE = '#2563EB';
 const BAR_GREEN = '#16A34A';
 const DELAY_RED = '#DC2626';
 
-function getBarColor(a: Atencion): string {
-  // If the atencion is in a "completado" column, show green
-  return a.columnId.toLowerCase().includes('completado') ? BAR_GREEN : BAR_BLUE;
+function isCompleted(a: Atencion): boolean {
+  return a.columnId.toLowerCase().includes('completado');
 }
 
-function getPrimaryTagLabel(a: Atencion, tags: Tag[]): string {
-  if (a.tags.length === 0) return '';
-  const t = tags.find(x => x.id === a.tags[0]);
-  return t ? t.label : a.tags[0];
+function getBarColor(a: Atencion): string {
+  return isCompleted(a) ? BAR_GREEN : BAR_BLUE;
+}
+
+/** Get only "tipo" tags (SAP, CORE, DL, Rend) for bar label — exclude estado tags */
+function getTypeTagLabel(a: Atencion, tags: Tag[]): string {
+  const typeTags = tags.filter(t => a.tags.includes(t.id) && t.kind === 'tipo');
+  if (typeTags.length > 0) return typeTags.map(t => t.label).join(', ');
+  // Fallback: show first tag label if all are estado
+  const firstTag = tags.find(t => a.tags.includes(t.id));
+  return firstTag ? firstTag.label : '';
 }
 
 const LABEL_W = 280;
@@ -42,7 +49,7 @@ const BAR_TOP = (ROW_H - BAR_H) / 2;
 const HEADER_H = 24;
 const DAY_HEADER_H = 28;
 
-export function TimelineView({ atenciones, tags, onUpdateAtencion, onAddAtencion }: Props) {
+export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAddAtencion, onReorderAtenciones }: Props) {
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const [chartAreaWidth, setChartAreaWidth] = useState(0);
 
@@ -51,6 +58,8 @@ export function TimelineView({ atenciones, tags, onUpdateAtencion, onAddAtencion
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingDelayLabelId, setEditingDelayLabelId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [hideCompleted, setHideCompleted] = useState(false);
+  const [dragRowId, setDragRowId] = useState<string | null>(null);
   const [newItem, setNewItem] = useState({
     code: '', startDate: '', endDate: '',
     delayEndDate: '', delayLabel: '', timelineNote: '',
@@ -66,9 +75,17 @@ export function TimelineView({ atenciones, tags, onUpdateAtencion, onAddAtencion
     return () => ro.disconnect();
   }, []);
 
-  const items = atenciones
+  // Sort: by sortOrder, then completed items go to end
+  const allItems = atenciones
     .filter(a => a.startDate && a.endDate)
-    .sort((a, b) => (a.startDate! > b.startDate! ? 1 : -1));
+    .sort((a, b) => {
+      const aComp = isCompleted(a) ? 1 : 0;
+      const bComp = isCompleted(b) ? 1 : 0;
+      if (aComp !== bComp) return aComp - bComp;
+      return (a.sortOrder ?? 999) - (b.sortOrder ?? 999);
+    });
+
+  const items = hideCompleted ? allItems.filter(a => !isCompleted(a)) : allItems;
 
   const allDates: Date[] = [];
   items.forEach(a => {
@@ -151,6 +168,35 @@ export function TimelineView({ atenciones, tags, onUpdateAtencion, onAddAtencion
     setShowAdd(false);
   };
 
+  // Drag reorder rows
+  const handleRowDragStart = (e: React.DragEvent, id: string) => {
+    setDragRowId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleRowDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!dragRowId || dragRowId === targetId) return;
+
+    const currentOrder = [...items];
+    const dragIdx = currentOrder.findIndex(a => a.id === dragRowId);
+    const targetIdx = currentOrder.findIndex(a => a.id === targetId);
+    if (dragIdx < 0 || targetIdx < 0) return;
+
+    const [moved] = currentOrder.splice(dragIdx, 1);
+    currentOrder.splice(targetIdx, 0, moved);
+
+    // Re-assign sortOrder
+    const updated = atenciones.map(a => {
+      const newIdx = currentOrder.findIndex(x => x.id === a.id);
+      if (newIdx >= 0) return { ...a, sortOrder: newIdx };
+      return a;
+    });
+
+    onReorderAtenciones(updated);
+    setDragRowId(null);
+  };
+
   if (allDates.length === 0 && !showAdd) {
     return (
       <div className="text-center text-muted-foreground py-10 text-sm space-y-3">
@@ -164,11 +210,12 @@ export function TimelineView({ atenciones, tags, onUpdateAtencion, onAddAtencion
   }
 
   const todayIdx = differenceInCalendarDays(today, rangeStart);
+  const completedCount = allItems.filter(a => isCompleted(a)).length;
 
   return (
     <div className="space-y-3 h-full flex flex-col">
-      {/* Toolbar - simplified legend */}
-      <div className="flex items-center justify-between shrink-0">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between shrink-0 flex-wrap gap-2">
         <div className="flex items-center gap-4 flex-wrap">
           <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <span className="inline-block w-5 h-2.5 rounded-sm" style={{ background: BAR_BLUE }} />
@@ -183,10 +230,21 @@ export function TimelineView({ atenciones, tags, onUpdateAtencion, onAddAtencion
             Atraso
           </span>
         </div>
-        <button onClick={() => setShowAdd(v => !v)}
-          className="bg-primary text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded hover:bg-primary/90 inline-flex items-center gap-1.5 shrink-0">
-          <Plus className="w-3.5 h-3.5" /> Agregar
-        </button>
+        <div className="flex items-center gap-2">
+          {completedCount > 0 && (
+            <button
+              onClick={() => setHideCompleted(v => !v)}
+              className="text-muted-foreground hover:text-foreground text-[10px] inline-flex items-center gap-1 transition-colors"
+            >
+              {hideCompleted ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+              {hideCompleted ? 'Mostrar' : 'Ocultar'} completados ({completedCount})
+            </button>
+          )}
+          <button onClick={() => setShowAdd(v => !v)}
+            className="bg-primary text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded hover:bg-primary/90 inline-flex items-center gap-1.5 shrink-0">
+            <Plus className="w-3.5 h-3.5" /> Agregar
+          </button>
+        </div>
       </div>
 
       {/* Add form */}
@@ -239,7 +297,7 @@ export function TimelineView({ atenciones, tags, onUpdateAtencion, onAddAtencion
         <div className="overflow-x-auto h-full">
           <div className="flex h-full" style={{ minWidth: LABEL_W + totalDays * MIN_COL_W }}>
 
-            {/* Left label column with tags */}
+            {/* Left label column */}
             <div style={{ width: LABEL_W, minWidth: LABEL_W }} className="flex flex-col border-r border-border bg-surface-1 shrink-0 z-10">
               <div style={{ height: HEADER_H }} className="border-b border-border" />
               <div style={{ height: DAY_HEADER_H }} className="flex items-center px-3 border-b border-border">
@@ -251,12 +309,18 @@ export function TimelineView({ atenciones, tags, onUpdateAtencion, onAddAtencion
                 const isEditing = editingId === a.id;
                 const atencionTags = tags.filter(t => a.tags.includes(t.id));
                 const isOdd = i % 2 === 0;
+                const completed = isCompleted(a);
                 return (
                   <div key={a.id}>
                     <div
+                      draggable
+                      onDragStart={e => handleRowDragStart(e, a.id)}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => handleRowDrop(e, a.id)}
                       style={{ height: ROW_H }}
-                      className={`flex items-center gap-1.5 px-2 border-b border-border/40 group ${isOdd ? 'bg-surface-0' : 'bg-surface-1/40'}`}
+                      className={`flex items-center gap-1 px-1.5 border-b border-border/40 group cursor-grab ${isOdd ? 'bg-surface-0' : 'bg-surface-1/40'} ${completed ? 'opacity-60' : ''}`}
                     >
+                      <GripVertical className="w-3 h-3 text-muted-foreground/30 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                       <div className="flex flex-col min-w-0 flex-1 gap-0.5">
                         <span className="text-[11px] font-mono font-semibold text-foreground truncate leading-tight">
                           {a.code}
@@ -352,7 +416,7 @@ export function TimelineView({ atenciones, tags, onUpdateAtencion, onAddAtencion
 
               {/* Chart rows */}
               <div className="flex-1 overflow-hidden relative">
-                {/* Today vertical line */}
+                {/* Today line */}
                 {todayIdx >= 0 && todayIdx < totalDays && (
                   <div
                     className="absolute top-0 bottom-0 border-l-2 border-destructive/60 z-20 pointer-events-none"
@@ -365,7 +429,8 @@ export function TimelineView({ atenciones, tags, onUpdateAtencion, onAddAtencion
                 {items.map((a, rowIdx) => {
                   const barColor = getBarColor(a);
                   const isOdd = rowIdx % 2 === 0;
-                  const tagLabel = getPrimaryTagLabel(a, tags);
+                  const tagLabel = getTypeTagLabel(a, tags);
+                  const completed = isCompleted(a);
 
                   const startIdx = differenceInCalendarDays(parseISO(a.startDate!), rangeStart);
                   const endIdx = differenceInCalendarDays(parseISO(a.endDate!), rangeStart);
@@ -385,7 +450,7 @@ export function TimelineView({ atenciones, tags, onUpdateAtencion, onAddAtencion
                   return (
                     <div key={a.id}
                       style={{ height: ROW_H, position: 'relative' }}
-                      className={`border-b border-border/30 ${isOdd ? 'bg-surface-0' : 'bg-surface-1/40'}`}
+                      className={`border-b border-border/30 ${isOdd ? 'bg-surface-0' : 'bg-surface-1/40'} ${completed ? 'opacity-60' : ''}`}
                     >
                       {/* Day grid lines */}
                       {days.map((d, i) => {
@@ -398,7 +463,7 @@ export function TimelineView({ atenciones, tags, onUpdateAtencion, onAddAtencion
                         );
                       })}
 
-                      {/* Planned bar - blue or green */}
+                      {/* Planned bar */}
                       <div
                         className="absolute flex items-center overflow-hidden"
                         style={{
@@ -417,7 +482,7 @@ export function TimelineView({ atenciones, tags, onUpdateAtencion, onAddAtencion
                         </span>
                       </div>
 
-                      {/* Delay bar - RED */}
+                      {/* Delay bar */}
                       {delayWidth > 0 && (
                         <div
                           className="absolute flex items-center overflow-hidden cursor-pointer"
