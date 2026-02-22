@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Atencion, Tag, KanbanColumn, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles } from '@/types/qa';
 import { TagBadge } from './TagBadge';
-import { Plus, Pencil, Check, X, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, MapPin } from 'lucide-react';
+import { Plus, Pencil, Check, X, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, MapPin, Trash2 } from 'lucide-react';
 import {
   format,
   eachDayOfInterval,
@@ -169,6 +169,12 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     setEditingCycleId(null);
   };
   const cancelEditCycle = () => setEditingCycleId(null);
+  const deleteCycleFromTimeline = (atencion: Atencion, cycleId: string) => {
+    const newCycles = (atencion.cycles ?? []).filter(c => c.id !== cycleId);
+    const computed = computeDatesFromCycles(newCycles);
+    onUpdateAtencion({ ...atencion, cycles: newCycles, startDate: computed.startDate || atencion.startDate, endDate: computed.endDate || atencion.endDate });
+    setEditingCycleId(null);
+  };
 
   const saveNote = (a: Atencion, val: string) => {
     onUpdateAtencion({ ...a, timelineNote: val });
@@ -570,6 +576,9 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                                 <>
                                   <button onClick={() => saveEditCycle(a, c.id)} className="text-green-500 hover:text-green-400 p-0.5"><Check className="w-3 h-3" /></button>
                                   <button onClick={cancelEditCycle} className="text-muted-foreground hover:text-destructive p-0.5"><X className="w-3 h-3" /></button>
+                                  <button onClick={() => deleteCycleFromTimeline(a, c.id)} className="text-muted-foreground hover:text-destructive p-0.5" title="Eliminar ciclo">
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
                                 </>
                               ) : (
                                 <button onClick={() => startEditCycle(c)}
