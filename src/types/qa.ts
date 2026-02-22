@@ -38,6 +38,7 @@ export interface TestCycle {
   delayEndDate?: string;
   realStartDate?: string;
   delayLabel?: string;
+  note?: string;
 }
 
 export interface Atencion {
