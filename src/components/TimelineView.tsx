@@ -312,6 +312,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     isMainRow: boolean,
     atencionForEdit?: Atencion,
     cycleForEdit?: TestCycle,
+    tooltipAbove?: boolean,
   ) {
     if (!startDate || !endDate) return null;
     const startIdx = differenceInCalendarDays(parseISO(startDate), rangeStart);
@@ -449,12 +450,13 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                   </div>
                   {/* Tooltip below on hover - always visible for full text */}
                   <div
-                    className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover:block z-50 pointer-events-none"
+                    className={`absolute left-1/2 -translate-x-1/2 hidden group-hover:block z-50 pointer-events-none ${tooltipAbove ? 'bottom-full mb-1' : 'top-full mt-1'}`}
                   >
-                    <div className="w-2 h-2 bg-popover border-t border-l rotate-45 absolute left-1/2 -translate-x-1/2 -top-1" />
+                    {tooltipAbove ? null : <div className="w-2 h-2 bg-popover border-t border-l rotate-45 absolute left-1/2 -translate-x-1/2 -top-1" />}
                     <div className="bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded shadow-md border whitespace-nowrap">
                       {displayLabel}
                     </div>
+                    {tooltipAbove ? <div className="w-2 h-2 bg-popover border-b border-r rotate-45 absolute left-1/2 -translate-x-1/2 -bottom-1" /> : null}
                   </div>
                 </>
               ) : null}
@@ -840,7 +842,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                           );
                         })}
 
-                        {renderBar(a.startDate, a.endDate, a.delayEndDate, a.realStartDate, barColor, BAR_H, BAR_TOP, a.code, a.delayLabel, true, a)}
+                        {renderBar(a.startDate, a.endDate, a.delayEndDate, a.realStartDate, barColor, BAR_H, BAR_TOP, a.code, a.delayLabel, true, a, undefined, rowIdx >= items.length - 2)}
 
                         {/* Note to the right */}
                         <div
@@ -891,7 +893,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                                 );
                               })}
 
-                              {renderBar(c.startDate, c.endDate, computeCycleDelay(c), c.realStartDate, CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false, a, c)}
+                              {renderBar(c.startDate, c.endDate, computeCycleDelay(c), c.realStartDate, CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false, a, c, rowIdx >= items.length - 2)}
 
                               {/* Cycle note */}
                               {(() => {
