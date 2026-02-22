@@ -387,57 +387,73 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
         </div>
 
         {/* Delay bar */}
-        {delayWidth > 0 && (
-          <div
-            className="absolute flex items-center overflow-hidden cursor-pointer"
-            style={{
-              left: plannedLeft + plannedWidth,
-              top: barTop,
-              height: barH,
-              width: delayWidth,
-              background: isMainRow ? DELAY_RED : CYCLE_DELAY,
-              borderRadius: '0 4px 4px 0',
-              paddingLeft: 3,
-              paddingRight: 3,
-            }}
-            onDoubleClick={() => {
-              if (isMainRow && atencionForEdit) setEditingDelayLabelId(atencionForEdit.id);
-              if (!isMainRow && cycleForEdit && atencionForEdit) setEditingCycleDelayId(cycleForEdit.id);
-            }}
-          >
-            {isMainRow && atencionForEdit && editingDelayLabelId === atencionForEdit.id ? (
-              <input
-                autoFocus
-                defaultValue={atencionForEdit.delayLabel ?? ''}
-                onBlur={e => saveDelayLabel(atencionForEdit, e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') saveDelayLabel(atencionForEdit, (e.target as HTMLInputElement).value);
-                  if (e.key === 'Escape') setEditingDelayLabelId(null);
-                }}
-                className="w-full bg-transparent border-none outline-none text-[10px] font-semibold text-white placeholder:text-white/60"
-                placeholder="Texto atraso"
-                onClick={e => e.stopPropagation()}
-              />
-            ) : !isMainRow && cycleForEdit && atencionForEdit && editingCycleDelayId === cycleForEdit.id ? (
-              <input
-                autoFocus
-                defaultValue={cycleForEdit.delayLabel ?? ''}
-                onBlur={e => saveCycleDelayLabel(atencionForEdit, cycleForEdit.id, e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') saveCycleDelayLabel(atencionForEdit, cycleForEdit.id, (e.target as HTMLInputElement).value);
-                  if (e.key === 'Escape') setEditingCycleDelayId(null);
-                }}
-                className="w-full bg-transparent border-none outline-none text-[8px] font-semibold text-white placeholder:text-white/60"
-                placeholder="Texto atraso"
-                onClick={e => e.stopPropagation()}
-              />
-            ) : (
-              <span className="text-[10px] font-semibold truncate leading-none text-white" style={{ fontSize: isMainRow ? 10 : 8 }}>
-                {delayLabel || ''}
-              </span>
-            )}
-          </div>
-        )}
+        {delayWidth > 0 && (() => {
+          const isEditingMain = isMainRow && atencionForEdit && editingDelayLabelId === atencionForEdit.id;
+          const isEditingCycle = !isMainRow && cycleForEdit && atencionForEdit && editingCycleDelayId === cycleForEdit.id;
+          const isEditing = isEditingMain || isEditingCycle;
+          const displayLabel = delayLabel || '';
+
+          return (
+            <div
+              className="absolute group cursor-pointer"
+              style={{
+                left: plannedLeft + plannedWidth,
+                top: barTop,
+                height: barH,
+                width: delayWidth,
+                background: isMainRow ? DELAY_RED : CYCLE_DELAY,
+                borderRadius: '0 4px 4px 0',
+              }}
+              onDoubleClick={() => {
+                if (isMainRow && atencionForEdit) setEditingDelayLabelId(atencionForEdit.id);
+                if (!isMainRow && cycleForEdit && atencionForEdit) setEditingCycleDelayId(cycleForEdit.id);
+              }}
+            >
+              {isEditing ? (
+                <div className="absolute inset-0 flex items-center px-1">
+                  {isEditingMain && atencionForEdit ? (
+                    <input
+                      autoFocus
+                      defaultValue={atencionForEdit.delayLabel ?? ''}
+                      onBlur={e => saveDelayLabel(atencionForEdit, e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') saveDelayLabel(atencionForEdit, (e.target as HTMLInputElement).value);
+                        if (e.key === 'Escape') setEditingDelayLabelId(null);
+                      }}
+                      className="w-full bg-transparent border-none outline-none text-[10px] font-semibold text-white placeholder:text-white/60"
+                      placeholder="Texto atraso"
+                      onClick={e => e.stopPropagation()}
+                    />
+                  ) : cycleForEdit && atencionForEdit ? (
+                    <input
+                      autoFocus
+                      defaultValue={cycleForEdit.delayLabel ?? ''}
+                      onBlur={e => saveCycleDelayLabel(atencionForEdit, cycleForEdit.id, e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') saveCycleDelayLabel(atencionForEdit, cycleForEdit.id, (e.target as HTMLInputElement).value);
+                        if (e.key === 'Escape') setEditingCycleDelayId(null);
+                      }}
+                      className="w-full bg-transparent border-none outline-none text-[8px] font-semibold text-white placeholder:text-white/60"
+                      placeholder="Texto atraso"
+                      onClick={e => e.stopPropagation()}
+                    />
+                  ) : null}
+                </div>
+              ) : displayLabel ? (
+                <div
+                  className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block z-50 pointer-events-none"
+                >
+                  <div className="bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded shadow-md border whitespace-nowrap max-w-[200px] break-words"
+                    style={{ whiteSpace: 'normal' }}
+                  >
+                    {displayLabel}
+                  </div>
+                  <div className="w-2 h-2 bg-popover border-b border-r rotate-45 absolute left-1/2 -translate-x-1/2 -bottom-1" />
+                </div>
+              ) : null}
+            </div>
+          );
+        })()}
       </>
     );
   }
