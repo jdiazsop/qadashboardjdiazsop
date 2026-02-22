@@ -188,14 +188,16 @@ const Index = () => {
       {/* Content */}
       <div className="flex-1 p-4 md:p-6 space-y-6">
         {/* Tag Manager */}
-        <TagManager
-          tags={state.tags}
-          onUpdateTags={(tags: Tag[]) => updateTabState(s => ({ ...s, tags }))}
-        />
-        <ChecklistManager
-          phases={state.checklistPhases ?? DEFAULT_CHECKLIST_PHASES}
-          onUpdatePhases={(checklistPhases: ChecklistPhase[]) => updateTabState(s => ({ ...s, checklistPhases }))}
-        />
+        <div className="flex items-center gap-4">
+          <TagManager
+            tags={state.tags}
+            onUpdateTags={(tags: Tag[]) => updateTabState(s => ({ ...s, tags }))}
+          />
+          <ChecklistManager
+            phases={state.checklistPhases ?? DEFAULT_CHECKLIST_PHASES}
+            onUpdatePhases={(checklistPhases: ChecklistPhase[]) => updateTabState(s => ({ ...s, checklistPhases }))}
+          />
+        </div>
 
         {/* Kanban Section */}
         <section>
