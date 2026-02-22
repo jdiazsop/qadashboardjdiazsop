@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Atencion, Tag, KanbanColumn, CHECKLIST_ITEMS, TestCycle } from '@/types/qa';
+import { Atencion, Tag, KanbanColumn, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles } from '@/types/qa';
 import { TagBadge } from './TagBadge';
 import { Plus, Pencil, Check, X, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, MapPin } from 'lucide-react';
 import {
@@ -58,6 +58,8 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
   const [hideCompleted, setHideCompleted] = useState(false);
   const [dragRowId, setDragRowId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [editingCycleId, setEditingCycleId] = useState<string | null>(null);
+  const [editCycleData, setEditCycleData] = useState<Partial<TestCycle>>({});
   const [newItem, setNewItem] = useState({
     code: '', startDate: '', endDate: '',
     delayEndDate: '', delayLabel: '', timelineNote: '',
@@ -147,6 +149,26 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     setEditingId(null);
   };
   const cancelEdit = () => setEditingId(null);
+
+  const startEditCycle = (cycle: TestCycle) => {
+    setEditingCycleId(cycle.id);
+    setEditCycleData({
+      startDate: cycle.startDate ?? '',
+      endDate: cycle.endDate ?? '',
+      realStartDate: cycle.realStartDate ?? '',
+      delayEndDate: cycle.delayEndDate ?? '',
+      delayLabel: cycle.delayLabel ?? '',
+    });
+  };
+  const saveEditCycle = (atencion: Atencion, cycleId: string) => {
+    const newCycles = (atencion.cycles ?? []).map(c =>
+      c.id === cycleId ? { ...c, ...editCycleData } : c
+    );
+    const computed = computeDatesFromCycles(newCycles);
+    onUpdateAtencion({ ...atencion, cycles: newCycles, startDate: computed.startDate || atencion.startDate, endDate: computed.endDate || atencion.endDate });
+    setEditingCycleId(null);
+  };
+  const cancelEditCycle = () => setEditingCycleId(null);
 
   const saveNote = (a: Atencion, val: string) => {
     onUpdateAtencion({ ...a, timelineNote: val });
@@ -535,13 +557,63 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                       </div>
                     )}
                     {/* Cycle sub-rows in left column */}
-                    {isExpanded && cycles.map(c => (
-                      <div key={c.id} style={{ height: SUB_ROW_H }}
-                        className="flex items-center gap-1 pl-8 pr-1.5 border-b border-border/20 bg-surface-2/30">
-                        <span className="text-[9px] font-mono text-muted-foreground truncate">{c.label}</span>
-                        {c.realStartDate && <MapPin className="w-2.5 h-2.5 text-amber-500 shrink-0" />}
-                      </div>
-                    ))}
+                    {isExpanded && cycles.map(c => {
+                      const isCycleEditing = editingCycleId === c.id;
+                      return (
+                        <div key={c.id}>
+                          <div style={{ height: SUB_ROW_H }}
+                            className="flex items-center gap-1 pl-8 pr-1.5 border-b border-border/20 bg-surface-2/30 group/cycle">
+                            <span className="text-[9px] font-mono text-muted-foreground truncate flex-1">{c.label}</span>
+                            {c.realStartDate && <MapPin className="w-2.5 h-2.5 text-amber-500 shrink-0" />}
+                            <div className="shrink-0 flex gap-0.5">
+                              {isCycleEditing ? (
+                                <>
+                                  <button onClick={() => saveEditCycle(a, c.id)} className="text-green-500 hover:text-green-400 p-0.5"><Check className="w-3 h-3" /></button>
+                                  <button onClick={cancelEditCycle} className="text-muted-foreground hover:text-destructive p-0.5"><X className="w-3 h-3" /></button>
+                                </>
+                              ) : (
+                                <button onClick={() => startEditCycle(c)}
+                                  className="opacity-0 group-hover/cycle:opacity-100 text-muted-foreground hover:text-primary p-0.5 transition-opacity">
+                                  <Pencil className="w-2.5 h-2.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {isCycleEditing && (
+                            <div className="bg-surface-2/60 border-b border-primary/20 px-2 py-1.5 pl-8 space-y-1">
+                              <div className="grid grid-cols-2 gap-1">
+                                <div>
+                                  <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Inicio Plan</label>
+                                  <input type="date" value={editCycleData.startDate || ''} onChange={e => setEditCycleData(p => ({ ...p, startDate: e.target.value }))}
+                                    className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                                </div>
+                                <div>
+                                  <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Fin Plan</label>
+                                  <input type="date" value={editCycleData.endDate || ''} onChange={e => setEditCycleData(p => ({ ...p, endDate: e.target.value }))}
+                                    className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                                </div>
+                                <div>
+                                  <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Inicio Real</label>
+                                  <input type="date" value={editCycleData.realStartDate || ''} onChange={e => setEditCycleData(p => ({ ...p, realStartDate: e.target.value }))}
+                                    className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                                </div>
+                                <div>
+                                  <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Fin Atraso</label>
+                                  <input type="date" value={editCycleData.delayEndDate || ''} onChange={e => setEditCycleData(p => ({ ...p, delayEndDate: e.target.value }))}
+                                    className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Texto Atraso</label>
+                                <input value={editCycleData.delayLabel || ''} onChange={e => setEditCycleData(p => ({ ...p, delayLabel: e.target.value }))}
+                                  placeholder="Ej: Atrasos Dev"
+                                  className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -663,25 +735,34 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                       </div>
 
                       {/* Cycle sub-rows */}
-                      {isExpanded && cycles.map(c => (
-                        <div key={c.id}
-                          style={{ height: SUB_ROW_H, position: 'relative' }}
-                          className="border-b border-border/20 bg-surface-2/20"
-                        >
-                          {/* Day grid lines */}
-                          {days.map((d, i) => {
-                            const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-                            return (
-                              <div key={i}
-                                className={`absolute top-0 bottom-0 border-r border-border/10 pointer-events-none ${isWeekend ? 'bg-surface-2/5' : ''}`}
-                                style={{ left: i * colWidth, width: colWidth }}
-                              />
-                            );
-                          })}
+                      {isExpanded && cycles.map(c => {
+                        const isCycleEditing = editingCycleId === c.id;
+                        return (
+                          <div key={c.id}>
+                            <div
+                              style={{ height: SUB_ROW_H, position: 'relative' }}
+                              className="border-b border-border/20 bg-surface-2/20"
+                            >
+                              {/* Day grid lines */}
+                              {days.map((d, i) => {
+                                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                                return (
+                                  <div key={i}
+                                    className={`absolute top-0 bottom-0 border-r border-border/10 pointer-events-none ${isWeekend ? 'bg-surface-2/5' : ''}`}
+                                    style={{ left: i * colWidth, width: colWidth }}
+                                  />
+                                );
+                              })}
 
-                          {renderBar(c.startDate, c.endDate, c.delayEndDate, c.realStartDate, CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false)}
-                        </div>
-                      ))}
+                              {renderBar(c.startDate, c.endDate, c.delayEndDate, c.realStartDate, CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false)}
+                            </div>
+                            {/* Spacer to match left-column edit form */}
+                            {isCycleEditing && (
+                              <div className="border-b border-primary/20 bg-surface-2/10" style={{ height: 110 }} />
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}
