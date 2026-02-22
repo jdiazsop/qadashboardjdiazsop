@@ -60,6 +60,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [editingCycleId, setEditingCycleId] = useState<string | null>(null);
   const [editCycleData, setEditCycleData] = useState<Partial<TestCycle>>({});
+  const editCycleDataRef = useRef<Partial<TestCycle>>({});
   const [editingCycleLabelId, setEditingCycleLabelId] = useState<string | null>(null);
   const [editingCycleNoteId, setEditingCycleNoteId] = useState<string | null>(null);
   const [editingCycleDelayId, setEditingCycleDelayId] = useState<string | null>(null);
@@ -256,19 +257,29 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
 
   const startEditCycle = (cycle: TestCycle) => {
     setEditingCycleId(cycle.id);
-     setEditCycleData({
+    const data = {
       startDate: cycle.startDate ?? '',
       endDate: cycle.endDate ?? '',
       realStartDate: cycle.realStartDate ?? '',
       realEndDate: cycle.realEndDate ?? '',
       delayLabel: cycle.delayLabel ?? '',
       note: cycle.note ?? '',
+    };
+    setEditCycleData(data);
+    editCycleDataRef.current = data;
+  };
+  const updateCycleField = (patch: Partial<TestCycle>) => {
+    setEditCycleData(p => {
+      const next = { ...p, ...patch };
+      editCycleDataRef.current = next;
+      return next;
     });
   };
   const saveEditCycle = (atencion: Atencion, cycleId: string) => {
-    // Clean empty strings to undefined so date checks work properly
+    // Use ref to guarantee latest data (avoids stale closure)
+    const data = editCycleDataRef.current;
     const cleanedData: Partial<TestCycle> = {};
-    for (const [key, val] of Object.entries(editCycleData)) {
+    for (const [key, val] of Object.entries(data)) {
       (cleanedData as any)[key] = val === '' ? undefined : val;
     }
     const newCycles = (atencion.cycles ?? []).map(c =>
@@ -870,34 +881,34 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                               <div className="grid grid-cols-2 gap-1">
                                 <div>
                                   <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Inicio Plan</label>
-                                  <input type="date" value={editCycleData.startDate || ''} onChange={e => setEditCycleData(p => ({ ...p, startDate: e.target.value }))}
+                                  <input type="date" value={editCycleData.startDate || ''} onChange={e => updateCycleField({ startDate: e.target.value })}
                                     className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                                 </div>
                                 <div>
                                   <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Fin Plan</label>
-                                  <input type="date" value={editCycleData.endDate || ''} onChange={e => setEditCycleData(p => ({ ...p, endDate: e.target.value }))}
+                                  <input type="date" value={editCycleData.endDate || ''} onChange={e => updateCycleField({ endDate: e.target.value })}
                                     className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                                 </div>
                                 <div>
                                   <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Inicio Real</label>
-                                  <input type="date" value={editCycleData.realStartDate || ''} onChange={e => setEditCycleData(p => ({ ...p, realStartDate: e.target.value }))}
+                                  <input type="date" value={editCycleData.realStartDate || ''} onChange={e => updateCycleField({ realStartDate: e.target.value })}
                                     className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                                 </div>
                                 <div>
                                   <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Fin Real</label>
-                                  <input type="date" value={editCycleData.realEndDate || ''} onChange={e => setEditCycleData(p => ({ ...p, realEndDate: e.target.value }))}
+                                  <input type="date" value={editCycleData.realEndDate || ''} onChange={e => updateCycleField({ realEndDate: e.target.value })}
                                     className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                                 </div>
                               </div>
                               <div>
                                 <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Texto Atraso</label>
-                                <input value={editCycleData.delayLabel || ''} onChange={e => setEditCycleData(p => ({ ...p, delayLabel: e.target.value }))}
+                                <input value={editCycleData.delayLabel || ''} onChange={e => updateCycleField({ delayLabel: e.target.value })}
                                   placeholder="Ej: Atrasos Dev"
                                   className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                               </div>
                               <div>
                                 <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Nota</label>
-                                <input value={editCycleData.note || ''} onChange={e => setEditCycleData(p => ({ ...p, note: e.target.value }))}
+                                <input value={editCycleData.note || ''} onChange={e => updateCycleField({ note: e.target.value })}
                                   placeholder="Ej: Pendiente entrega dev"
                                   className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                               </div>
