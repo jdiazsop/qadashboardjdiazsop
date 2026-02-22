@@ -144,8 +144,8 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     });
   };
   const saveEdit = (a: Atencion) => {
-    // Only save editable fields (delays, texts, realStartDate) — planned dates are auto-calculated
-    onUpdateAtencion({ ...a, delayEndDate: editData.delayEndDate || undefined, delayLabel: editData.delayLabel || undefined, timelineNote: editData.timelineNote || undefined, realStartDate: editData.realStartDate || undefined });
+    // Only save manual fields — planned dates & delayEndDate are auto-calculated from cycles
+    onUpdateAtencion({ ...a, delayLabel: editData.delayLabel || undefined, timelineNote: editData.timelineNote || undefined, realStartDate: editData.realStartDate || undefined });
     setEditingId(null);
   };
   const cancelEdit = () => setEditingId(null);
@@ -158,6 +158,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       realStartDate: cycle.realStartDate ?? '',
       delayEndDate: cycle.delayEndDate ?? '',
       delayLabel: cycle.delayLabel ?? '',
+      note: cycle.note ?? '',
     });
   };
   const saveEditCycle = (atencion: Atencion, cycleId: string) => {
@@ -165,14 +166,26 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       c.id === cycleId ? { ...c, ...editCycleData } : c
     );
     const computed = computeDatesFromCycles(newCycles);
-    onUpdateAtencion({ ...atencion, cycles: newCycles, startDate: computed.startDate || atencion.startDate, endDate: computed.endDate || atencion.endDate });
+    onUpdateAtencion({
+      ...atencion,
+      cycles: newCycles,
+      startDate: computed.startDate || atencion.startDate,
+      endDate: computed.endDate || atencion.endDate,
+      delayEndDate: computed.delayEndDate || undefined,
+    });
     setEditingCycleId(null);
   };
   const cancelEditCycle = () => setEditingCycleId(null);
   const deleteCycleFromTimeline = (atencion: Atencion, cycleId: string) => {
     const newCycles = (atencion.cycles ?? []).filter(c => c.id !== cycleId);
     const computed = computeDatesFromCycles(newCycles);
-    onUpdateAtencion({ ...atencion, cycles: newCycles, startDate: computed.startDate || atencion.startDate, endDate: computed.endDate || atencion.endDate });
+    onUpdateAtencion({
+      ...atencion,
+      cycles: newCycles,
+      startDate: computed.startDate || atencion.startDate,
+      endDate: computed.endDate || atencion.endDate,
+      delayEndDate: computed.delayEndDate || undefined,
+    });
     setEditingCycleId(null);
   };
 
@@ -544,9 +557,10 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                               className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                           </div>
                           <div>
-                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Atraso</label>
-                            <input type="date" value={editData.delayEndDate || ''} onChange={e => setEditData(p => ({ ...p, delayEndDate: e.target.value }))}
-                              className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Atraso (auto)</label>
+                            <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
+                              {a.delayEndDate || '—'}
+                            </div>
                           </div>
                           <div>
                             <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Texto Atraso</label>
@@ -616,6 +630,12 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                                 <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Texto Atraso</label>
                                 <input value={editCycleData.delayLabel || ''} onChange={e => setEditCycleData(p => ({ ...p, delayLabel: e.target.value }))}
                                   placeholder="Ej: Atrasos Dev"
+                                  className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                              </div>
+                              <div>
+                                <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Nota</label>
+                                <input value={editCycleData.note || ''} onChange={e => setEditCycleData(p => ({ ...p, note: e.target.value }))}
+                                  placeholder="Ej: Pendiente entrega dev"
                                   className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                               </div>
                             </div>
@@ -764,10 +784,29 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                               })}
 
                               {renderBar(c.startDate, c.endDate, c.delayEndDate, c.realStartDate, CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false)}
+
+                              {/* Cycle note */}
+                              {(() => {
+                                if (!c.startDate || !c.endDate) return null;
+                                const cStartIdx = differenceInCalendarDays(parseISO(c.startDate), rangeStart);
+                                const cEndIdx = differenceInCalendarDays(parseISO(c.endDate), rangeStart);
+                                let cBarEnd = cStartIdx * colWidth + Math.max(colWidth, (cEndIdx - cStartIdx + 1) * colWidth);
+                                if (c.delayEndDate) {
+                                  const cDelayIdx = differenceInCalendarDays(parseISO(c.delayEndDate), rangeStart);
+                                  if (cDelayIdx > cEndIdx) cBarEnd += (cDelayIdx - cEndIdx) * colWidth;
+                                }
+                                return (
+                                  <div className="absolute flex items-center" style={{ left: cBarEnd + 4, top: 0, bottom: 0, whiteSpace: 'nowrap' }}>
+                                    <span className="text-[9px] text-muted-foreground truncate">
+                                      {c.note || ''}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
                             </div>
                             {/* Spacer to match left-column edit form */}
                             {isCycleEditing && (
-                              <div className="border-b border-primary/20 bg-surface-2/10" style={{ height: 110 }} />
+                              <div className="border-b border-primary/20 bg-surface-2/10" style={{ height: 130 }} />
                             )}
                           </div>
                         );
