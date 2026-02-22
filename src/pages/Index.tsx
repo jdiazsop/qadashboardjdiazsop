@@ -6,7 +6,14 @@ import { TagManager } from '@/components/TagManager';
 import { ChecklistManager } from '@/components/ChecklistManager';
 import { loadAppState, saveAppState, AppState, DashboardState, ProjectTab } from '@/lib/store';
 import { Atencion, KanbanColumn, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES } from '@/types/qa';
-import { LayoutDashboard, Kanban, GanttChart, Plus, X, Pencil, Check } from 'lucide-react';
+import { LayoutDashboard, Kanban, GanttChart, Plus, Pencil, Settings, Trash2 } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const Index = () => {
   const [appState, setAppState] = useState<AppState>(loadAppState);
@@ -128,6 +135,44 @@ const Index = () => {
         <div>
           <h1 className="text-xl font-bold tracking-tight">QA Dashboard</h1>
         </div>
+
+        {/* Settings dropdown - delete tab hidden here */}
+        {appState.tabs.length > 1 && (
+          <AlertDialog>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="ml-auto p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                  <Settings className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem className="text-destructive focus:text-destructive">
+                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                    Eliminar pestaña "{activeTab.name}"
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar "{activeTab.name}"?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción eliminará permanentemente la pestaña y todos sus datos (tarjetas, timeline, ítems críticos). Esta acción no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => deleteTab(activeTab.id)}
+                >
+                  Sí, eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </header>
 
       {/* Excel-style tabs */}
@@ -164,14 +209,6 @@ const Index = () => {
                   className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary p-0.5 transition-opacity"
                 >
                   <Pencil className="w-2.5 h-2.5" />
-                </button>
-              )}
-              {appState.tabs.length > 1 && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); deleteTab(tab.id); }}
-                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-0.5 transition-opacity"
-                >
-                  <X className="w-2.5 h-2.5" />
                 </button>
               )}
             </div>
