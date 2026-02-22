@@ -247,11 +247,11 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       delayLabel: a.delayLabel ?? '',
       timelineNote: a.timelineNote ?? '',
       realStartDate: a.realStartDate ?? '',
+      productionDate: a.productionDate ?? '',
     });
   };
   const saveEdit = (a: Atencion) => {
-    // Only save manual fields — planned dates & delayEndDate are auto-calculated from cycles
-    onUpdateAtencion({ ...a, delayLabel: editData.delayLabel || undefined, timelineNote: editData.timelineNote || undefined, realStartDate: editData.realStartDate || undefined });
+    onUpdateAtencion({ ...a, delayLabel: editData.delayLabel || undefined, timelineNote: editData.timelineNote || undefined, realStartDate: editData.realStartDate || undefined, productionDate: editData.productionDate || undefined });
     setEditingId(null);
   };
   const cancelEdit = () => setEditingId(null);
@@ -849,6 +849,11 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                           <div>
                             <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Nota derecha</label>
                             <input value={editData.timelineNote || ''} onChange={e => setEditData(p => ({ ...p, timelineNote: e.target.value }))}
+                              className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">🚀 Pase a Producción</label>
+                            <input type="date" value={editData.productionDate || ''} onChange={e => setEditData(p => ({ ...p, productionDate: e.target.value }))}
                               className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                           </div>
                         </div>
