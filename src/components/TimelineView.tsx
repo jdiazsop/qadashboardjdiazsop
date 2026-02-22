@@ -300,7 +300,14 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
   const addCycleToTimeline = (atencion: Atencion) => {
     const cycles = atencion.cycles ?? [];
     const num = cycles.length + 1;
-    const newCycle: TestCycle = { id: Date.now().toString(), label: `C${num}` };
+    // Default: last cycle's endDate+1 or today, span 3 days
+    const lastEnd = [...cycles].reverse().find(c => c.endDate)?.endDate;
+    const baseDate = lastEnd
+      ? new Date(new Date(lastEnd).getTime() + 86400000)
+      : new Date();
+    const endDate = new Date(baseDate.getTime() + 2 * 86400000);
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    const newCycle: TestCycle = { id: Date.now().toString(), label: `C${num}`, startDate: fmt(baseDate), endDate: fmt(endDate) };
     const newCycles = [...cycles, newCycle];
     const computed = computeDatesFromCycles(newCycles);
     onUpdateAtencion({ ...atencion, cycles: newCycles, ...computed });

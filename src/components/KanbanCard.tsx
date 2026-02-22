@@ -23,7 +23,13 @@ export function KanbanCard({ atencion, tags, onUpdate, onDelete }: Props) {
 
   const addCycle = () => {
     const num = cycles.length + 1;
-    const newCycle: TestCycle = { id: Date.now().toString(), label: `C${num}` };
+    const lastEnd = [...cycles].reverse().find(c => c.endDate)?.endDate;
+    const baseDate = lastEnd
+      ? new Date(new Date(lastEnd).getTime() + 86400000)
+      : new Date();
+    const endDate = new Date(baseDate.getTime() + 2 * 86400000);
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    const newCycle: TestCycle = { id: Date.now().toString(), label: `C${num}`, startDate: fmt(baseDate), endDate: fmt(endDate) };
     const newCycles = [...cycles, newCycle];
     const computed = computeDatesFromCycles(newCycles);
     onUpdate({ ...atencion, cycles: newCycles, ...computed });
