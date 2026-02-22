@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Atencion, Tag, KanbanColumn, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
 import { TagBadge } from './TagBadge';
-import { Plus, Pencil, Check, X, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, MapPin, Trash2, CheckCircle2, Circle } from 'lucide-react';
+import { Plus, Pencil, Check, X, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, MapPin, Trash2, CheckCircle2, Circle, Rocket } from 'lucide-react';
 import {
   format,
   eachDayOfInterval,
@@ -145,6 +145,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
   items.forEach(a => {
     allDates.push(parseISO(a.startDate!), parseISO(a.endDate!));
     if (a.delayEndDate) allDates.push(parseISO(a.delayEndDate));
+    if (a.productionDate) allDates.push(parseISO(a.productionDate));
     (a.cycles ?? []).forEach(c => {
       if (c.startDate) allDates.push(parseISO(c.startDate));
       if (c.endDate) allDates.push(parseISO(c.endDate));
@@ -441,6 +442,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     cycleForEdit?: TestCycle,
     tooltipAbove?: boolean,
     realEndDate?: string,
+    productionDate?: string,
   ) {
     if (!startDate || !endDate) return null;
     const startIdx = differenceInCalendarDays(parseISO(startDate), rangeStart);
@@ -514,12 +516,33 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       );
     }
 
+    // Production date marker — dashed line with rocket icon
+    let productionMarker = null;
+    if (productionDate && isMainRow) {
+      const prodIdx = differenceInCalendarDays(parseISO(productionDate), rangeStart);
+      const prodLeft = prodIdx * colWidth + colWidth / 2;
+      productionMarker = (
+        <div
+          className="absolute z-20 flex flex-col items-center"
+          style={{ left: prodLeft - 6, top: barTop - 10 }}
+          title={`Pase a producción: ${productionDate}`}
+        >
+          <Rocket className="text-emerald-400" style={{ width: 12, height: 12 }} />
+          <div
+            className="border-l border-dashed border-emerald-400"
+            style={{ height: barH + 12 }}
+          />
+        </div>
+      );
+    }
+
     const canDrag = !isMainRow && cycleForEdit && atencionForEdit;
 
     return (
       <>
         {realStartMarker}
         {realEndMarker}
+        {productionMarker}
         {/* Planned bar */}
         <div
           className={`absolute flex items-center overflow-hidden ${isDragging ? 'opacity-80 z-30' : ''}`}
@@ -660,6 +683,10 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
           <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <CheckCircle2 className="w-3 h-3 text-white" />
             Fin real
+          </span>
+          <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <Rocket className="w-3 h-3 text-emerald-400" />
+            Producción
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -1025,7 +1052,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                           );
                         })}
 
-                        {renderBar(a.startDate, a.endDate, a.delayEndDate, a.realStartDate, barColor, BAR_H, BAR_TOP, a.code, a.delayLabel, true, a, undefined, rowIdx >= items.length - 2, undefined)}
+                        {renderBar(a.startDate, a.endDate, a.delayEndDate, a.realStartDate, barColor, BAR_H, BAR_TOP, a.code, a.delayLabel, true, a, undefined, rowIdx >= items.length - 2, undefined, a.productionDate)}
 
                         {/* Note to the right */}
                         <div
