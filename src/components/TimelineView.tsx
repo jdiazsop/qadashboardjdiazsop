@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Atencion, Tag, KanbanColumn, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
 import { TagBadge } from './TagBadge';
 import { Plus, Pencil, Check, X, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, MapPin, Trash2 } from 'lucide-react';
@@ -63,6 +63,43 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
   const [editingCycleLabelId, setEditingCycleLabelId] = useState<string | null>(null);
   const [editingCycleNoteId, setEditingCycleNoteId] = useState<string | null>(null);
   const [editingCycleDelayId, setEditingCycleDelayId] = useState<string | null>(null);
+
+  // Drag state for cycle bars
+  type DragMode = 'move' | 'resize-left' | 'resize-right';
+  const dragRef = useRef<{
+    atencionId: string;
+    cycleId: string;
+    mode: DragMode;
+    startX: number;
+    origStartDate: string;
+    origEndDate: string;
+  } | null>(null);
+  const [dragDelta, setDragDelta] = useState(0); // pixels delta during drag
+  const [draggingCycleId, setDraggingCycleId] = useState<string | null>(null);
+
+  const handleCycleBarMouseDown = useCallback((
+    e: React.MouseEvent,
+    atencion: Atencion,
+    cycle: TestCycle,
+    mode: DragMode,
+  ) => {
+    if (!cycle.startDate || !cycle.endDate) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = {
+      atencionId: atencion.id,
+      cycleId: cycle.id,
+      mode,
+      startX: e.clientX,
+      origStartDate: cycle.startDate,
+      origEndDate: cycle.endDate,
+    };
+    setDraggingCycleId(cycle.id);
+    setDragDelta(0);
+  }, []);
+
+  
+
   const [newItem, setNewItem] = useState({
     code: '', startDate: '', endDate: '',
     delayEndDate: '', delayLabel: '', timelineNote: '',
@@ -123,6 +160,64 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
   const colWidth = totalDays > 0 && chartAreaWidth > 0
     ? Math.max(MIN_COL_W, chartAreaWidth / totalDays)
     : 24;
+
+  // Drag effect for cycle bars
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragRef.current) return;
+      setDragDelta(e.clientX - dragRef.current.startX);
+    };
+    const handleMouseUp = () => {
+      if (!dragRef.current) return;
+      const drag = dragRef.current;
+      const daysDelta = Math.round(dragDelta / colWidth);
+      if (daysDelta !== 0) {
+        const atencion = atenciones.find(a => a.id === drag.atencionId);
+        if (atencion) {
+          const origStart = parseISO(drag.origStartDate);
+          const origEnd = parseISO(drag.origEndDate);
+          let newStart: Date, newEnd: Date;
+
+          if (drag.mode === 'move') {
+            newStart = addDays(origStart, daysDelta);
+            newEnd = addDays(origEnd, daysDelta);
+          } else if (drag.mode === 'resize-left') {
+            newStart = addDays(origStart, daysDelta);
+            newEnd = origEnd;
+            if (newStart >= newEnd) newStart = addDays(newEnd, -1);
+          } else {
+            newStart = origStart;
+            newEnd = addDays(origEnd, daysDelta);
+            if (newEnd <= newStart) newEnd = addDays(newStart, 1);
+          }
+
+          const newCycles = (atencion.cycles ?? []).map(c =>
+            c.id === drag.cycleId
+              ? { ...c, startDate: format(newStart, 'yyyy-MM-dd'), endDate: format(newEnd, 'yyyy-MM-dd') }
+              : c
+          );
+          const computed = computeDatesFromCycles(newCycles);
+          onUpdateAtencion({
+            ...atencion,
+            cycles: newCycles,
+            startDate: computed.startDate || atencion.startDate,
+            endDate: computed.endDate || atencion.endDate,
+            delayEndDate: computed.delayEndDate || undefined,
+            delayLabel: computed.delayLabel || undefined,
+          });
+        }
+      }
+      dragRef.current = null;
+      setDraggingCycleId(null);
+      setDragDelta(0);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragDelta, colWidth, atenciones, onUpdateAtencion]);
 
   const today = new Date();
   const todayStr = format(today, 'yyyy-MM-dd');
@@ -320,11 +415,27 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     if (!startDate || !endDate) return null;
     const startIdx = differenceInCalendarDays(parseISO(startDate), rangeStart);
     const endIdx = differenceInCalendarDays(parseISO(endDate), rangeStart);
-    const plannedLeft = startIdx * colWidth;
-    const plannedWidth = Math.max(colWidth, (endIdx - startIdx + 1) * colWidth);
+    let plannedLeft = startIdx * colWidth;
+    let plannedWidth = Math.max(colWidth, (endIdx - startIdx + 1) * colWidth);
+
+    // Apply visual drag offset for cycle bars being dragged
+    const isDragging = !isMainRow && cycleForEdit && draggingCycleId === cycleForEdit.id;
+    if (isDragging && dragRef.current) {
+      const mode = dragRef.current.mode;
+      if (mode === 'move') {
+        plannedLeft += dragDelta;
+      } else if (mode === 'resize-left') {
+        plannedLeft += dragDelta;
+        plannedWidth -= dragDelta;
+        if (plannedWidth < colWidth) plannedWidth = colWidth;
+      } else if (mode === 'resize-right') {
+        plannedWidth += dragDelta;
+        if (plannedWidth < colWidth) plannedWidth = colWidth;
+      }
+    }
 
     let delayWidth = 0;
-    if (delayEndDate) {
+    if (delayEndDate && !isDragging) {
       const delayEndIdx = differenceInCalendarDays(parseISO(delayEndDate), rangeStart);
       if (delayEndIdx > endIdx) {
         delayWidth = (delayEndIdx - endIdx) * colWidth;
@@ -353,7 +464,6 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     if (delayEndDate) {
       const delayEndIdx = differenceInCalendarDays(parseISO(delayEndDate), rangeStart);
       if (delayEndIdx <= endIdx) {
-        // Real end is before planned end - show it within planned bar
         const realEndLeft = delayEndIdx * colWidth + colWidth / 2;
         realEndMarker = (
           <div
@@ -367,13 +477,15 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       }
     }
 
+    const canDrag = !isMainRow && cycleForEdit && atencionForEdit;
+
     return (
       <>
         {realStartMarker}
         {realEndMarker}
         {/* Planned bar */}
         <div
-          className="absolute flex items-center overflow-hidden"
+          className={`absolute flex items-center overflow-hidden ${isDragging ? 'opacity-80 z-30' : ''}`}
           style={{
             left: plannedLeft,
             top: barTop,
@@ -381,13 +493,30 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
             width: plannedWidth,
             background: barColor,
             borderRadius: delayWidth > 0 ? '4px 0 0 4px' : '4px',
-            paddingLeft: 4,
-            paddingRight: 4,
+            paddingLeft: canDrag ? 8 : 4,
+            paddingRight: canDrag ? 8 : 4,
+            cursor: canDrag ? (isDragging ? 'grabbing' : 'grab') : undefined,
+            userSelect: 'none',
           }}
+          onMouseDown={canDrag ? (e) => handleCycleBarMouseDown(e, atencionForEdit!, cycleForEdit!, 'move') : undefined}
         >
+          {/* Left resize handle */}
+          {canDrag && (
+            <div
+              className="absolute left-0 top-0 bottom-0 w-[5px] cursor-col-resize z-10 hover:bg-white/20"
+              onMouseDown={(e) => { e.stopPropagation(); handleCycleBarMouseDown(e, atencionForEdit!, cycleForEdit!, 'resize-left'); }}
+            />
+          )}
           <span className="text-[10px] font-semibold truncate leading-none text-white" style={{ fontSize: isMainRow ? 10 : 8 }}>
             {label}
           </span>
+          {/* Right resize handle */}
+          {canDrag && (
+            <div
+              className="absolute right-0 top-0 bottom-0 w-[5px] cursor-col-resize z-10 hover:bg-white/20"
+              onMouseDown={(e) => { e.stopPropagation(); handleCycleBarMouseDown(e, atencionForEdit!, cycleForEdit!, 'resize-right'); }}
+            />
+          )}
         </div>
 
         {/* Delay bar */}
