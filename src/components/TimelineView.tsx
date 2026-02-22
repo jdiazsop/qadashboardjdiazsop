@@ -176,6 +176,15 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     setEditingCycleId(null);
   };
   const cancelEditCycle = () => setEditingCycleId(null);
+  const addCycleToTimeline = (atencion: Atencion) => {
+    const cycles = atencion.cycles ?? [];
+    const num = cycles.length + 1;
+    const newCycle: TestCycle = { id: Date.now().toString(), label: `C${num}` };
+    const newCycles = [...cycles, newCycle];
+    const computed = computeDatesFromCycles(newCycles);
+    onUpdateAtencion({ ...atencion, cycles: newCycles, ...computed });
+  };
+
   const deleteCycleFromTimeline = (atencion: Atencion, cycleId: string) => {
     const newCycles = (atencion.cycles ?? []).filter(c => c.id !== cycleId);
     const computed = computeDatesFromCycles(newCycles);
@@ -643,6 +652,18 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                         </div>
                       );
                     })}
+                    {/* Add cycle button */}
+                    {isExpanded && (
+                      <div style={{ height: SUB_ROW_H }}
+                        className="flex items-center pl-8 border-b border-border/20 bg-surface-2/20">
+                        <button
+                          onClick={() => addCycleToTimeline(a)}
+                          className="text-[9px] text-primary hover:text-primary/80 inline-flex items-center gap-0.5 transition-colors"
+                        >
+                          <Plus className="w-2.5 h-2.5" /> Agregar ciclo
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -812,6 +833,10 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                           </div>
                         );
                       })}
+                      {/* Spacer for add-cycle button row */}
+                      {isExpanded && (
+                        <div style={{ height: SUB_ROW_H }} className="border-b border-border/20 bg-surface-2/20" />
+                      )}
                     </div>
                   );
                 })}
