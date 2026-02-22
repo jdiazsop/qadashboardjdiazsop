@@ -29,6 +29,17 @@ export const CHECKLIST_ITEMS = [
   'Checklist de revisión de calidad',
 ];
 
+export interface TestCycle {
+  id: string;
+  label: string;
+  startDate?: string;
+  endDate?: string;
+  delayStartDate?: string;
+  delayEndDate?: string;
+  realStartDate?: string;
+  delayLabel?: string;
+}
+
 export interface Atencion {
   id: string;
   code: string;
@@ -37,15 +48,25 @@ export interface Atencion {
   columnId: string;
   checklist: boolean[];
   comments: string;
+  /** Global planned start (auto-calculated from cycles or manual override) */
   startDate?: string;
+  /** Global planned end (auto-calculated from cycles or manual override) */
   endDate?: string;
+  /** @deprecated Use delayEndDate computed from cycles */
   delayStartDate?: string;
+  /** Global delay end (auto-calculated from cycles or manual override) */
   delayEndDate?: string;
+  /** Global real start date marker */
+  realStartDate?: string;
+  delayLabel?: string;
   timelineNote?: string;
   barLabel?: string;
-  delayLabel?: string;
   /** Manual sort order within timeline (lower = higher) */
   sortOrder?: number;
+  /** Override auto-calculation of dates from cycles */
+  manualDates?: boolean;
+  /** Testing cycles */
+  cycles?: TestCycle[];
 }
 
 export interface KanbanColumn {
@@ -64,4 +85,17 @@ export interface NoteItem {
   id: string;
   text: string;
   createdAt: string;
+}
+
+/** Compute global dates from cycles (min start, max end, max delay end) */
+export function computeDatesFromCycles(cycles: TestCycle[]): { startDate?: string; endDate?: string; delayEndDate?: string } {
+  const starts = cycles.map(c => c.startDate).filter(Boolean) as string[];
+  const ends = cycles.map(c => c.endDate).filter(Boolean) as string[];
+  const delayEnds = cycles.map(c => c.delayEndDate).filter(Boolean) as string[];
+
+  return {
+    startDate: starts.length > 0 ? starts.sort()[0] : undefined,
+    endDate: ends.length > 0 ? ends.sort().reverse()[0] : undefined,
+    delayEndDate: delayEnds.length > 0 ? delayEnds.sort().reverse()[0] : undefined,
+  };
 }
