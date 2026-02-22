@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { KanbanBoard } from '@/components/KanbanBoard';
 import { TimelineView } from '@/components/TimelineView';
 import { CriticalPending } from '@/components/CriticalPending';
+import { TagManager } from '@/components/TagManager';
 import { loadAppState, saveAppState, AppState, DashboardState, ProjectTab } from '@/lib/store';
-import { Atencion, KanbanColumn } from '@/types/qa';
+import { Atencion, KanbanColumn, Tag } from '@/types/qa';
 import { LayoutDashboard, Kanban, GanttChart, Plus, X, Pencil, Check } from 'lucide-react';
 
 const Index = () => {
@@ -185,6 +186,12 @@ const Index = () => {
 
       {/* Content */}
       <div className="flex-1 p-4 md:p-6 space-y-6">
+        {/* Tag Manager */}
+        <TagManager
+          tags={state.tags}
+          onUpdateTags={(tags: Tag[]) => updateTabState(s => ({ ...s, tags }))}
+        />
+
         {/* Kanban Section */}
         <section>
           <div className="flex items-center gap-2 mb-3">
