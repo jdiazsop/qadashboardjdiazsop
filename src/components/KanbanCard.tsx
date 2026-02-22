@@ -16,7 +16,8 @@ export function KanbanCard({ atencion, tags, onUpdate, onDelete }: Props) {
   const total = atencion.checklist.length;
   const progress = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
 
-  const atencionTags = tags.filter(t => atencion.tags.includes(t.id));
+  const atencionTags = tags.filter(t => atencion.tags.includes(t.id))
+    .sort((a, b) => (a.kind === 'estado' ? -1 : 1) - (b.kind === 'estado' ? -1 : 1));
 
   return (
     <>

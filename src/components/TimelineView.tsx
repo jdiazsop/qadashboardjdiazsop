@@ -303,7 +303,8 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
               </div>
               {items.map((a, i) => {
                 const isEditing = editingId === a.id;
-                const atencionTags = tags.filter(t => a.tags.includes(t.id));
+                const atencionTags = tags.filter(t => a.tags.includes(t.id))
+                  .sort((x, y) => (x.kind === 'estado' ? -1 : 1) - (y.kind === 'estado' ? -1 : 1));
                 const isOdd = i % 2 === 0;
                 const completed = isCompleted(a);
                 return (
