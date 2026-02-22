@@ -440,16 +440,25 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                   ) : null}
                 </div>
               ) : displayLabel ? (
-                <div
-                  className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:block z-50 pointer-events-none"
-                >
-                  <div className="bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded shadow-md border whitespace-nowrap max-w-[200px] break-words"
-                    style={{ whiteSpace: 'normal' }}
-                  >
-                    {displayLabel}
+                <>
+                  {/* Text on bar - hidden via CSS overflow */}
+                  <div className="absolute inset-0 flex items-center px-1 overflow-hidden">
+                    <span className="text-[10px] font-semibold text-white truncate leading-none" style={{ fontSize: isMainRow ? 10 : 8 }}>
+                      {displayLabel}
+                    </span>
                   </div>
-                  <div className="w-2 h-2 bg-popover border-b border-r rotate-45 absolute left-1/2 -translate-x-1/2 -bottom-1" />
-                </div>
+                  {/* Tooltip below on hover - always visible for full text */}
+                  <div
+                    className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover:block z-50 pointer-events-none"
+                  >
+                    <div className="w-2 h-2 bg-popover border-t border-l rotate-45 absolute left-1/2 -translate-x-1/2 -top-1" />
+                    <div className="bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded shadow-md border max-w-[200px]"
+                      style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}
+                    >
+                      {displayLabel}
+                    </div>
+                  </div>
+                </>
               ) : null}
             </div>
           );
