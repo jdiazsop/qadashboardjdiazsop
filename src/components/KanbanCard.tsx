@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Atencion, Tag, CHECKLIST_ITEMS } from '@/types/qa';
+import { Atencion, Tag, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles } from '@/types/qa';
 import { TagBadge } from './TagBadge';
-import { CheckSquare, MessageSquare, X } from 'lucide-react';
+import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin } from 'lucide-react';
 
 interface Props {
   atencion: Atencion;
@@ -12,12 +12,52 @@ interface Props {
 
 export function KanbanCard({ atencion, tags, onUpdate, onDelete }: Props) {
   const [open, setOpen] = useState(false);
+  const [cyclesOpen, setCyclesOpen] = useState(false);
   const checkedCount = atencion.checklist.filter(Boolean).length;
   const total = atencion.checklist.length;
   const progress = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
+  const cycles = atencion.cycles ?? [];
 
   const atencionTags = tags.filter(t => atencion.tags.includes(t.id))
     .sort((a, b) => (a.kind === 'estado' ? -1 : 1) - (b.kind === 'estado' ? -1 : 1));
+
+  const addCycle = () => {
+    const num = cycles.length + 1;
+    const newCycle: TestCycle = { id: Date.now().toString(), label: `C${num}` };
+    const updated = { ...atencion, cycles: [...cycles, newCycle] };
+    onUpdate(updated);
+  };
+
+  const updateCycle = (cycleId: string, patch: Partial<TestCycle>) => {
+    const newCycles = cycles.map(c => c.id === cycleId ? { ...c, ...patch } : c);
+    const updated = { ...atencion, cycles: newCycles };
+    // Auto-compute dates if not manual
+    if (!atencion.manualDates) {
+      const computed = computeDatesFromCycles(newCycles);
+      Object.assign(updated, computed);
+    }
+    onUpdate(updated);
+  };
+
+  const deleteCycle = (cycleId: string) => {
+    const newCycles = cycles.filter(c => c.id !== cycleId);
+    const updated = { ...atencion, cycles: newCycles };
+    if (!atencion.manualDates) {
+      const computed = computeDatesFromCycles(newCycles);
+      Object.assign(updated, computed);
+    }
+    onUpdate(updated);
+  };
+
+  const toggleManualDates = () => {
+    const newManual = !atencion.manualDates;
+    const updated = { ...atencion, manualDates: newManual };
+    if (!newManual && cycles.length > 0) {
+      const computed = computeDatesFromCycles(cycles);
+      Object.assign(updated, computed);
+    }
+    onUpdate(updated);
+  };
 
   return (
     <>
@@ -42,6 +82,9 @@ export function KanbanCard({ atencion, tags, onUpdate, onDelete }: Props) {
             <CheckSquare className="w-3 h-3" />
             <span>{checkedCount}/{total}</span>
           </div>
+          {cycles.length > 0 && (
+            <span className="text-[10px] bg-surface-0 px-1.5 py-0.5 rounded">{cycles.length} ciclos</span>
+          )}
           {atencion.comments && (
             <div className="flex items-center gap-1">
               <MessageSquare className="w-3 h-3" />
@@ -88,6 +131,120 @@ export function KanbanCard({ atencion, tags, onUpdate, onDelete }: Props) {
                     </button>
                   );
                 })}
+            </div>
+
+            {/* Cycles Section */}
+            <div className="mb-4">
+              <button
+                onClick={() => setCyclesOpen(v => !v)}
+                className="flex items-center gap-2 w-full text-left"
+              >
+                {cyclesOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                  Ciclos de Prueba
+                </h3>
+                <span className="text-xs text-muted-foreground/70">({cycles.length})</span>
+              </button>
+
+              {!cyclesOpen && cycles.length > 0 && (
+                <div className="mt-2 bg-surface-1 rounded-lg p-2.5 text-xs text-muted-foreground space-y-1">
+                  <div className="flex justify-between">
+                    <span>Total ciclos: {cycles.length}</span>
+                    <span>
+                      {atencion.startDate && atencion.endDate
+                        ? `${atencion.startDate} → ${atencion.endDate}`
+                        : 'Sin fechas'}
+                    </span>
+                  </div>
+                  {atencion.realStartDate && (
+                    <div className="flex items-center gap-1 text-primary">
+                      <MapPin className="w-3 h-3" />
+                      <span>Inicio real: {atencion.realStartDate}</span>
+                    </div>
+                  )}
+                  {atencion.delayEndDate && (
+                    <div className="text-destructive">Fin atraso: {atencion.delayEndDate}</div>
+                  )}
+                </div>
+              )}
+
+              {cyclesOpen && (
+                <div className="mt-2 space-y-2">
+                  {/* Manual dates toggle */}
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!atencion.manualDates}
+                      onChange={toggleManualDates}
+                      className="w-3.5 h-3.5 rounded accent-primary"
+                    />
+                    <span className="text-muted-foreground">Fechas totales manuales (no auto-calcular de ciclos)</span>
+                  </label>
+
+                  {/* Global real start date */}
+                  <div className="bg-surface-1 rounded-lg p-2.5 space-y-1.5">
+                    <span className="text-[9px] uppercase text-muted-foreground font-semibold">Fecha inicio real global</span>
+                    <input
+                      type="date"
+                      value={atencion.realStartDate || ''}
+                      onChange={e => onUpdate({ ...atencion, realStartDate: e.target.value || undefined })}
+                      className="w-full bg-surface-0 border border-border rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+
+                  {/* Cycle entries */}
+                  {cycles.map((cycle, ci) => (
+                    <div key={cycle.id} className="bg-surface-1 rounded-lg p-2.5 space-y-1.5 border border-border/50">
+                      <div className="flex items-center justify-between">
+                        <input
+                          value={cycle.label}
+                          onChange={e => updateCycle(cycle.id, { label: e.target.value })}
+                          className="bg-transparent text-xs font-semibold text-foreground border-none outline-none w-20"
+                          placeholder={`Ciclo ${ci + 1}`}
+                        />
+                        <button onClick={() => deleteCycle(cycle.id)} className="text-muted-foreground hover:text-destructive">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div>
+                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Plan</label>
+                          <input type="date" value={cycle.startDate || ''} onChange={e => updateCycle(cycle.id, { startDate: e.target.value || undefined })}
+                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Plan</label>
+                          <input type="date" value={cycle.endDate || ''} onChange={e => updateCycle(cycle.id, { endDate: e.target.value || undefined })}
+                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Real</label>
+                          <input type="date" value={cycle.realStartDate || ''} onChange={e => updateCycle(cycle.id, { realStartDate: e.target.value || undefined })}
+                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Atraso</label>
+                          <input type="date" value={cycle.delayEndDate || ''} onChange={e => updateCycle(cycle.id, { delayEndDate: e.target.value || undefined })}
+                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Texto atraso</label>
+                        <input value={cycle.delayLabel || ''} onChange={e => updateCycle(cycle.id, { delayLabel: e.target.value || undefined })}
+                          placeholder="Ej: Atrasos Dev"
+                          className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={addCycle}
+                    className="text-xs text-primary hover:text-primary/80 inline-flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" /> Agregar ciclo
+                  </button>
+                </div>
+              )}
             </div>
 
             <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Checklist de Entregables</h3>
