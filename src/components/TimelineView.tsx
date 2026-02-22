@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Atencion, Tag, KanbanColumn, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles } from '@/types/qa';
+import { Atencion, Tag, KanbanColumn, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
 import { TagBadge } from './TagBadge';
 import { Plus, Pencil, Check, X, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, MapPin, Trash2 } from 'lucide-react';
 import {
@@ -101,7 +101,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     (a.cycles ?? []).forEach(c => {
       if (c.startDate) allDates.push(parseISO(c.startDate));
       if (c.endDate) allDates.push(parseISO(c.endDate));
-      if (c.delayEndDate) allDates.push(parseISO(c.delayEndDate));
+      if (c.realEndDate) allDates.push(parseISO(c.realEndDate));
     });
   });
 
@@ -152,11 +152,11 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
 
   const startEditCycle = (cycle: TestCycle) => {
     setEditingCycleId(cycle.id);
-    setEditCycleData({
+     setEditCycleData({
       startDate: cycle.startDate ?? '',
       endDate: cycle.endDate ?? '',
       realStartDate: cycle.realStartDate ?? '',
-      delayEndDate: cycle.delayEndDate ?? '',
+      realEndDate: cycle.realEndDate ?? '',
       delayLabel: cycle.delayLabel ?? '',
       note: cycle.note ?? '',
     });
@@ -621,8 +621,8 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                                     className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                                 </div>
                                 <div>
-                                  <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Fin Atraso</label>
-                                  <input type="date" value={editCycleData.delayEndDate || ''} onChange={e => setEditCycleData(p => ({ ...p, delayEndDate: e.target.value }))}
+                                  <label className="block text-[7px] uppercase text-muted-foreground mb-0.5">Fin Real</label>
+                                  <input type="date" value={editCycleData.realEndDate || ''} onChange={e => setEditCycleData(p => ({ ...p, realEndDate: e.target.value }))}
                                     className="w-full bg-surface-0 border border-border rounded px-1 py-0.5 text-[9px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                                 </div>
                               </div>
@@ -783,7 +783,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                                 );
                               })}
 
-                              {renderBar(c.startDate, c.endDate, c.delayEndDate, c.realStartDate, CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false)}
+                              {renderBar(c.startDate, c.endDate, computeCycleDelay(c), c.realStartDate, CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false)}
 
                               {/* Cycle note */}
                               {(() => {
@@ -791,8 +791,9 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                                 const cStartIdx = differenceInCalendarDays(parseISO(c.startDate), rangeStart);
                                 const cEndIdx = differenceInCalendarDays(parseISO(c.endDate), rangeStart);
                                 let cBarEnd = cStartIdx * colWidth + Math.max(colWidth, (cEndIdx - cStartIdx + 1) * colWidth);
-                                if (c.delayEndDate) {
-                                  const cDelayIdx = differenceInCalendarDays(parseISO(c.delayEndDate), rangeStart);
+                                const cycleDelay = computeCycleDelay(c);
+                                if (cycleDelay) {
+                                  const cDelayIdx = differenceInCalendarDays(parseISO(cycleDelay), rangeStart);
                                   if (cDelayIdx > cEndIdx) cBarEnd += (cDelayIdx - cEndIdx) * colWidth;
                                 }
                                 return (

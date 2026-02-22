@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Atencion, Tag, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles } from '@/types/qa';
+import { Atencion, Tag, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
 import { TagBadge } from './TagBadge';
 import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin } from 'lucide-react';
 
@@ -227,9 +227,9 @@ export function KanbanCard({ atencion, tags, onUpdate, onDelete }: Props) {
                             className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                         </div>
                         <div>
-                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Atraso</label>
-                          <input type="date" value={cycle.delayEndDate || ''}
-                            onChange={e => updateCycle(cycle.id, { delayEndDate: e.target.value || undefined })}
+                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Real</label>
+                          <input type="date" value={cycle.realEndDate || ''}
+                            onChange={e => updateCycle(cycle.id, { realEndDate: e.target.value || undefined })}
                             className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                         </div>
                       </div>

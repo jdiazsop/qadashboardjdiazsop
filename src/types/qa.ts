@@ -34,9 +34,9 @@ export interface TestCycle {
   label: string;
   startDate?: string;
   endDate?: string;
-  delayStartDate?: string;
-  delayEndDate?: string;
   realStartDate?: string;
+  /** Actual end date — if it exceeds endDate, the difference is delay */
+  realEndDate?: string;
   delayLabel?: string;
   note?: string;
 }
@@ -86,11 +86,23 @@ export interface NoteItem {
   createdAt: string;
 }
 
-/** Compute global dates from cycles (min start, max end, max delay end) */
+/** Compute delay for a single cycle: if realEndDate > endDate, delay = realEndDate */
+export function computeCycleDelay(cycle: TestCycle): string | undefined {
+  if (cycle.realEndDate && cycle.endDate && cycle.realEndDate > cycle.endDate) {
+    return cycle.realEndDate;
+  }
+  return undefined;
+}
+
+/** Compute global dates from cycles (min start, max end, max delay end derived from realEndDate > endDate) */
 export function computeDatesFromCycles(cycles: TestCycle[]): { startDate?: string; endDate?: string; delayEndDate?: string } {
   const starts = cycles.map(c => c.startDate).filter(Boolean) as string[];
   const ends = cycles.map(c => c.endDate).filter(Boolean) as string[];
-  const delayEnds = cycles.map(c => c.delayEndDate).filter(Boolean) as string[];
+  
+  // Delay is derived: for each cycle, if realEndDate > endDate, that's the delay end
+  const delayEnds = cycles
+    .map(c => computeCycleDelay(c))
+    .filter(Boolean) as string[];
 
   return {
     startDate: starts.length > 0 ? starts.sort()[0] : undefined,
