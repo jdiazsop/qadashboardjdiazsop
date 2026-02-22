@@ -266,8 +266,13 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     });
   };
   const saveEditCycle = (atencion: Atencion, cycleId: string) => {
+    // Clean empty strings to undefined so date checks work properly
+    const cleanedData: Partial<TestCycle> = {};
+    for (const [key, val] of Object.entries(editCycleData)) {
+      (cleanedData as any)[key] = val === '' ? undefined : val;
+    }
     const newCycles = (atencion.cycles ?? []).map(c =>
-      c.id === cycleId ? { ...c, ...editCycleData } : c
+      c.id === cycleId ? { ...c, ...cleanedData } : c
     );
     const computed = computeDatesFromCycles(newCycles);
     onUpdateAtencion({
