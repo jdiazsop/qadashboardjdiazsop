@@ -31,15 +31,14 @@ export function KanbanCard({ atencion, tags, onUpdate, onDelete }: Props) {
 
   const updateCycle = (cycleId: string, patch: Partial<TestCycle>) => {
     const newCycles = cycles.map(c => c.id === cycleId ? { ...c, ...patch } : c);
-    // Always recalculate global planned dates from cycles
     const computed = computeDatesFromCycles(newCycles);
-    onUpdate({ ...atencion, cycles: newCycles, startDate: computed.startDate || atencion.startDate, endDate: computed.endDate || atencion.endDate });
+    onUpdate({ ...atencion, cycles: newCycles, startDate: computed.startDate || atencion.startDate, endDate: computed.endDate || atencion.endDate, delayEndDate: computed.delayEndDate || undefined, delayLabel: computed.delayLabel || undefined });
   };
 
   const deleteCycle = (cycleId: string) => {
     const newCycles = cycles.filter(c => c.id !== cycleId);
     const computed = computeDatesFromCycles(newCycles);
-    onUpdate({ ...atencion, cycles: newCycles, startDate: computed.startDate || atencion.startDate, endDate: computed.endDate || atencion.endDate });
+    onUpdate({ ...atencion, cycles: newCycles, startDate: computed.startDate || atencion.startDate, endDate: computed.endDate || atencion.endDate, delayEndDate: computed.delayEndDate || undefined, delayLabel: computed.delayLabel || undefined });
   };
 
   return (

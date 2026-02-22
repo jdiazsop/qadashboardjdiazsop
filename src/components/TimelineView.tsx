@@ -175,6 +175,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       startDate: computed.startDate || atencion.startDate,
       endDate: computed.endDate || atencion.endDate,
       delayEndDate: computed.delayEndDate || undefined,
+      delayLabel: computed.delayLabel || undefined,
     });
     setEditingCycleId(null);
   };
@@ -197,6 +198,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       startDate: computed.startDate || atencion.startDate,
       endDate: computed.endDate || atencion.endDate,
       delayEndDate: computed.delayEndDate || undefined,
+      delayLabel: computed.delayLabel || undefined,
     });
     setEditingCycleId(null);
   };
@@ -231,7 +233,8 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     const newCycles = (atencion.cycles ?? []).map(c =>
       c.id === cycleId ? { ...c, delayLabel: val } : c
     );
-    onUpdateAtencion({ ...atencion, cycles: newCycles });
+    const computed = computeDatesFromCycles(newCycles);
+    onUpdateAtencion({ ...atencion, cycles: newCycles, delayLabel: computed.delayLabel || undefined });
     setEditingCycleDelayId(null);
   };
 
@@ -406,7 +409,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                 borderRadius: '0 4px 4px 0',
               }}
               onDoubleClick={() => {
-                if (isMainRow && atencionForEdit) setEditingDelayLabelId(atencionForEdit.id);
+                if (isMainRow && atencionForEdit && !(atencionForEdit.cycles?.length)) setEditingDelayLabelId(atencionForEdit.id);
                 if (!isMainRow && cycleForEdit && atencionForEdit) setEditingCycleDelayId(cycleForEdit.id);
               }}
             >

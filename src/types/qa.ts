@@ -95,7 +95,7 @@ export function computeCycleDelay(cycle: TestCycle): string | undefined {
 }
 
 /** Compute global dates from cycles (min start, max end, max delay end derived from realEndDate > endDate) */
-export function computeDatesFromCycles(cycles: TestCycle[]): { startDate?: string; endDate?: string; delayEndDate?: string } {
+export function computeDatesFromCycles(cycles: TestCycle[]): { startDate?: string; endDate?: string; delayEndDate?: string; delayLabel?: string } {
   const starts = cycles.map(c => c.startDate).filter(Boolean) as string[];
   const ends = cycles.map(c => c.endDate).filter(Boolean) as string[];
   
@@ -104,9 +104,18 @@ export function computeDatesFromCycles(cycles: TestCycle[]): { startDate?: strin
     .map(c => computeCycleDelay(c))
     .filter(Boolean) as string[];
 
+  // Auto-generate global delayLabel from cycles that have delays
+  const delayLabels = cycles
+    .filter(c => computeCycleDelay(c))
+    .map(c => {
+      const base = c.delayLabel ? `${c.label}: ${c.delayLabel}` : `Atraso ${c.label}`;
+      return base;
+    });
+
   return {
     startDate: starts.length > 0 ? starts.sort()[0] : undefined,
     endDate: ends.length > 0 ? ends.sort().reverse()[0] : undefined,
     delayEndDate: delayEnds.length > 0 ? delayEnds.sort().reverse()[0] : undefined,
+    delayLabel: delayLabels.length > 0 ? delayLabels.join(' | ') : undefined,
   };
 }
