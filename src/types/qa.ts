@@ -99,6 +99,8 @@ export interface Atencion {
   sortOrder?: number;
   /** Testing cycles */
   cycles?: TestCycle[];
+  /** Date when this atencion goes to production */
+  productionDate?: string;
 }
 
 export interface KanbanColumn {
