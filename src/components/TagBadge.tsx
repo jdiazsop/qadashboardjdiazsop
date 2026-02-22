@@ -4,9 +4,9 @@ const colorMap: Record<string, string> = {
   calidad: 'bg-tag-calidad text-black',
   sap: 'bg-tag-sap text-black',
   core: 'bg-tag-core text-black',
-  desarrollo: 'bg-tag-desarrollo text-white',
-  dl: 'bg-tag-dl text-white',
-  rend: 'bg-tag-rend text-white',
+  desarrollo: 'bg-tag-desarrollo text-black',
+  dl: 'bg-tag-dl text-black',
+  rend: 'bg-tag-rend text-black',
 };
 
 export function TagBadge({ tag }: { tag: Tag }) {
