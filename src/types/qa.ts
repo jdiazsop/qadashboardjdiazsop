@@ -63,8 +63,6 @@ export interface Atencion {
   barLabel?: string;
   /** Manual sort order within timeline (lower = higher) */
   sortOrder?: number;
-  /** Override auto-calculation of dates from cycles */
-  manualDates?: boolean;
   /** Testing cycles */
   cycles?: TestCycle[];
 }
