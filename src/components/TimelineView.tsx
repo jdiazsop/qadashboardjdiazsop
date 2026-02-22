@@ -452,9 +452,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                     className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover:block z-50 pointer-events-none"
                   >
                     <div className="w-2 h-2 bg-popover border-t border-l rotate-45 absolute left-1/2 -translate-x-1/2 -top-1" />
-                    <div className="bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded shadow-md border max-w-[200px]"
-                      style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}
-                    >
+                    <div className="bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded shadow-md border whitespace-nowrap">
                       {displayLabel}
                     </div>
                   </div>
