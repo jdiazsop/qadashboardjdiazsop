@@ -1,6 +1,6 @@
 import { Atencion, KanbanColumn, CriticalItem, NoteItem, DEFAULT_TAGS, Tag, CHECKLIST_ITEMS } from '@/types/qa';
 
-const STORAGE_KEY = 'qa-dashboard-v9';
+const STORAGE_KEY = 'qa-dashboard-v10';
 
 export interface DashboardState {
   columns: KanbanColumn[];
