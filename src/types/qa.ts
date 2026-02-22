@@ -2,15 +2,17 @@ export interface Tag {
   id: string;
   label: string;
   color: 'calidad' | 'sap' | 'core' | 'desarrollo' | 'dl' | 'rend';
+  /** 'estado' = state tag (Calidad, Desarrollo), 'tipo' = test type tag (SAP, CORE, DL, Rend) */
+  kind?: 'estado' | 'tipo';
 }
 
 export const DEFAULT_TAGS: Tag[] = [
-  { id: 'calidad', label: 'Calidad', color: 'calidad' },
-  { id: 'sap', label: 'SAP', color: 'sap' },
-  { id: 'core', label: 'CORE', color: 'core' },
-  { id: 'desarrollo', label: 'Desarrollo', color: 'desarrollo' },
-  { id: 'dl', label: 'DL', color: 'dl' },
-  { id: 'rend', label: 'Rendimiento', color: 'rend' },
+  { id: 'calidad', label: 'Calidad', color: 'calidad', kind: 'estado' },
+  { id: 'sap', label: 'SAP', color: 'sap', kind: 'tipo' },
+  { id: 'core', label: 'CORE', color: 'core', kind: 'tipo' },
+  { id: 'desarrollo', label: 'Desarrollo', color: 'desarrollo', kind: 'estado' },
+  { id: 'dl', label: 'DL', color: 'dl', kind: 'tipo' },
+  { id: 'rend', label: 'Rendimiento', color: 'rend', kind: 'tipo' },
 ];
 
 export const CHECKLIST_ITEMS = [
@@ -42,6 +44,8 @@ export interface Atencion {
   timelineNote?: string;
   barLabel?: string;
   delayLabel?: string;
+  /** Manual sort order within timeline (lower = higher) */
+  sortOrder?: number;
 }
 
 export interface KanbanColumn {
