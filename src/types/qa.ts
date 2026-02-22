@@ -15,19 +15,48 @@ export const DEFAULT_TAGS: Tag[] = [
   { id: 'rend', label: 'Rendimiento', color: 'rend', kind: 'tipo' },
 ];
 
-export const CHECKLIST_ITEMS = [
-  'Plan de pruebas',
-  'Estimación',
-  'Matriz de cobertura',
-  'Matriz EH - LT',
-  'Checklist de rendimiento (Alta o Baja)',
-  'Acta de Reunión de entendimiento de rendimiento',
-  'Acta de Reunión de entendimiento (funcional/técnica)',
-  'Acta de Reunión (Reunión extraordinarias - Acuerdos, cambios de alcance, etc)',
-  'Conformidad Estimación y Plan de Pruebas',
-  'Conformidad de las revisiones de pares',
-  'Checklist de revisión de calidad',
+export interface ChecklistItem {
+  id: string;
+  label: string;
+}
+
+export interface ChecklistPhase {
+  id: string;
+  name: string;
+  items: ChecklistItem[];
+}
+
+export const DEFAULT_CHECKLIST_PHASES: ChecklistPhase[] = [
+  {
+    id: 'desarrollo',
+    name: 'En Desarrollo',
+    items: [
+      { id: 'd1', label: 'Plan de pruebas' },
+      { id: 'd2', label: 'Estimación' },
+      { id: 'd3', label: 'Matriz de cobertura' },
+      { id: 'd4', label: 'Matriz EH - LT' },
+      { id: 'd5', label: 'Checklist de rendimiento (Alta o Baja)' },
+      { id: 'd6', label: 'Acta de Reunión de entendimiento de rendimiento' },
+      { id: 'd7', label: 'Acta de Reunión de entendimiento (funcional/técnica)' },
+      { id: 'd8', label: 'Acta de Reunión (Reunión extraordinarias - Acuerdos, cambios de alcance, etc)' },
+      { id: 'd9', label: 'Conformidad Estimación y Plan de Pruebas' },
+      { id: 'd10', label: 'Conformidad de las revisiones de pares' },
+      { id: 'd11', label: 'Checklist de revisión de calidad' },
+    ],
+  },
+  {
+    id: 'post-pruebas',
+    name: 'Post Pruebas',
+    items: [
+      { id: 'p1', label: 'Informe de pruebas' },
+      { id: 'p2', label: 'Acta de conformidad de pruebas' },
+      { id: 'p3', label: 'Matriz de trazabilidad actualizada' },
+    ],
+  },
 ];
+
+/** Legacy static items for backward compatibility */
+export const CHECKLIST_ITEMS = DEFAULT_CHECKLIST_PHASES[0].items.map(i => i.label);
 
 export interface TestCycle {
   id: string;
@@ -50,6 +79,8 @@ export interface Atencion {
   progress: number;
   columnId: string;
   checklist: boolean[];
+  /** New: checklist keyed by item IDs across phases */
+  checklistMap?: Record<string, boolean>;
   comments: string;
   /** Global planned start (auto-calculated from cycles or manual override) */
   startDate?: string;
