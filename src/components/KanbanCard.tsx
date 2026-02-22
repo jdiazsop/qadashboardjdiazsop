@@ -18,8 +18,9 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
   // Compute checklist counts from phases + checklistMap
   const allItemIds = checklistPhases.flatMap(p => p.items.map(i => i.id));
   const checkMap = atencion.checklistMap ?? {};
-  const checkedCount = allItemIds.filter(id => checkMap[id]).length;
-  const total = allItemIds.length;
+  const applicableIds = allItemIds.filter(id => checkMap[id] !== 'na');
+  const checkedCount = applicableIds.filter(id => checkMap[id] === true).length;
+  const total = applicableIds.length;
   const progress = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
   const cycles = atencion.cycles ?? [];
 
@@ -270,22 +271,35 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                 </h3>
                 <div className="space-y-1.5">
                   {phase.items.map(item => {
-                    const checked = checkMap[item.id] ?? false;
+                    const val = checkMap[item.id];
+                    const isNa = val === 'na';
+                    const isChecked = val === true;
                     return (
-                      <label key={item.id} className="flex items-start gap-2 cursor-pointer group/item">
+                      <div key={item.id} className="flex items-center gap-2 group/item">
                         <input
                           type="checkbox"
-                          checked={checked}
+                          checked={isChecked}
+                          disabled={isNa}
                           onChange={() => {
-                            const newMap = { ...checkMap, [item.id]: !checked };
+                            const newMap = { ...checkMap, [item.id]: !isChecked };
                             onUpdate({ ...atencion, checklistMap: newMap });
                           }}
-                          className="mt-0.5 w-4 h-4 rounded border-border accent-primary"
+                          className="mt-0.5 w-4 h-4 rounded border-border accent-primary disabled:opacity-30"
                         />
-                        <span className={`text-sm ${checked ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                        <span className={`text-sm flex-1 ${isNa ? 'line-through text-muted-foreground/50 italic' : isChecked ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                           {item.label}
                         </span>
-                      </label>
+                        <button
+                          onClick={() => {
+                            const newVal = isNa ? false : 'na' as const;
+                            const newMap = { ...checkMap, [item.id]: newVal };
+                            onUpdate({ ...atencion, checklistMap: newMap });
+                          }}
+                          className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${isNa ? 'bg-muted text-muted-foreground border-border font-semibold' : 'border-transparent text-muted-foreground/40 hover:text-muted-foreground hover:border-border'}`}
+                        >
+                          N/A
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
