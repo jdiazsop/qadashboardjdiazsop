@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChecklistPhase, ChecklistItem } from '@/types/qa';
-import { Settings, Plus, Trash2, ChevronDown, ChevronRight, X } from 'lucide-react';
+import { Settings, Plus, Trash2, ChevronDown, ChevronRight, X, GripVertical } from 'lucide-react';
 
 interface Props {
   phases: ChecklistPhase[];
@@ -12,6 +12,13 @@ export function ChecklistManager({ phases, onUpdatePhases }: Props) {
   const [expandedPhase, setExpandedPhase] = useState<string | null>(null);
   const [newPhaseName, setNewPhaseName] = useState('');
   const [newItemLabels, setNewItemLabels] = useState<Record<string, string>>({});
+
+  // Drag state for items
+  const [dragItemId, setDragItemId] = useState<string | null>(null);
+  const [dragPhaseId, setDragPhaseId] = useState<string | null>(null);
+
+  // Drag state for phases
+  const [dragPhaseReorder, setDragPhaseReorder] = useState<string | null>(null);
 
   const addPhase = () => {
     const name = newPhaseName.trim();
@@ -58,6 +65,74 @@ export function ChecklistManager({ phases, onUpdatePhases }: Props) {
     ));
   };
 
+  // Item drag handlers
+  const handleItemDragStart = (e: React.DragEvent, phaseId: string, itemId: string) => {
+    e.dataTransfer.effectAllowed = 'move';
+    setDragItemId(itemId);
+    setDragPhaseId(phaseId);
+  };
+
+  const handleItemDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleItemDrop = (e: React.DragEvent, targetPhaseId: string, targetIndex: number) => {
+    e.preventDefault();
+    if (!dragItemId || !dragPhaseId) return;
+
+    const sourcePhase = phases.find(p => p.id === dragPhaseId);
+    if (!sourcePhase) return;
+    const item = sourcePhase.items.find(i => i.id === dragItemId);
+    if (!item) return;
+
+    let newPhases = phases.map(p => {
+      if (p.id === dragPhaseId) {
+        return { ...p, items: p.items.filter(i => i.id !== dragItemId) };
+      }
+      return p;
+    });
+
+    newPhases = newPhases.map(p => {
+      if (p.id === targetPhaseId) {
+        const items = [...p.items];
+        items.splice(targetIndex, 0, item);
+        return { ...p, items };
+      }
+      return p;
+    });
+
+    onUpdatePhases(newPhases);
+    setDragItemId(null);
+    setDragPhaseId(null);
+  };
+
+  // Phase drag handlers
+  const handlePhaseDragStart = (e: React.DragEvent, phaseId: string) => {
+    e.dataTransfer.effectAllowed = 'move';
+    setDragPhaseReorder(phaseId);
+  };
+
+  const handlePhaseDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handlePhaseDrop = (e: React.DragEvent, targetPhaseId: string) => {
+    e.preventDefault();
+    if (!dragPhaseReorder || dragPhaseReorder === targetPhaseId) return;
+
+    const fromIdx = phases.findIndex(p => p.id === dragPhaseReorder);
+    const toIdx = phases.findIndex(p => p.id === targetPhaseId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const newPhases = [...phases];
+    const [moved] = newPhases.splice(fromIdx, 1);
+    newPhases.splice(toIdx, 0, moved);
+    onUpdatePhases(newPhases);
+    setDragPhaseReorder(null);
+  };
+
   if (!open) {
     return (
       <button
@@ -82,8 +157,16 @@ export function ChecklistManager({ phases, onUpdatePhases }: Props) {
         {phases.map(phase => {
           const isExpanded = expandedPhase === phase.id;
           return (
-            <div key={phase.id} className="bg-surface-2 border border-border/50 rounded-lg p-3">
+            <div
+              key={phase.id}
+              className={`bg-surface-2 border rounded-lg p-3 ${dragPhaseReorder === phase.id ? 'border-primary opacity-50' : 'border-border/50'}`}
+              draggable
+              onDragStart={e => handlePhaseDragStart(e, phase.id)}
+              onDragOver={handlePhaseDragOver}
+              onDrop={e => handlePhaseDrop(e, phase.id)}
+            >
               <div className="flex items-center gap-2">
+                <GripVertical className="w-3.5 h-3.5 text-muted-foreground cursor-grab shrink-0" />
                 <button onClick={() => setExpandedPhase(isExpanded ? null : phase.id)}>
                   {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
                 </button>
@@ -100,8 +183,16 @@ export function ChecklistManager({ phases, onUpdatePhases }: Props) {
 
               {isExpanded && (
                 <div className="mt-2 space-y-1 pl-6">
-                  {phase.items.map(item => (
-                    <div key={item.id} className="flex items-center gap-2 group">
+                  {phase.items.map((item, idx) => (
+                    <div
+                      key={item.id}
+                      className={`flex items-center gap-2 group ${dragItemId === item.id ? 'opacity-50' : ''}`}
+                      draggable
+                      onDragStart={e => { e.stopPropagation(); handleItemDragStart(e, phase.id, item.id); }}
+                      onDragOver={handleItemDragOver}
+                      onDrop={e => { e.stopPropagation(); handleItemDrop(e, phase.id, idx); }}
+                    >
+                      <GripVertical className="w-3 h-3 text-muted-foreground cursor-grab shrink-0" />
                       <input
                         value={item.label}
                         onChange={e => renameItem(phase.id, item.id, e.target.value)}
@@ -115,13 +206,19 @@ export function ChecklistManager({ phases, onUpdatePhases }: Props) {
                       </button>
                     </div>
                   ))}
+                  {/* Drop zone at end */}
+                  <div
+                    className="h-1"
+                    onDragOver={handleItemDragOver}
+                    onDrop={e => { e.stopPropagation(); handleItemDrop(e, phase.id, phase.items.length); }}
+                  />
                   <div className="flex items-center gap-2 mt-1">
                     <input
                       value={newItemLabels[phase.id] || ''}
                       onChange={e => setNewItemLabels(prev => ({ ...prev, [phase.id]: e.target.value }))}
                       onKeyDown={e => { if (e.key === 'Enter') addItem(phase.id); }}
                       placeholder="Nuevo entregable..."
-                      className="flex-1 bg-surface-0 border border-border rounded px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="flex-1 bg-surface-0 border border-border rounded px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary ml-5"
                     />
                     <button onClick={() => addItem(phase.id)} className="text-primary hover:text-primary/80">
                       <Plus className="w-3.5 h-3.5" />
