@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Atencion, Tag, KanbanColumn, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
 import { TagBadge } from './TagBadge';
-import { Plus, Pencil, Check, X, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, MapPin, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Check, X, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, MapPin, Trash2, CheckCircle2, Circle } from 'lucide-react';
 import {
   format,
   eachDayOfInterval,
@@ -98,7 +98,13 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     setDragDelta(0);
   }, []);
 
-  
+
+  const toggleCycleCompleted = (atencion: Atencion, cycleId: string) => {
+    const newCycles = (atencion.cycles ?? []).map(c =>
+      c.id === cycleId ? { ...c, completed: !c.completed } : c
+    );
+    onUpdateAtencion({ ...atencion, cycles: newCycles });
+  };
 
   const [newItem, setNewItem] = useState({
     code: '', startDate: '', endDate: '',
@@ -792,7 +798,17 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                       return (
                         <div key={c.id}>
                           <div style={{ height: SUB_ROW_H }}
-                            className="flex items-center gap-1 pl-8 pr-1.5 border-b border-border/20 bg-surface-2/30 group/cycle">
+                            className="flex items-center gap-1 pl-6 pr-1.5 border-b border-border/20 bg-surface-2/30 group/cycle">
+                            <button
+                              onClick={() => toggleCycleCompleted(a, c.id)}
+                              className="shrink-0 p-0 hover:scale-110 transition-transform"
+                              title={c.completed ? 'Marcar como pendiente' : 'Marcar como finalizado'}
+                            >
+                              {c.completed
+                                ? <CheckCircle2 className="w-3 h-3 text-green-500" />
+                                : <Circle className="w-3 h-3 text-muted-foreground/40 hover:text-muted-foreground" />
+                              }
+                            </button>
                             {editingCycleLabelId === c.id ? (
                               <input
                                 autoFocus
@@ -1025,7 +1041,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                                 );
                               })}
 
-                              {renderBar(c.startDate, c.endDate, computeCycleDelay(c), c.realStartDate, CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false, a, c, rowIdx >= items.length - 2)}
+                              {renderBar(c.startDate, c.endDate, computeCycleDelay(c), c.realStartDate, c.completed ? BAR_GREEN : CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false, a, c, rowIdx >= items.length - 2)}
 
                               {/* Cycle note */}
                               {(() => {

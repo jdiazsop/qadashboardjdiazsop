@@ -39,6 +39,8 @@ export interface TestCycle {
   realEndDate?: string;
   delayLabel?: string;
   note?: string;
+  /** Whether this cycle is marked as completed */
+  completed?: boolean;
 }
 
 export interface Atencion {
