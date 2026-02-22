@@ -79,8 +79,8 @@ export interface Atencion {
   progress: number;
   columnId: string;
   checklist: boolean[];
-  /** New: checklist keyed by item IDs across phases */
-  checklistMap?: Record<string, boolean>;
+  /** Checklist keyed by item IDs: true = done, false = pending, 'na' = not applicable */
+  checklistMap?: Record<string, boolean | 'na'>;
   comments: string;
   /** Global planned start (auto-calculated from cycles or manual override) */
   startDate?: string;
