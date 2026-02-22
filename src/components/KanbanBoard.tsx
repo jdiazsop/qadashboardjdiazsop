@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Atencion, KanbanColumn, Tag, CHECKLIST_ITEMS } from '@/types/qa';
+import { Atencion, KanbanColumn, Tag, CHECKLIST_ITEMS, ChecklistPhase, DEFAULT_CHECKLIST_PHASES } from '@/types/qa';
 import { KanbanCard } from './KanbanCard';
 import { Plus, X, GripVertical, Pencil, Check } from 'lucide-react';
 
@@ -7,6 +7,7 @@ interface Props {
   columns: KanbanColumn[];
   atenciones: Atencion[];
   tags: Tag[];
+  checklistPhases: ChecklistPhase[];
   onUpdateAtencion: (a: Atencion) => void;
   onDeleteAtencion: (id: string) => void;
   onAddAtencion: (a: Atencion) => void;
@@ -16,7 +17,7 @@ interface Props {
   onRenameColumn: (id: string, title: string) => void;
 }
 
-export function KanbanBoard({ columns, atenciones, tags, onUpdateAtencion, onDeleteAtencion, onAddAtencion, onAddColumn, onDeleteColumn, onReorderColumns, onRenameColumn }: Props) {
+export function KanbanBoard({ columns, atenciones, tags, checklistPhases, onUpdateAtencion, onDeleteAtencion, onAddAtencion, onAddColumn, onDeleteColumn, onReorderColumns, onRenameColumn }: Props) {
   const [addingToCol, setAddingToCol] = useState<string | null>(null);
   const [newCode, setNewCode] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -152,7 +153,7 @@ export function KanbanBoard({ columns, atenciones, tags, onUpdateAtencion, onDel
             <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto">
               {colAtenciones.map(a => (
                 <div key={a.id} draggable onDragStart={e => handleDragStart(e, a.id)}>
-                  <KanbanCard atencion={a} tags={tags} onUpdate={onUpdateAtencion} onDelete={onDeleteAtencion} />
+                  <KanbanCard atencion={a} tags={tags} checklistPhases={checklistPhases} onUpdate={onUpdateAtencion} onDelete={onDeleteAtencion} />
                 </div>
               ))}
 

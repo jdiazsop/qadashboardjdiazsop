@@ -1,20 +1,25 @@
 import { useState } from 'react';
-import { Atencion, Tag, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
+import { Atencion, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
 import { TagBadge } from './TagBadge';
 import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin } from 'lucide-react';
 
 interface Props {
   atencion: Atencion;
   tags: Tag[];
+  checklistPhases: ChecklistPhase[];
   onUpdate: (a: Atencion) => void;
   onDelete: (id: string) => void;
 }
 
-export function KanbanCard({ atencion, tags, onUpdate, onDelete }: Props) {
+export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete }: Props) {
   const [open, setOpen] = useState(false);
   const [cyclesOpen, setCyclesOpen] = useState(false);
-  const checkedCount = atencion.checklist.filter(Boolean).length;
-  const total = atencion.checklist.length;
+
+  // Compute checklist counts from phases + checklistMap
+  const allItemIds = checklistPhases.flatMap(p => p.items.map(i => i.id));
+  const checkMap = atencion.checklistMap ?? {};
+  const checkedCount = allItemIds.filter(id => checkMap[id]).length;
+  const total = allItemIds.length;
   const progress = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
   const cycles = atencion.cycles ?? [];
 
@@ -258,26 +263,34 @@ export function KanbanCard({ atencion, tags, onUpdate, onDelete }: Props) {
               )}
             </div>
 
-            <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Checklist de Entregables</h3>
-            <div className="space-y-1.5 mb-6">
-              {CHECKLIST_ITEMS.map((item, i) => (
-                <label key={i} className="flex items-start gap-2 cursor-pointer group/item">
-                  <input
-                    type="checkbox"
-                    checked={atencion.checklist[i]}
-                    onChange={() => {
-                      const newChecklist = [...atencion.checklist];
-                      newChecklist[i] = !newChecklist[i];
-                      onUpdate({ ...atencion, checklist: newChecklist });
-                    }}
-                    className="mt-0.5 w-4 h-4 rounded border-border accent-primary"
-                  />
-                  <span className={`text-sm ${atencion.checklist[i] ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                    {item}
-                  </span>
-                </label>
-              ))}
-            </div>
+            {checklistPhases.map(phase => (
+              <div key={phase.id} className="mb-4">
+                <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">
+                  {phase.name}
+                </h3>
+                <div className="space-y-1.5">
+                  {phase.items.map(item => {
+                    const checked = checkMap[item.id] ?? false;
+                    return (
+                      <label key={item.id} className="flex items-start gap-2 cursor-pointer group/item">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            const newMap = { ...checkMap, [item.id]: !checked };
+                            onUpdate({ ...atencion, checklistMap: newMap });
+                          }}
+                          className="mt-0.5 w-4 h-4 rounded border-border accent-primary"
+                        />
+                        <span className={`text-sm ${checked ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                          {item.label}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
 
             <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Comentarios / Observaciones</h3>
             <textarea

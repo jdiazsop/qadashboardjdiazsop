@@ -3,8 +3,9 @@ import { KanbanBoard } from '@/components/KanbanBoard';
 import { TimelineView } from '@/components/TimelineView';
 import { CriticalPending } from '@/components/CriticalPending';
 import { TagManager } from '@/components/TagManager';
+import { ChecklistManager } from '@/components/ChecklistManager';
 import { loadAppState, saveAppState, AppState, DashboardState, ProjectTab } from '@/lib/store';
-import { Atencion, KanbanColumn, Tag } from '@/types/qa';
+import { Atencion, KanbanColumn, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES } from '@/types/qa';
 import { LayoutDashboard, Kanban, GanttChart, Plus, X, Pencil, Check } from 'lucide-react';
 
 const Index = () => {
@@ -79,6 +80,7 @@ const Index = () => {
         criticalItems: [],
         notes: [],
         tags: state.tags,
+        checklistPhases: state.checklistPhases ?? DEFAULT_CHECKLIST_PHASES,
       },
     };
     setAppState(prev => ({
@@ -190,6 +192,10 @@ const Index = () => {
           tags={state.tags}
           onUpdateTags={(tags: Tag[]) => updateTabState(s => ({ ...s, tags }))}
         />
+        <ChecklistManager
+          phases={state.checklistPhases ?? DEFAULT_CHECKLIST_PHASES}
+          onUpdatePhases={(checklistPhases: ChecklistPhase[]) => updateTabState(s => ({ ...s, checklistPhases }))}
+        />
 
         {/* Kanban Section */}
         <section>
@@ -201,6 +207,7 @@ const Index = () => {
             columns={state.columns}
             atenciones={state.atenciones}
             tags={state.tags}
+            checklistPhases={state.checklistPhases ?? DEFAULT_CHECKLIST_PHASES}
             onUpdateAtencion={updateAtencion}
             onDeleteAtencion={deleteAtencion}
             onAddAtencion={addAtencion}

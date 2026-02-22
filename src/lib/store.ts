@@ -1,4 +1,4 @@
-import { Atencion, KanbanColumn, CriticalItem, NoteItem, DEFAULT_TAGS, Tag, CHECKLIST_ITEMS } from '@/types/qa';
+import { Atencion, KanbanColumn, CriticalItem, NoteItem, DEFAULT_TAGS, Tag, CHECKLIST_ITEMS, ChecklistPhase, DEFAULT_CHECKLIST_PHASES } from '@/types/qa';
 
 const STORAGE_KEY = 'qa-dashboard-v13';
 
@@ -8,6 +8,7 @@ export interface DashboardState {
   criticalItems: CriticalItem[];
   notes: NoteItem[];
   tags: Tag[];
+  checklistPhases: ChecklistPhase[];
 }
 
 export interface ProjectTab {
@@ -142,6 +143,7 @@ const defaultDashboard: DashboardState = {
     { id: '2', text: 'A la espera de desarrollo para iniciar C4', createdAt: new Date().toISOString() },
   ],
   tags: DEFAULT_TAGS,
+  checklistPhases: DEFAULT_CHECKLIST_PHASES,
 };
 
 const defaultAppState: AppState = {
@@ -171,6 +173,7 @@ export function loadAppState(): AppState {
           state: {
             ...tab.state,
             tags: DEFAULT_TAGS,
+            checklistPhases: tab.state.checklistPhases ?? DEFAULT_CHECKLIST_PHASES,
             atenciones: (tab.state.atenciones ?? []).map(a => {
               // Migrate old cycle delayEndDate → realEndDate
               let cycles = (a.cycles ?? []).map((c: any) => {
