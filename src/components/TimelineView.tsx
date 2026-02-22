@@ -32,13 +32,9 @@ function getBarColor(a: Atencion): string {
   return isCompleted(a) ? BAR_GREEN : BAR_BLUE;
 }
 
-/** Get only "tipo" tags (SAP, CORE, DL, Rend) for bar label — exclude estado tags */
-function getTypeTagLabel(a: Atencion, tags: Tag[]): string {
-  const typeTags = tags.filter(t => a.tags.includes(t.id) && t.kind === 'tipo');
-  if (typeTags.length > 0) return typeTags.map(t => t.label).join(', ');
-  // Fallback: show first tag label if all are estado
-  const firstTag = tags.find(t => a.tags.includes(t.id));
-  return firstTag ? firstTag.label : '';
+/** Bar label shows only code, no tag suffix */
+function getBarLabel(a: Atencion): string {
+  return a.code;
 }
 
 const LABEL_W = 280;
@@ -429,7 +425,6 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                 {items.map((a, rowIdx) => {
                   const barColor = getBarColor(a);
                   const isOdd = rowIdx % 2 === 0;
-                  const tagLabel = getTypeTagLabel(a, tags);
                   const completed = isCompleted(a);
 
                   const startIdx = differenceInCalendarDays(parseISO(a.startDate!), rangeStart);
@@ -478,7 +473,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                         }}
                       >
                         <span className="text-[10px] font-semibold truncate leading-none text-white">
-                          {a.code}{tagLabel ? ` - ${tagLabel}` : ''}
+                          {a.code}
                         </span>
                       </div>
 

@@ -7,10 +7,10 @@ export interface Tag {
 }
 
 export const DEFAULT_TAGS: Tag[] = [
-  { id: 'calidad', label: 'Calidad', color: 'calidad', kind: 'estado' },
+  { id: 'calidad', label: 'En Calidad', color: 'calidad', kind: 'estado' },
   { id: 'sap', label: 'SAP', color: 'sap', kind: 'tipo' },
   { id: 'core', label: 'CORE', color: 'core', kind: 'tipo' },
-  { id: 'desarrollo', label: 'Desarrollo', color: 'desarrollo', kind: 'estado' },
+  { id: 'desarrollo', label: 'En Desarrollo', color: 'desarrollo', kind: 'estado' },
   { id: 'dl', label: 'DL', color: 'dl', kind: 'tipo' },
   { id: 'rend', label: 'Rendimiento', color: 'rend', kind: 'tipo' },
 ];

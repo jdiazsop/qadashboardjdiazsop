@@ -36,13 +36,13 @@
 
     --radius: 0.5rem;
 
-    /* Tag colors */
-    --tag-calidad: 45 93% 47%;
-    --tag-sap: 24 95% 53%;
-    --tag-core: 142 71% 45%;
-    --tag-desarrollo: 217 91% 60%;
-    --tag-dl: 271 81% 56%;
-    --tag-rend: 340 82% 52%;
+    /* Tag colors — estado (yellow), tipo (orange) */
+    --tag-calidad: 45 93% 50%;
+    --tag-sap: 30 95% 50%;
+    --tag-core: 30 95% 50%;
+    --tag-desarrollo: 45 93% 50%;
+    --tag-dl: 30 95% 50%;
+    --tag-rend: 30 95% 50%;
 
     /* Status colors */
     --status-todo: 215 12% 55%;
