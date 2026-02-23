@@ -64,6 +64,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
   const [editingCycleLabelId, setEditingCycleLabelId] = useState<string | null>(null);
   const [editingCycleNoteId, setEditingCycleNoteId] = useState<string | null>(null);
   const [editingCycleDelayId, setEditingCycleDelayId] = useState<string | null>(null);
+  const [dragCycleRowId, setDragCycleRowId] = useState<string | null>(null);
 
   // Drag state for cycle bars
   type DragMode = 'move' | 'resize-left' | 'resize-right';
@@ -863,9 +864,29 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                     {isExpanded && cycles.map(c => {
                       const isCycleEditing = editingCycleId === c.id;
                       return (
-                        <div key={c.id}>
+                        <div key={c.id}
+                          draggable
+                          onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('cycleDragId', c.id); e.dataTransfer.setData('atencionId', a.id); setDragCycleRowId(c.id); }}
+                          onDragEnd={() => setDragCycleRowId(null)}
+                          onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                          onDrop={e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const srcCycleId = e.dataTransfer.getData('cycleDragId');
+                            const srcAtencionId = e.dataTransfer.getData('atencionId');
+                            if (!srcCycleId || srcAtencionId !== a.id || srcCycleId === c.id) return;
+                            const newCycles = [...cycles];
+                            const srcIdx = newCycles.findIndex(x => x.id === srcCycleId);
+                            const tgtIdx = newCycles.findIndex(x => x.id === c.id);
+                            const [moved] = newCycles.splice(srcIdx, 1);
+                            newCycles.splice(tgtIdx, 0, moved);
+                            const computed = computeDatesFromCycles(newCycles);
+                            onUpdateAtencion({ ...a, cycles: newCycles, ...computed });
+                            setDragCycleRowId(null);
+                          }}
+                        >
                           <div style={{ height: SUB_ROW_H }}
-                            className="flex items-center gap-1 pl-6 pr-1.5 border-b border-border/20 bg-surface-2/30 group/cycle">
+                            className={`flex items-center gap-1 pl-6 pr-1.5 border-b border-border/20 bg-surface-2/30 group/cycle cursor-grab active:cursor-grabbing ${dragCycleRowId === c.id ? 'opacity-50' : ''}`}>
                             <button
                               onClick={() => toggleCycleCompleted(a, c.id)}
                               className="shrink-0 p-0 hover:scale-110 transition-transform"
@@ -964,7 +985,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                           onClick={() => addCycleToTimeline(a)}
                           className="text-[9px] text-primary hover:text-primary/80 inline-flex items-center gap-0.5 transition-colors"
                         >
-                          <Plus className="w-2.5 h-2.5" /> Agregar ciclo
+                          <Plus className="w-2.5 h-2.5" /> Agregar Actividad
                         </button>
                       </div>
                     )}
