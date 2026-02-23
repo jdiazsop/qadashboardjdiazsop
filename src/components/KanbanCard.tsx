@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Atencion, AtencionStatus, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
 import { TagBadge } from './TagBadge';
-import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin, RefreshCw, Copy } from 'lucide-react';
+import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin, RefreshCw, Copy, GripVertical } from 'lucide-react';
 
 const JIRA_STATES = [
   'Registrado',
@@ -37,6 +37,7 @@ function computeCicloActual(cycles: TestCycle[]): { total: number; current: stri
 export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete, onDuplicate }: Props) {
   const [open, setOpen] = useState(false);
   const [cyclesOpen, setCyclesOpen] = useState(false);
+  const [dragCycleId, setDragCycleId] = useState<string | null>(null);
 
   // Compute checklist counts from phases + checklistMap
   const allItemIds = checklistPhases.flatMap(p => p.items.map(i => i.id));
@@ -309,14 +310,36 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
 
                   {/* Cycle entries */}
                   {cycles.map((cycle, ci) => (
-                    <div key={cycle.id} className="bg-surface-1 rounded-lg p-2.5 space-y-1.5 border border-border/50">
+                    <div key={cycle.id}
+                      draggable
+                      onDragStart={e => { e.dataTransfer.setData('cycleId', cycle.id); setDragCycleId(cycle.id); }}
+                      onDragEnd={() => setDragCycleId(null)}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => {
+                        e.preventDefault();
+                        const srcId = e.dataTransfer.getData('cycleId');
+                        if (!srcId || srcId === cycle.id) return;
+                        const newCycles = [...cycles];
+                        const srcIdx = newCycles.findIndex(c => c.id === srcId);
+                        const tgtIdx = newCycles.findIndex(c => c.id === cycle.id);
+                        const [moved] = newCycles.splice(srcIdx, 1);
+                        newCycles.splice(tgtIdx, 0, moved);
+                        const computed = computeDatesFromCycles(newCycles);
+                        onUpdate({ ...atencion, cycles: newCycles, ...computed });
+                        setDragCycleId(null);
+                      }}
+                      className={`bg-surface-1 rounded-lg p-2.5 space-y-1.5 border border-border/50 cursor-grab active:cursor-grabbing transition-opacity ${dragCycleId === cycle.id ? 'opacity-50' : ''}`}
+                    >
                       <div className="flex items-center justify-between">
-                        <input
-                          value={cycle.label}
-                          onChange={e => updateCycle(cycle.id, { label: e.target.value })}
-                          className="bg-transparent text-xs font-semibold text-foreground border-none outline-none w-20"
-                          placeholder={`Ciclo ${ci + 1}`}
-                        />
+                        <div className="flex items-center gap-1">
+                          <GripVertical className="w-3 h-3 text-muted-foreground" />
+                          <input
+                            value={cycle.label}
+                            onChange={e => updateCycle(cycle.id, { label: e.target.value })}
+                            className="bg-transparent text-xs font-semibold text-foreground border-none outline-none w-20"
+                            placeholder={`Ciclo ${ci + 1}`}
+                          />
+                        </div>
                         <button onClick={() => deleteCycle(cycle.id)} className="text-muted-foreground hover:text-destructive">
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -361,7 +384,7 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                     onClick={addCycle}
                     className="text-xs text-primary hover:text-primary/80 inline-flex items-center gap-1 transition-colors"
                   >
-                    <Plus className="w-3 h-3" /> Agregar ciclo
+                    <Plus className="w-3 h-3" /> Agregar Actividad
                   </button>
                 </div>
               )}
