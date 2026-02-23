@@ -30,6 +30,30 @@ function hasGlobalDelay(a: Atencion): boolean {
   return !!a.delayEndDate;
 }
 
+/** Consolidate atenciones: group duplicates (same sourceId) into one row with multiple QA names */
+function consolidateAtenciones(atenciones: Atencion[], columns: KanbanColumn[]): { atencion: Atencion; qaNames: string[] }[] {
+  const grouped = new Map<string, { atencion: Atencion; qaNames: string[] }>();
+
+  for (const a of atenciones) {
+    const key = a.sourceId || a.id; // group by sourceId if duplicated
+    const colTitle = columns.find(c => c.id === a.columnId)?.title || '';
+
+    if (grouped.has(key)) {
+      const existing = grouped.get(key)!;
+      if (colTitle && !existing.qaNames.includes(colTitle)) {
+        existing.qaNames.push(colTitle);
+      }
+    } else {
+      grouped.set(key, {
+        atencion: a,
+        qaNames: colTitle ? [colTitle] : [],
+      });
+    }
+  }
+
+  return Array.from(grouped.values());
+}
+
 interface Props {
   atenciones: Atencion[];
   columns: KanbanColumn[];
@@ -64,9 +88,9 @@ export function ExportExcel({ atenciones, columns }: Props) {
     for (let i = 7; i <= 12; i++) colFillMap[i] = purpleFill;
     for (let i = 13; i <= 16; i++) colFillMap[i] = greenFill;
 
-    // Add header row
+    // Add header row - taller for wrapped text
     const headerRow = ws.addRow(headers);
-    headerRow.height = 40;
+    headerRow.height = 55;
     headerRow.eachCell((cell, colNumber) => {
       cell.fill = colFillMap[colNumber] || blueFill;
       cell.font = headerFont;
@@ -74,20 +98,35 @@ export function ExportExcel({ atenciones, columns }: Props) {
       cell.border = borderThin;
     });
 
-    // Column widths (cumplimiento wider)
-    const colWidths = [14, 30, 12, 14, 8, 10, 16, 16, 16, 16, 16, 16, 18, 22, 45, 20];
+    // Column widths - wider for date columns and cumplimiento
+    const colWidths = [14, 30, 12, 14, 8, 10, 18, 16, 18, 16, 18, 16, 20, 22, 45, 22];
     colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
 
     const bodyFont: Partial<ExcelJS.Font> = { size: 9, name: 'Calibri' };
     const bodyAlignment: Partial<ExcelJS.Alignment> = { vertical: 'top', wrapText: true };
 
+    // Format dates as DD/MM/YYYY
+    const fmtDate = (d?: string) => {
+      if (!d) return '';
+      const parts = d.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return d;
+    };
+
+    // Consolidate duplicates into single rows with multiple QA
+    const consolidated = consolidateAtenciones(atenciones, columns);
+
     // Data rows
-    for (const a of atenciones) {
+    for (const { atencion: a, qaNames } of consolidated) {
       const cycles = a.cycles ?? [];
       const ciclo = computeCicloActual(cycles);
       const analisis = findAnalisisCycle(cycles);
       const currentCx = findCurrentCxCycle(cycles);
-      const colTitle = columns.find(c => c.id === a.columnId)?.title || '';
+
+      // DESA dates: from the "Análisis y Diseño" cycle
+      // Planificada = startDate of Análisis, Real = realStartDate of Análisis
+      const desaPlanificada = analisis?.startDate;
+      const desaReal = analisis?.realStartDate;
 
       // Status text - no date, just execution + counters
       const st = a.status;
@@ -106,14 +145,6 @@ export function ExportExcel({ atenciones, columns }: Props) {
       const perfText = a.performanceComment || '';
       const secText = a.securityComment || '';
 
-      // Format dates as DD/MM/YYYY
-      const fmtDate = (d?: string) => {
-        if (!d) return '';
-        const parts = d.split('-');
-        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-        return d;
-      };
-
       const row = ws.addRow([
         a.code,
         a.description || '',
@@ -121,8 +152,8 @@ export function ExportExcel({ atenciones, columns }: Props) {
         a.estadoJira || '',
         a.totalCPs ?? '',
         ciclo.total > 0 ? ciclo.total : '',
-        fmtDate(analisis?.startDate),
-        fmtDate(analisis?.realStartDate),
+        fmtDate(desaPlanificada),
+        fmtDate(desaReal),
         fmtDate(currentCx?.startDate),
         fmtDate(currentCx?.realStartDate),
         fmtDate(currentCx?.endDate),
@@ -130,7 +161,7 @@ export function ExportExcel({ atenciones, columns }: Props) {
         '', // cumplimiento - filled with color below
         statusParts.join('\n'),
         '', // comments - set via richText below
-        colTitle,
+        qaNames.join(', '), // Multiple QA names joined
       ]);
 
       row.height = 60;
