@@ -125,6 +125,8 @@ export interface Atencion {
   cycles?: TestCycle[];
   /** Date when this atencion goes to production */
   productionDate?: string;
+  /** Order within kanban column */
+  cardOrder?: number;
 }
 
 export interface KanbanColumn {

@@ -79,13 +79,43 @@ export function KanbanBoard({ columns, atenciones, tags, checklistPhases, onUpda
     e.dataTransfer.setData('type', 'card');
   };
 
+  const handleCardDrop = (e: React.DragEvent, targetId: string, colId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const type = e.dataTransfer.getData('type');
+    if (type !== 'card') return;
+    const srcId = e.dataTransfer.getData('atencionId');
+    if (srcId === targetId) return;
+    const srcAtencion = atenciones.find(a => a.id === srcId);
+    if (!srcAtencion) return;
+    // Move to this column if different
+    const colCards = atenciones
+      .filter(a => a.columnId === colId)
+      .sort((a, b) => (a.cardOrder ?? 0) - (b.cardOrder ?? 0));
+    // Remove src from list if same column
+    const filtered = colCards.filter(a => a.id !== srcId);
+    const tgtIdx = filtered.findIndex(a => a.id === targetId);
+    filtered.splice(tgtIdx, 0, { ...srcAtencion, columnId: colId });
+    // Assign new cardOrder
+    filtered.forEach((a, i) => {
+      onUpdateAtencion({ ...a, cardOrder: i });
+    });
+    if (srcAtencion.columnId !== colId) {
+      onUpdateAtencion({ ...srcAtencion, columnId: colId, cardOrder: tgtIdx });
+    }
+  };
+
   const handleDrop = (e: React.DragEvent, colId: string) => {
     e.preventDefault();
     const type = e.dataTransfer.getData('type');
     if (type === 'card') {
       const atencionId = e.dataTransfer.getData('atencionId');
       const atencion = atenciones.find(a => a.id === atencionId);
-      if (atencion) onUpdateAtencion({ ...atencion, columnId: colId });
+      if (!atencion) return;
+      // Drop on empty area = move to end
+      const colCards = atenciones.filter(a => a.columnId === colId && a.id !== atencionId);
+      const maxOrder = colCards.reduce((m, a) => Math.max(m, a.cardOrder ?? 0), -1);
+      onUpdateAtencion({ ...atencion, columnId: colId, cardOrder: maxOrder + 1 });
     }
   };
 
@@ -128,7 +158,7 @@ export function KanbanBoard({ columns, atenciones, tags, checklistPhases, onUpda
   return (
     <div className="flex gap-3 overflow-x-auto pb-2" style={{ minHeight: 300 }}>
       {columns.map(col => {
-        const colAtenciones = atenciones.filter(a => a.columnId === col.id);
+        const colAtenciones = atenciones.filter(a => a.columnId === col.id).sort((a, b) => (a.cardOrder ?? 0) - (b.cardOrder ?? 0));
         return (
           <div
             key={col.id}
@@ -175,7 +205,10 @@ export function KanbanBoard({ columns, atenciones, tags, checklistPhases, onUpda
 
             <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto">
               {colAtenciones.map(a => (
-                <div key={a.id} draggable onDragStart={e => handleDragStart(e, a.id)}>
+                <div key={a.id} draggable onDragStart={e => handleDragStart(e, a.id)}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => handleCardDrop(e, a.id, col.id)}
+                >
                   <KanbanCard
                     atencion={a}
                     tags={tags}
