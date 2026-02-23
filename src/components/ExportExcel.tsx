@@ -161,10 +161,14 @@ export function ExportExcel({ atenciones, columns }: Props) {
         '', // cumplimiento - filled with color below
         statusParts.join('\n'),
         '', // comments - set via richText below
-        qaNames.join(', '), // Multiple QA names joined
+        qaNames.join('\n'), // Multiple QA names on separate lines
       ]);
 
-      row.height = 60;
+      // Dynamic row height based on status lines and QA names
+      const statusLines = statusParts.length;
+      const qaLines = qaNames.length;
+      const maxLines = Math.max(statusLines, qaLines, 3);
+      row.height = Math.max(45, maxLines * 15);
       row.eachCell((cell) => {
         cell.font = bodyFont;
         cell.alignment = bodyAlignment;
