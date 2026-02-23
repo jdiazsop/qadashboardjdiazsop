@@ -852,7 +852,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                               className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                           </div>
                           <div className="col-span-2">
-                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">🚀 Pase a Producción</label>
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">🚀 Pase a Producción Plan</label>
                             <input type="date" value={editData.productionDate || ''} onChange={e => setEditData(p => ({ ...p, productionDate: e.target.value }))}
                               className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                           </div>
