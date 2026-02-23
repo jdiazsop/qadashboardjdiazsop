@@ -72,6 +72,14 @@ export interface TestCycle {
   completed?: boolean;
 }
 
+export interface AtencionStatus {
+  conforme?: number;
+  enProceso?: number;
+  pendientes?: number;
+  bloqueados?: number;
+  defectos?: number;
+}
+
 export interface Atencion {
   id: string;
   code: string;
@@ -90,6 +98,12 @@ export interface Atencion {
   /** Checklist keyed by item IDs: true = done, false = pending, 'na' = not applicable */
   checklistMap?: Record<string, boolean | 'na'>;
   comments: string;
+  /** Performance comment */
+  performanceComment?: string;
+  /** Security comment */
+  securityComment?: string;
+  /** Status counters */
+  status?: AtencionStatus;
   /** Global planned start (auto-calculated from cycles or manual override) */
   startDate?: string;
   /** Global planned end (auto-calculated from cycles or manual override) */
