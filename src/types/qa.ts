@@ -78,6 +78,12 @@ export interface Atencion {
   tags: string[];
   progress: number;
   columnId: string;
+  /** Free-text description */
+  description?: string;
+  /** Jira status */
+  estadoJira?: string;
+  /** Total CPs (casos de prueba) */
+  totalCPs?: number;
   checklist: boolean[];
   /** Checklist keyed by item IDs: true = done, false = pending, 'na' = not applicable */
   checklistMap?: Record<string, boolean | 'na'>;

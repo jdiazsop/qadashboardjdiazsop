@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Atencion, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
 import { TagBadge } from './TagBadge';
-import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin } from 'lucide-react';
+import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin, RefreshCw } from 'lucide-react';
 
 interface Props {
   atencion: Atencion;
@@ -9,6 +9,17 @@ interface Props {
   checklistPhases: ChecklistPhase[];
   onUpdate: (a: Atencion) => void;
   onDelete: (id: string) => void;
+}
+
+/** Count sequential Cx cycles (C1, C2, C3...) and return the last Cx label */
+function computeCicloActual(cycles: TestCycle[]): { total: number; current: string } {
+  const cxPattern = /^C(\d+)$/i;
+  const cxCycles = cycles
+    .filter(c => cxPattern.test(c.label.trim()))
+    .map(c => ({ label: c.label.trim(), num: parseInt(c.label.trim().match(cxPattern)![1]) }))
+    .sort((a, b) => a.num - b.num);
+  if (cxCycles.length === 0) return { total: 0, current: '—' };
+  return { total: cxCycles.length, current: cxCycles[cxCycles.length - 1].label };
 }
 
 export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete }: Props) {
@@ -23,6 +34,7 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
   const total = applicableIds.length;
   const progress = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
   const cycles = atencion.cycles ?? [];
+  const cicloActual = computeCicloActual(cycles);
 
   const atencionTags = tags.filter(t => atencion.tags.includes(t.id))
     .sort((a, b) => (a.kind === 'estado' ? -1 : 1) - (b.kind === 'estado' ? -1 : 1));
@@ -59,7 +71,7 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
         className="bg-surface-2 border border-border rounded-lg p-3 cursor-pointer hover:border-primary/50 transition-colors group"
         onClick={() => setOpen(true)}
       >
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-1">
           <span className="font-mono text-sm font-semibold text-foreground">{atencion.code}</span>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(atencion.id); }}
@@ -68,17 +80,29 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
+        {atencion.description && (
+          <p className="text-[11px] text-muted-foreground mb-1.5 line-clamp-2">{atencion.description}</p>
+        )}
         <div className="flex flex-wrap gap-1 mb-2">
           {atencionTags.map(t => <TagBadge key={t.id} tag={t} />)}
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+          {atencion.estadoJira && (
+            <span className="bg-surface-0 px-1.5 py-0.5 rounded text-[10px]">{atencion.estadoJira}</span>
+          )}
+          {atencion.totalCPs != null && atencion.totalCPs > 0 && (
+            <span className="text-[10px]">CPs: {atencion.totalCPs}</span>
+          )}
+          {cicloActual.total > 0 && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] bg-surface-0 px-1.5 py-0.5 rounded">
+              <RefreshCw className="w-2.5 h-2.5" />
+              {cicloActual.current} ({cicloActual.total})
+            </span>
+          )}
           <div className="flex items-center gap-1">
             <CheckSquare className="w-3 h-3" />
             <span>{checkedCount}/{total}</span>
           </div>
-          {cycles.length > 0 && (
-            <span className="text-[10px] bg-surface-0 px-1.5 py-0.5 rounded">{cycles.length} ciclos</span>
-          )}
           {atencion.comments && (
             <div className="flex items-center gap-1">
               <MessageSquare className="w-3 h-3" />
@@ -125,6 +149,48 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                     </button>
                   );
                 })}
+            </div>
+
+            {/* New fields: Descripción, Estado Jira, Total CPs, Ciclo Actual */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Descripción</label>
+                <textarea
+                  value={atencion.description || ''}
+                  onChange={e => onUpdate({ ...atencion, description: e.target.value || undefined })}
+                  placeholder="Descripción de la atención..."
+                  className="w-full bg-surface-1 border border-border rounded-lg p-2 text-sm text-foreground placeholder:text-muted-foreground resize-none h-16 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Estado Jira</label>
+                <input
+                  value={atencion.estadoJira || ''}
+                  onChange={e => onUpdate({ ...atencion, estadoJira: e.target.value || undefined })}
+                  placeholder="Ej: En progreso"
+                  className="w-full bg-surface-1 border border-border rounded px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total CPs</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={atencion.totalCPs ?? ''}
+                  onChange={e => onUpdate({ ...atencion, totalCPs: e.target.value ? parseInt(e.target.value) : undefined })}
+                  placeholder="0"
+                  className="w-full bg-surface-1 border border-border rounded px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Ciclo Actual</label>
+                <div className="bg-surface-1 border border-border rounded px-2 py-1.5 text-sm text-foreground">
+                  {cicloActual.total > 0
+                    ? <span>{cicloActual.current} <span className="text-muted-foreground">({cicloActual.total} {cicloActual.total === 1 ? 'ciclo' : 'ciclos'} secuenciales)</span></span>
+                    : <span className="text-muted-foreground">Sin ciclos Cx</span>
+                  }
+                </div>
+              </div>
             </div>
 
             {/* Cycles Section */}

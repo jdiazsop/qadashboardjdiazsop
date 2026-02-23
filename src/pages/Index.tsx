@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { KanbanBoard } from '@/components/KanbanBoard';
 import { TimelineView } from '@/components/TimelineView';
-import { CriticalPending } from '@/components/CriticalPending';
+
 import { TagManager } from '@/components/TagManager';
 import { ChecklistManager } from '@/components/ChecklistManager';
 import { loadAppState, saveAppState, AppState, DashboardState, ProjectTab } from '@/lib/store';
@@ -278,13 +278,6 @@ const Index = () => {
           />
         </section>
 
-        {/* Critical Pending */}
-        <section>
-          <CriticalPending
-            items={state.criticalItems}
-            onUpdate={items => updateTabState(s => ({ ...s, criticalItems: items }))}
-          />
-        </section>
       </div>
     </div>
   );
