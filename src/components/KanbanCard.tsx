@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Atencion, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
+import { Atencion, AtencionStatus, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
 import { TagBadge } from './TagBadge';
 import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin, RefreshCw } from 'lucide-react';
 
@@ -384,12 +384,54 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
               </div>
             ))}
 
+            {/* Status Section */}
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Status</h3>
+              <div className="grid grid-cols-5 gap-2">
+                {(['conforme', 'enProceso', 'pendientes', 'bloqueados', 'defectos'] as const).map(key => {
+                  const labels: Record<string, string> = { conforme: 'Conforme', enProceso: 'En Proceso', pendientes: 'Pendientes', bloqueados: 'Bloqueados', defectos: 'Defectos' };
+                  return (
+                    <div key={key}>
+                      <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">{labels[key]}</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={atencion.status?.[key] ?? ''}
+                        onChange={e => {
+                          const val = e.target.value ? parseInt(e.target.value) : undefined;
+                          onUpdate({ ...atencion, status: { ...atencion.status, [key]: val } });
+                        }}
+                        className="w-full bg-surface-1 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="0"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Comentarios / Observaciones</h3>
             <textarea
               value={atencion.comments}
               onChange={e => onUpdate({ ...atencion, comments: e.target.value })}
               placeholder="Agregar comentarios u observaciones..."
-              className="w-full bg-surface-1 border border-border rounded-lg p-3 text-sm text-foreground placeholder:text-muted-foreground resize-none h-24 focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full bg-surface-1 border border-border rounded-lg p-3 text-sm text-foreground placeholder:text-muted-foreground resize-none h-20 focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+
+            <h3 className="text-sm font-semibold mb-2 mt-3 text-muted-foreground uppercase tracking-wider">Performance</h3>
+            <textarea
+              value={atencion.performanceComment || ''}
+              onChange={e => onUpdate({ ...atencion, performanceComment: e.target.value || undefined })}
+              placeholder="Comentario de rendimiento..."
+              className="w-full bg-surface-1 border border-border rounded-lg p-3 text-sm text-foreground placeholder:text-muted-foreground resize-none h-16 focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+
+            <h3 className="text-sm font-semibold mb-2 mt-3 text-muted-foreground uppercase tracking-wider">Seguridad</h3>
+            <textarea
+              value={atencion.securityComment || ''}
+              onChange={e => onUpdate({ ...atencion, securityComment: e.target.value || undefined })}
+              placeholder="Comentario de seguridad..."
+              className="w-full bg-surface-1 border border-border rounded-lg p-3 text-sm text-foreground placeholder:text-muted-foreground resize-none h-16 focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
         </div>

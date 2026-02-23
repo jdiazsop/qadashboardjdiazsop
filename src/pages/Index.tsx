@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { KanbanBoard } from '@/components/KanbanBoard';
 import { TimelineView } from '@/components/TimelineView';
+import { ExportExcel } from '@/components/ExportExcel';
 
 import { TagManager } from '@/components/TagManager';
 import { ChecklistManager } from '@/components/ChecklistManager';
@@ -239,6 +240,7 @@ const Index = () => {
             phases={state.checklistPhases ?? DEFAULT_CHECKLIST_PHASES}
             onUpdatePhases={(checklistPhases: ChecklistPhase[]) => updateTabState(s => ({ ...s, checklistPhases }))}
           />
+          <ExportExcel atenciones={state.atenciones} columns={state.columns} />
         </div>
 
         {/* Kanban Section */}
