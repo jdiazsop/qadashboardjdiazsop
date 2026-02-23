@@ -132,42 +132,42 @@ export function KanbanBoard({ columns, atenciones, tags, checklistPhases, onUpda
         return (
           <div
             key={col.id}
-            className={`flex-shrink-0 w-56 bg-surface-1 rounded-xl border border-border transition-opacity ${dragColId === col.id ? 'opacity-50' : ''}`}
+            className={`flex-shrink-0 w-52 bg-surface-1 rounded-xl border border-border transition-opacity ${dragColId === col.id ? 'opacity-50' : ''}`}
             onDragOver={e => e.preventDefault()}
             onDrop={e => handleColDrop(e, col.id)}
           >
             <div
-              className="flex items-center justify-between px-3 py-2.5 border-b border-border cursor-grab active:cursor-grabbing"
+              className="flex items-center gap-1 px-2 py-2 border-b border-border cursor-grab active:cursor-grabbing"
               draggable
               onDragStart={e => handleColDragStart(e, col.id)}
               onDragEnd={() => setDragColId(null)}
             >
-              <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+              <div className="flex items-center gap-1 flex-1 min-w-0">
+                <GripVertical className="w-2.5 h-2.5 text-muted-foreground flex-shrink-0" />
                 {editingColId === col.id ? (
                   <input
                     value={editColTitle}
                     onChange={e => setEditColTitle(e.target.value)}
-                    className="bg-surface-0 border border-border rounded px-1.5 py-0.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary flex-1 min-w-0"
+                    className="bg-surface-0 border border-border rounded px-1 py-0.5 text-[10px] font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary flex-1 min-w-0"
                     autoFocus
                     onKeyDown={e => e.key === 'Enter' && saveEditCol()}
                     onBlur={saveEditCol}
                   />
                 ) : (
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate">{col.title}</h3>
+                  <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground" title={col.title}>{col.title}</h3>
                 )}
-                <span className="text-[10px] bg-surface-3 text-muted-foreground px-1.5 py-0.5 rounded-full font-mono flex-shrink-0">{colAtenciones.length}</span>
+                <span className="text-[9px] bg-surface-3 text-muted-foreground px-1 py-0.5 rounded-full font-mono flex-shrink-0">{colAtenciones.length}</span>
               </div>
-              <div className="flex gap-1 flex-shrink-0">
-                <button onClick={() => editingColId === col.id ? saveEditCol() : startEditCol(col)} className="text-muted-foreground hover:text-primary">
-                  {editingColId === col.id ? <Check className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
+              <div className="flex gap-0.5 flex-shrink-0">
+                <button onClick={() => editingColId === col.id ? saveEditCol() : startEditCol(col)} className="text-muted-foreground hover:text-primary p-0.5">
+                  {editingColId === col.id ? <Check className="w-2.5 h-2.5" /> : <Pencil className="w-2.5 h-2.5" />}
                 </button>
-                <button onClick={() => setAddingToCol(col.id)} className="text-muted-foreground hover:text-primary">
-                  <Plus className="w-3.5 h-3.5" />
+                <button onClick={() => setAddingToCol(col.id)} className="text-muted-foreground hover:text-primary p-0.5">
+                  <Plus className="w-3 h-3" />
                 </button>
                 {columns.length > 1 && (
-                  <button onClick={() => onDeleteColumn(col.id)} className="text-muted-foreground hover:text-destructive">
-                    <X className="w-3.5 h-3.5" />
+                  <button onClick={() => onDeleteColumn(col.id)} className="text-muted-foreground hover:text-destructive p-0.5">
+                    <X className="w-3 h-3" />
                   </button>
                 )}
               </div>
