@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Atencion, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
 import { TagBadge } from './TagBadge';
-import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin, Rocket } from 'lucide-react';
+import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin } from 'lucide-react';
 
 interface Props {
   atencion: Atencion;
@@ -157,12 +157,6 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                         <span>Inicio real: {atencion.realStartDate}</span>
                       </div>
                     )}
-                    {atencion.productionDate && (
-                      <div className="flex items-center gap-1 text-emerald-400">
-                        <Rocket className="w-3 h-3" />
-                        <span>Producción: {atencion.productionDate}</span>
-                      </div>
-                    )}
                     {atencion.delayEndDate && (
                     <div className="text-destructive">Fin atraso: {atencion.delayEndDate}</div>
                   )}
@@ -198,12 +192,6 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                         <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Atraso Global</label>
                         <input type="date" value={atencion.delayEndDate || ''}
                           onChange={e => onUpdate({ ...atencion, delayEndDate: e.target.value || undefined })}
-                          className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                      </div>
-                      <div>
-                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Pase a Producción 🚀</label>
-                        <input type="date" value={atencion.productionDate || ''}
-                          onChange={e => onUpdate({ ...atencion, productionDate: e.target.value || undefined })}
                           className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                       </div>
                       <div className="col-span-2">
