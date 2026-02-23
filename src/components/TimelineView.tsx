@@ -76,8 +76,22 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     origStartDate: string;
     origEndDate: string;
   } | null>(null);
-  const [dragDelta, setDragDelta] = useState(0); // pixels delta during drag
+  const [dragDelta, setDragDelta] = useState(0);
   const [draggingCycleId, setDraggingCycleId] = useState<string | null>(null);
+
+  // Drag state for markers (realStart, realEnd, delayBar, production)
+  type MarkerDragType = 'realStart' | 'realEnd' | 'delayBar' | 'production';
+  const markerDragRef = useRef<{
+    atencionId: string;
+    cycleId?: string; // if dragging a cycle marker
+    type: MarkerDragType;
+    startX: number;
+    origDate: string;
+    origDelayEnd?: string; // for delay bar: original delayEndDate
+    origEnd?: string; // for delay bar: original endDate (anchor)
+  } | null>(null);
+  const [markerDragDelta, setMarkerDragDelta] = useState(0);
+  const [draggingMarker, setDraggingMarker] = useState<{ id: string; type: MarkerDragType } | null>(null);
 
   const handleCycleBarMouseDown = useCallback((
     e: React.MouseEvent,
@@ -173,52 +187,110 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
   // Drag effect for cycle bars
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!dragRef.current) return;
-      setDragDelta(e.clientX - dragRef.current.startX);
+      if (dragRef.current) {
+        setDragDelta(e.clientX - dragRef.current.startX);
+      }
+      if (markerDragRef.current) {
+        setMarkerDragDelta(e.clientX - markerDragRef.current.startX);
+      }
     };
     const handleMouseUp = () => {
-      if (!dragRef.current) return;
-      const drag = dragRef.current;
-      const daysDelta = Math.round(dragDelta / colWidth);
-      if (daysDelta !== 0) {
-        const atencion = atenciones.find(a => a.id === drag.atencionId);
-        if (atencion) {
-          const origStart = parseISO(drag.origStartDate);
-          const origEnd = parseISO(drag.origEndDate);
-          let newStart: Date, newEnd: Date;
+      // Cycle bar drag
+      if (dragRef.current) {
+        const drag = dragRef.current;
+        const daysDelta = Math.round(dragDelta / colWidth);
+        if (daysDelta !== 0) {
+          const atencion = atenciones.find(a => a.id === drag.atencionId);
+          if (atencion) {
+            const origStart = parseISO(drag.origStartDate);
+            const origEnd = parseISO(drag.origEndDate);
+            let newStart: Date, newEnd: Date;
 
-          if (drag.mode === 'move') {
-            newStart = addDays(origStart, daysDelta);
-            newEnd = addDays(origEnd, daysDelta);
-          } else if (drag.mode === 'resize-left') {
-            newStart = addDays(origStart, daysDelta);
-            newEnd = origEnd;
-            if (newStart >= newEnd) newStart = addDays(newEnd, -1);
-          } else {
-            newStart = origStart;
-            newEnd = addDays(origEnd, daysDelta);
-            if (newEnd <= newStart) newEnd = addDays(newStart, 1);
+            if (drag.mode === 'move') {
+              newStart = addDays(origStart, daysDelta);
+              newEnd = addDays(origEnd, daysDelta);
+            } else if (drag.mode === 'resize-left') {
+              newStart = addDays(origStart, daysDelta);
+              newEnd = origEnd;
+              if (newStart >= newEnd) newStart = addDays(newEnd, -1);
+            } else {
+              newStart = origStart;
+              newEnd = addDays(origEnd, daysDelta);
+              if (newEnd <= newStart) newEnd = addDays(newStart, 1);
+            }
+
+            const newCycles = (atencion.cycles ?? []).map(c =>
+              c.id === drag.cycleId
+                ? { ...c, startDate: format(newStart, 'yyyy-MM-dd'), endDate: format(newEnd, 'yyyy-MM-dd') }
+                : c
+            );
+            const computed = computeDatesFromCycles(newCycles);
+            onUpdateAtencion({
+              ...atencion,
+              cycles: newCycles,
+              startDate: computed.startDate || atencion.startDate,
+              endDate: computed.endDate || atencion.endDate,
+              delayEndDate: computed.delayEndDate || undefined,
+              delayLabel: computed.delayLabel || undefined,
+            });
           }
-
-          const newCycles = (atencion.cycles ?? []).map(c =>
-            c.id === drag.cycleId
-              ? { ...c, startDate: format(newStart, 'yyyy-MM-dd'), endDate: format(newEnd, 'yyyy-MM-dd') }
-              : c
-          );
-          const computed = computeDatesFromCycles(newCycles);
-          onUpdateAtencion({
-            ...atencion,
-            cycles: newCycles,
-            startDate: computed.startDate || atencion.startDate,
-            endDate: computed.endDate || atencion.endDate,
-            delayEndDate: computed.delayEndDate || undefined,
-            delayLabel: computed.delayLabel || undefined,
-          });
         }
+        dragRef.current = null;
+        setDraggingCycleId(null);
+        setDragDelta(0);
       }
-      dragRef.current = null;
-      setDraggingCycleId(null);
-      setDragDelta(0);
+
+      // Marker drag
+      if (markerDragRef.current) {
+        const md = markerDragRef.current;
+        const daysDelta = Math.round(markerDragDelta / colWidth);
+        if (daysDelta !== 0) {
+          const atencion = atenciones.find(a => a.id === md.atencionId);
+          if (atencion) {
+            const newDate = format(addDays(parseISO(md.origDate), daysDelta), 'yyyy-MM-dd');
+
+            if (md.cycleId) {
+              // Cycle-level marker
+              const newCycles = (atencion.cycles ?? []).map(c => {
+                if (c.id !== md.cycleId) return c;
+                if (md.type === 'realStart') return { ...c, realStartDate: newDate };
+                if (md.type === 'realEnd') return { ...c, realEndDate: newDate };
+                if (md.type === 'delayBar' && c.realEndDate) {
+                  return { ...c, realEndDate: format(addDays(parseISO(c.realEndDate), daysDelta), 'yyyy-MM-dd') };
+                }
+                return c;
+              });
+              const computed = computeDatesFromCycles(newCycles);
+              onUpdateAtencion({ ...atencion, cycles: newCycles, ...computed });
+            } else {
+              // Global marker
+              if (md.type === 'realStart') {
+                onUpdateAtencion({ ...atencion, realStartDate: newDate });
+              } else if (md.type === 'production') {
+                onUpdateAtencion({ ...atencion, productionDate: newDate });
+              } else if (md.type === 'delayBar' && md.origDelayEnd) {
+                const newDelayEnd = format(addDays(parseISO(md.origDelayEnd), daysDelta), 'yyyy-MM-dd');
+                // If cycles exist, update the cycle that has the delay
+                if (atencion.cycles?.length) {
+                  const newCycles = atencion.cycles.map(c => {
+                    if (c.realEndDate && c.endDate && c.realEndDate > c.endDate) {
+                      return { ...c, realEndDate: format(addDays(parseISO(c.realEndDate), daysDelta), 'yyyy-MM-dd') };
+                    }
+                    return c;
+                  });
+                  const computed = computeDatesFromCycles(newCycles);
+                  onUpdateAtencion({ ...atencion, cycles: newCycles, ...computed });
+                } else {
+                  onUpdateAtencion({ ...atencion, delayEndDate: newDelayEnd });
+                }
+              }
+            }
+          }
+        }
+        markerDragRef.current = null;
+        setDraggingMarker(null);
+        setMarkerDragDelta(0);
+      }
     };
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
@@ -226,7 +298,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [dragDelta, colWidth, atenciones, onUpdateAtencion]);
+  }, [dragDelta, markerDragDelta, colWidth, atenciones, onUpdateAtencion]);
 
   const today = new Date();
   const todayStr = format(today, 'yyyy-MM-dd');
@@ -468,23 +540,42 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     }
 
     let delayWidth = 0;
+    const isDraggingDelay = draggingMarker?.type === 'delayBar' &&
+      draggingMarker.id === (cycleForEdit?.id || atencionForEdit?.id || '');
     if (delayEndDate && !isDragging) {
       const delayEndIdx = differenceInCalendarDays(parseISO(delayEndDate), rangeStart);
       if (delayEndIdx > endIdx) {
         delayWidth = (delayEndIdx - endIdx) * colWidth;
+        if (isDraggingDelay) delayWidth += markerDragDelta;
+        if (delayWidth < 0) delayWidth = 0;
       }
     }
 
-    // Real start marker
+    // Real start marker — draggable
     let realStartMarker = null;
     if (realStartDate) {
       const realIdx = differenceInCalendarDays(parseISO(realStartDate), rangeStart);
-      const realLeft = realIdx * colWidth + colWidth / 2;
+      let realLeft = realIdx * colWidth + colWidth / 2;
+      const isDraggingThis = draggingMarker?.type === 'realStart' &&
+        draggingMarker.id === (cycleForEdit?.id || atencionForEdit?.id || '');
+      if (isDraggingThis) realLeft += markerDragDelta;
       realStartMarker = (
         <div
-          className="absolute z-10 flex flex-col items-center"
-          style={{ left: realLeft - 4, top: barTop - 6 }}
-          title={`Inicio real: ${realStartDate}`}
+          className="absolute z-10 flex flex-col items-center cursor-grab active:cursor-grabbing"
+          style={{ left: realLeft - 4, top: barTop - 6, opacity: isDraggingThis ? 0.7 : 1 }}
+          title={`Inicio real: ${realStartDate} (arrastrar para mover)`}
+          onMouseDown={e => {
+            e.preventDefault(); e.stopPropagation();
+            markerDragRef.current = {
+              atencionId: atencionForEdit?.id || '',
+              cycleId: !isMainRow ? cycleForEdit?.id : undefined,
+              type: 'realStart',
+              startX: e.clientX,
+              origDate: realStartDate,
+            };
+            setDraggingMarker({ id: cycleForEdit?.id || atencionForEdit?.id || '', type: 'realStart' });
+            setMarkerDragDelta(0);
+          }}
         >
           <MapPin className="text-amber-500" style={{ width: 10, height: 10 }} />
           <div className="w-0.5 bg-amber-500/60" style={{ height: barH + 4 }} />
@@ -492,47 +583,67 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       );
     }
 
-    // Real end marker — show whenever realEndDate is explicitly set (always white)
+    // Real end marker — draggable
     let realEndMarker = null;
     if (realEndDate && endDate) {
       const realEndIdx = differenceInCalendarDays(parseISO(realEndDate), rangeStart);
       const endIdx2 = differenceInCalendarDays(parseISO(endDate), rangeStart);
       const isLate = realEndIdx > endIdx2;
-      const markerLeft = realEndIdx * colWidth + colWidth / 2;
+      let markerLeft = realEndIdx * colWidth + colWidth / 2;
+      const isDraggingThis = draggingMarker?.type === 'realEnd' &&
+        draggingMarker.id === (cycleForEdit?.id || atencionForEdit?.id || '');
+      if (isDraggingThis) markerLeft += markerDragDelta;
       realEndMarker = (
         <div
-          className="absolute z-20 flex flex-col items-center"
-          style={{ left: markerLeft, top: barTop - 4 }}
-          title={`Fin real: ${realEndDate}${isLate ? ' (atraso)' : ''}`}
+          className="absolute z-20 flex flex-col items-center cursor-grab active:cursor-grabbing"
+          style={{ left: markerLeft, top: barTop - 4, opacity: isDraggingThis ? 0.7 : 1 }}
+          title={`Fin real: ${realEndDate}${isLate ? ' (atraso)' : ''} (arrastrar para mover)`}
+          onMouseDown={e => {
+            e.preventDefault(); e.stopPropagation();
+            markerDragRef.current = {
+              atencionId: atencionForEdit?.id || '',
+              cycleId: !isMainRow ? cycleForEdit?.id : undefined,
+              type: 'realEnd',
+              startX: e.clientX,
+              origDate: realEndDate,
+            };
+            setDraggingMarker({ id: cycleForEdit?.id || atencionForEdit?.id || '', type: 'realEnd' });
+            setMarkerDragDelta(0);
+          }}
         >
-          <CheckCircle2
-            className="text-white"
-            style={{ width: 10, height: 10 }}
-          />
-          <div
-            className="w-0.5 bg-white/80"
-            style={{ height: barH + 2 }}
-          />
+          <CheckCircle2 className="text-white" style={{ width: 10, height: 10 }} />
+          <div className="w-0.5 bg-white/80" style={{ height: barH + 2 }} />
         </div>
       );
     }
 
-    // Production date marker — dashed line with rocket icon
+    // Production date marker — draggable
     let productionMarker = null;
     if (productionDate && isMainRow) {
       const prodIdx = differenceInCalendarDays(parseISO(productionDate), rangeStart);
-      const prodLeft = prodIdx * colWidth + colWidth / 2;
+      let prodLeft = prodIdx * colWidth + colWidth / 2;
+      const isDraggingThis = draggingMarker?.type === 'production' &&
+        draggingMarker.id === (atencionForEdit?.id || '');
+      if (isDraggingThis) prodLeft += markerDragDelta;
       productionMarker = (
         <div
-          className="absolute z-20 flex flex-col items-center"
-          style={{ left: prodLeft - 6, top: barTop - 10 }}
-          title={`Pase a producción: ${productionDate}`}
+          className="absolute z-20 flex flex-col items-center cursor-grab active:cursor-grabbing"
+          style={{ left: prodLeft - 6, top: barTop - 10, opacity: isDraggingThis ? 0.7 : 1 }}
+          title={`Pase a producción: ${productionDate} (arrastrar para mover)`}
+          onMouseDown={e => {
+            e.preventDefault(); e.stopPropagation();
+            markerDragRef.current = {
+              atencionId: atencionForEdit?.id || '',
+              type: 'production',
+              startX: e.clientX,
+              origDate: productionDate,
+            };
+            setDraggingMarker({ id: atencionForEdit?.id || '', type: 'production' });
+            setMarkerDragDelta(0);
+          }}
         >
           <Rocket className="text-emerald-400" style={{ width: 12, height: 12 }} />
-          <div
-            className="border-l border-dashed border-emerald-400"
-            style={{ height: barH + 12 }}
-          />
+          <div className="border-l border-dashed border-emerald-400" style={{ height: barH + 12 }} />
         </div>
       );
     }
@@ -589,7 +700,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
 
           return (
             <div
-              className="absolute group cursor-pointer"
+              className="absolute group cursor-grab active:cursor-grabbing"
               style={{
                 left: plannedLeft + plannedWidth,
                 top: barTop,
@@ -598,6 +709,20 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                 background: isMainRow ? DELAY_RED : CYCLE_DELAY,
                 borderRadius: '0 4px 4px 0',
               }}
+              onMouseDown={atencionForEdit ? (e) => {
+                e.preventDefault(); e.stopPropagation();
+                markerDragRef.current = {
+                  atencionId: atencionForEdit.id,
+                  cycleId: !isMainRow ? cycleForEdit?.id : undefined,
+                  type: 'delayBar',
+                  startX: e.clientX,
+                  origDate: delayEndDate!,
+                  origDelayEnd: delayEndDate,
+                  origEnd: endDate,
+                };
+                setDraggingMarker({ id: cycleForEdit?.id || atencionForEdit.id, type: 'delayBar' });
+                setMarkerDragDelta(0);
+              } : undefined}
               onDoubleClick={() => {
                 if (isMainRow && atencionForEdit && !(atencionForEdit.cycles?.length)) setEditingDelayLabelId(atencionForEdit.id);
                 if (!isMainRow && cycleForEdit && atencionForEdit) setEditingCycleDelayId(cycleForEdit.id);
