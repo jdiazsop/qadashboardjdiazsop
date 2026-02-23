@@ -80,6 +80,9 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
+        {atencion.aplicativo && (
+          <span className="text-[10px] text-primary font-medium">{atencion.aplicativo}</span>
+        )}
         {atencion.description && (
           <p className="text-[11px] text-muted-foreground mb-1.5 line-clamp-2">{atencion.description}</p>
         )}
@@ -160,6 +163,15 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                   onChange={e => onUpdate({ ...atencion, description: e.target.value || undefined })}
                   placeholder="Descripción de la atención..."
                   className="w-full bg-surface-1 border border-border rounded-lg p-2 text-sm text-foreground placeholder:text-muted-foreground resize-none h-16 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Aplicativo</label>
+                <input
+                  value={atencion.aplicativo || ''}
+                  onChange={e => onUpdate({ ...atencion, aplicativo: e.target.value || undefined })}
+                  placeholder="Ej: SAP, CORE..."
+                  className="w-full bg-surface-1 border border-border rounded px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
               <div>
