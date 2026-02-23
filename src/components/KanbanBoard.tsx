@@ -214,33 +214,6 @@ export function KanbanBoard({ columns, atenciones, tags, checklistPhases, onUpda
                     tags={tags}
                     checklistPhases={checklistPhases}
                     onUpdate={(updated) => {
-                      // Sync duplicates: update all cards with same sourceId
-                      const srcId = updated.sourceId;
-                      if (srcId) {
-                        const siblings = atenciones.filter(x => x.sourceId === srcId && x.id !== updated.id);
-                        siblings.forEach(sib => {
-                          onUpdateAtencion({
-                            ...sib,
-                            description: updated.description,
-                            aplicativo: updated.aplicativo,
-                            estadoJira: updated.estadoJira,
-                            totalCPs: updated.totalCPs,
-                            tags: updated.tags,
-                            comments: updated.comments,
-                            performanceComment: updated.performanceComment,
-                            securityComment: updated.securityComment,
-                            status: updated.status,
-                            cycles: updated.cycles,
-                            startDate: updated.startDate,
-                            endDate: updated.endDate,
-                            delayEndDate: updated.delayEndDate,
-                            delayLabel: updated.delayLabel,
-                            realStartDate: updated.realStartDate,
-                            checklistMap: updated.checklistMap,
-                            productionDate: updated.productionDate,
-                          });
-                        });
-                      }
                       onUpdateAtencion(updated);
                     }}
                     onDelete={onDeleteAtencion}
