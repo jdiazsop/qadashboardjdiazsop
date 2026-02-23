@@ -81,28 +81,30 @@ export function ExportExcel({ atenciones, columns }: Props) {
       const currentCx = findCurrentCxCycle(cycles);
       const colTitle = columns.find(c => c.id === a.columnId)?.title || '';
 
-      // Status text
+      // Status text - no date, just execution + counters
       const st = a.status;
       const statusParts: string[] = [];
-      // Add date info from current cycle
-      if (currentCx?.startDate) {
-        const d = new Date(currentCx.startDate);
-        statusParts.push(d.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' }));
-      }
       statusParts.push(`Ejecución ${ciclo.current}`);
       if (st) {
         if (st.conforme != null) statusParts.push(`Conforme: ${st.conforme}`);
         if (st.enProceso != null) statusParts.push(`En proceso: ${st.enProceso}`);
         if (st.pendientes != null) statusParts.push(`Pendientes: ${st.pendientes}`);
-        if (st.bloqueados != null) statusParts.push(`Bloqueados: ${st.bloqueados ?? 0}`);
+        if (st.bloqueados != null) statusParts.push(`Bloqueados: ${st.bloqueados}`);
         if (st.defectos != null) statusParts.push(`Defectos: ${st.defectos}`);
       }
 
-      // Comments
-      const commentParts: string[] = [];
-      if (a.comments) commentParts.push(a.comments);
-      if (a.performanceComment) commentParts.push(`\nPerformance: ${a.performanceComment}`);
-      if (a.securityComment) commentParts.push(`\nSeguridad: ${a.securityComment}`);
+      // Comments - plain text (bold applied via richText below)
+      const commentPlain = a.comments || '';
+      const perfText = a.performanceComment || '';
+      const secText = a.securityComment || '';
+
+      // Format dates as DD/MM/YYYY
+      const fmtDate = (d?: string) => {
+        if (!d) return '';
+        const parts = d.split('-');
+        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        return d;
+      };
 
       const row = ws.addRow([
         a.code,
@@ -111,15 +113,15 @@ export function ExportExcel({ atenciones, columns }: Props) {
         a.estadoJira || '',
         a.totalCPs ?? '',
         ciclo.total > 0 ? ciclo.total : '',
-        analisis?.startDate || '',
-        analisis?.realStartDate || '',
-        currentCx?.startDate || '',
-        currentCx?.realStartDate || '',
-        currentCx?.endDate || '',
-        currentCx?.realEndDate || '',
+        fmtDate(analisis?.startDate),
+        fmtDate(analisis?.realStartDate),
+        fmtDate(currentCx?.startDate),
+        fmtDate(currentCx?.realStartDate),
+        fmtDate(currentCx?.endDate),
+        fmtDate(currentCx?.realEndDate),
         '', // cumplimiento - filled with color below
         statusParts.join('\n'),
-        commentParts.join(''),
+        '', // comments - set via richText below
         colTitle,
       ]);
 
@@ -129,6 +131,25 @@ export function ExportExcel({ atenciones, columns }: Props) {
         cell.alignment = bodyAlignment;
         cell.border = borderThin;
       });
+
+      // Rich text for comments column (15) with bold Performance/Seguridad
+      const richParts: ExcelJS.RichText[] = [];
+      if (commentPlain) {
+        richParts.push({ text: commentPlain, font: { ...bodyFont } });
+      }
+      if (perfText) {
+        if (richParts.length > 0) richParts.push({ text: '\n', font: { ...bodyFont } });
+        richParts.push({ text: 'Performance: ', font: { ...bodyFont, bold: true } });
+        richParts.push({ text: perfText, font: { ...bodyFont } });
+      }
+      if (secText) {
+        if (richParts.length > 0) richParts.push({ text: '\n', font: { ...bodyFont } });
+        richParts.push({ text: 'Seguridad: ', font: { ...bodyFont, bold: true } });
+        richParts.push({ text: secText, font: { ...bodyFont } });
+      }
+      if (richParts.length > 0) {
+        row.getCell(15).value = { richText: richParts };
+      }
 
       // Cumplimiento semaphore (column 13)
       const cumplCell = row.getCell(13);

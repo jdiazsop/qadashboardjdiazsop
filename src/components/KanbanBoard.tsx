@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Atencion, KanbanColumn, Tag, CHECKLIST_ITEMS, ChecklistPhase, DEFAULT_CHECKLIST_PHASES } from '@/types/qa';
 import { KanbanCard } from './KanbanCard';
-import { Plus, X, GripVertical, Pencil, Check } from 'lucide-react';
+import { Plus, X, GripVertical, Pencil, Check, Copy } from 'lucide-react';
 
 interface Props {
   columns: KanbanColumn[];
@@ -26,6 +26,29 @@ export function KanbanBoard({ columns, atenciones, tags, checklistPhases, onUpda
   const [editingColId, setEditingColId] = useState<string | null>(null);
   const [editColTitle, setEditColTitle] = useState('');
   const [dragColId, setDragColId] = useState<string | null>(null);
+  const [duplicatingAtencion, setDuplicatingAtencion] = useState<Atencion | null>(null);
+
+  // When duplicating, the new card in the target column shares the same sourceId for sync
+  const handleDuplicate = (a: Atencion) => {
+    setDuplicatingAtencion(a);
+  };
+
+  const confirmDuplicate = (targetColId: string) => {
+    if (!duplicatingAtencion) return;
+    const sourceId = duplicatingAtencion.sourceId || duplicatingAtencion.id;
+    // Mark original with sourceId if not already set
+    if (!duplicatingAtencion.sourceId) {
+      onUpdateAtencion({ ...duplicatingAtencion, sourceId });
+    }
+    const dup: Atencion = {
+      ...duplicatingAtencion,
+      id: Date.now().toString(),
+      columnId: targetColId,
+      sourceId,
+    };
+    onAddAtencion(dup);
+    setDuplicatingAtencion(null);
+  };
 
   const handleAddAtencion = (colId: string) => {
     if (!newCode.trim()) return;
@@ -153,7 +176,43 @@ export function KanbanBoard({ columns, atenciones, tags, checklistPhases, onUpda
             <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto">
               {colAtenciones.map(a => (
                 <div key={a.id} draggable onDragStart={e => handleDragStart(e, a.id)}>
-                  <KanbanCard atencion={a} tags={tags} checklistPhases={checklistPhases} onUpdate={onUpdateAtencion} onDelete={onDeleteAtencion} />
+                  <KanbanCard
+                    atencion={a}
+                    tags={tags}
+                    checklistPhases={checklistPhases}
+                    onUpdate={(updated) => {
+                      // Sync duplicates: update all cards with same sourceId
+                      const srcId = updated.sourceId;
+                      if (srcId) {
+                        const siblings = atenciones.filter(x => x.sourceId === srcId && x.id !== updated.id);
+                        siblings.forEach(sib => {
+                          onUpdateAtencion({
+                            ...sib,
+                            description: updated.description,
+                            aplicativo: updated.aplicativo,
+                            estadoJira: updated.estadoJira,
+                            totalCPs: updated.totalCPs,
+                            tags: updated.tags,
+                            comments: updated.comments,
+                            performanceComment: updated.performanceComment,
+                            securityComment: updated.securityComment,
+                            status: updated.status,
+                            cycles: updated.cycles,
+                            startDate: updated.startDate,
+                            endDate: updated.endDate,
+                            delayEndDate: updated.delayEndDate,
+                            delayLabel: updated.delayLabel,
+                            realStartDate: updated.realStartDate,
+                            checklistMap: updated.checklistMap,
+                            productionDate: updated.productionDate,
+                          });
+                        });
+                      }
+                      onUpdateAtencion(updated);
+                    }}
+                    onDelete={onDeleteAtencion}
+                    onDuplicate={handleDuplicate}
+                  />
                 </div>
               ))}
 
@@ -223,6 +282,31 @@ export function KanbanBoard({ columns, atenciones, tags, checklistPhases, onUpda
           </button>
         )}
       </div>
+
+      {/* Duplicate column picker */}
+      {duplicatingAtencion && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setDuplicatingAtencion(null)}>
+          <div className="bg-card border border-border rounded-xl w-full max-w-xs p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <Copy className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-bold">Duplicar "{duplicatingAtencion.code}"</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">Selecciona la columna destino:</p>
+            <div className="space-y-1.5">
+              {columns.filter(c => c.id !== duplicatingAtencion.columnId).map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => confirmDuplicate(c.id)}
+                  className="w-full text-left px-3 py-2 rounded-lg bg-surface-1 border border-border text-sm hover:border-primary hover:bg-surface-2 transition-colors"
+                >
+                  {c.title}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setDuplicatingAtencion(null)} className="mt-3 text-xs text-muted-foreground hover:text-foreground">Cancelar</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
