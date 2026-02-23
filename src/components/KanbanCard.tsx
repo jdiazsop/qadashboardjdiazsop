@@ -1,7 +1,18 @@
 import { useState } from 'react';
 import { Atencion, AtencionStatus, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
 import { TagBadge } from './TagBadge';
-import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin, RefreshCw } from 'lucide-react';
+import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin, RefreshCw, Copy } from 'lucide-react';
+
+const JIRA_STATES = [
+  'Registrado',
+  'Desarrollo',
+  'Ctrl Calidad',
+  'Ctrl Cal Proveedor',
+  'Ctrl Cal Prov Terminado',
+  'Pruebas de Aceptación',
+  'Producción',
+  'Calificación',
+] as const;
 
 interface Props {
   atencion: Atencion;
@@ -9,6 +20,7 @@ interface Props {
   checklistPhases: ChecklistPhase[];
   onUpdate: (a: Atencion) => void;
   onDelete: (id: string) => void;
+  onDuplicate?: (a: Atencion) => void;
 }
 
 /** Count sequential Cx cycles (C1, C2, C3...) and return the last Cx label */
@@ -22,7 +34,7 @@ function computeCicloActual(cycles: TestCycle[]): { total: number; current: stri
   return { total: cxCycles.length, current: cxCycles[cxCycles.length - 1].label };
 }
 
-export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete }: Props) {
+export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete, onDuplicate }: Props) {
   const [open, setOpen] = useState(false);
   const [cyclesOpen, setCyclesOpen] = useState(false);
 
@@ -73,12 +85,23 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
       >
         <div className="flex items-center justify-between mb-1">
           <span className="font-mono text-sm font-semibold text-foreground">{atencion.code}</span>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(atencion.id); }}
-            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {onDuplicate && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDuplicate(atencion); }}
+                className="text-muted-foreground hover:text-primary"
+                title="Duplicar a otra columna"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(atencion.id); }}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
         {atencion.aplicativo && (
           <span className="text-[10px] text-primary font-medium">{atencion.aplicativo}</span>
@@ -176,12 +199,14 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
               </div>
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Estado Jira</label>
-                <input
+                <select
                   value={atencion.estadoJira || ''}
                   onChange={e => onUpdate({ ...atencion, estadoJira: e.target.value || undefined })}
-                  placeholder="Ej: En progreso"
-                  className="w-full bg-surface-1 border border-border rounded px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                />
+                  className="w-full bg-surface-1 border border-border rounded px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Seleccionar...</option>
+                  {JIRA_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total CPs</label>

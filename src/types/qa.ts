@@ -83,6 +83,8 @@ export interface AtencionStatus {
 export interface Atencion {
   id: string;
   code: string;
+  /** Links duplicated cards so edits sync between them */
+  sourceId?: string;
   tags: string[];
   progress: number;
   columnId: string;
