@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Atencion, Tag, KanbanColumn, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
+import { Atencion, Tag, KanbanColumn, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles, computeCycleDelay, CYCLE_LABEL_OPTIONS } from '@/types/qa';
 import { TagBadge } from './TagBadge';
 import { Plus, Pencil, Check, X, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, MapPin, Trash2, CheckCircle2, Circle, Rocket } from 'lucide-react';
 import {
@@ -373,7 +373,8 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
   const cancelEditCycle = () => setEditingCycleId(null);
   const addCycleToTimeline = (atencion: Atencion) => {
     const cycles = atencion.cycles ?? [];
-    const num = cycles.length + 1;
+    const usedLabels = new Set(cycles.map(c => c.label));
+    const nextLabel = CYCLE_LABEL_OPTIONS.find(opt => !usedLabels.has(opt)) || `C${cycles.length + 1}`;
     // Default: last cycle's endDate+1 or today, span 3 days
     const lastEnd = [...cycles].reverse().find(c => c.endDate)?.endDate;
     const baseDate = lastEnd
@@ -381,7 +382,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
       : new Date();
     const endDate = new Date(baseDate.getTime() + 2 * 86400000);
     const fmt = (d: Date) => d.toISOString().slice(0, 10);
-    const newCycle: TestCycle = { id: Date.now().toString(), label: `C${num}`, startDate: fmt(baseDate), endDate: fmt(endDate) };
+    const newCycle: TestCycle = { id: Date.now().toString(), label: nextLabel, startDate: fmt(baseDate), endDate: fmt(endDate) };
     const newCycles = [...cycles, newCycle];
     const computed = computeDatesFromCycles(newCycles);
     onUpdateAtencion({ ...atencion, cycles: newCycles, ...computed });
@@ -1023,17 +1024,31 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                               }
                             </button>
                             {editingCycleLabelId === c.id ? (
-                              <input
+                              <select
                                 autoFocus
-                                defaultValue={c.label}
-                                onBlur={e => saveCycleLabel(a, c.id, e.target.value)}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') saveCycleLabel(a, c.id, (e.target as HTMLInputElement).value);
-                                  if (e.key === 'Escape') setEditingCycleLabelId(null);
+                                value={CYCLE_LABEL_OPTIONS.includes(c.label as any) ? c.label : '__custom__'}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  if (val === '__custom__') {
+                                    const custom = prompt('Nombre de actividad:', c.label);
+                                    if (custom) saveCycleLabel(a, c.id, custom);
+                                    else setEditingCycleLabelId(null);
+                                  } else {
+                                    saveCycleLabel(a, c.id, val);
+                                  }
                                 }}
+                                onBlur={() => setEditingCycleLabelId(null)}
                                 className="text-[9px] font-mono bg-surface-0 border border-border rounded px-1 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary flex-1 min-w-0"
                                 onClick={e => e.stopPropagation()}
-                              />
+                              >
+                                {CYCLE_LABEL_OPTIONS.map(opt => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                                <option value="__custom__">+ Otra actividad</option>
+                                {!CYCLE_LABEL_OPTIONS.includes(c.label as any) && c.label && (
+                                  <option value={c.label}>{c.label}</option>
+                                )}
+                              </select>
                             ) : (
                               <span
                                 className="text-[9px] font-mono text-muted-foreground truncate flex-1 cursor-text hover:text-foreground transition-colors"
