@@ -1,3 +1,14 @@
+export const CYCLE_LABEL_OPTIONS = [
+  'Análisis y Diseño',
+  'C1',
+  'C2',
+  'C3',
+  'C4',
+  'C5',
+  'UAT',
+  'Rendimiento',
+] as const;
+
 export interface Tag {
   id: string;
   label: string;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Atencion, AtencionStatus, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay } from '@/types/qa';
+import { Atencion, AtencionStatus, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay, CYCLE_LABEL_OPTIONS } from '@/types/qa';
 import { TagBadge } from './TagBadge';
 import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin, RefreshCw, Copy, GripVertical } from 'lucide-react';
 
@@ -53,14 +53,16 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
     .sort((a, b) => (a.kind === 'estado' ? -1 : 1) - (b.kind === 'estado' ? -1 : 1));
 
   const addCycle = () => {
-    const num = cycles.length + 1;
+    // Determine next label: find the next unused predefined label
+    const usedLabels = new Set(cycles.map(c => c.label));
+    const nextLabel = CYCLE_LABEL_OPTIONS.find(opt => !usedLabels.has(opt)) || `C${cycles.length + 1}`;
     const lastEnd = [...cycles].reverse().find(c => c.endDate)?.endDate;
     const baseDate = lastEnd
       ? new Date(new Date(lastEnd).getTime() + 86400000)
       : new Date();
     const endDate = new Date(baseDate.getTime() + 2 * 86400000);
     const fmt = (d: Date) => d.toISOString().slice(0, 10);
-    const newCycle: TestCycle = { id: Date.now().toString(), label: `C${num}`, startDate: fmt(baseDate), endDate: fmt(endDate) };
+    const newCycle: TestCycle = { id: Date.now().toString(), label: nextLabel, startDate: fmt(baseDate), endDate: fmt(endDate) };
     const newCycles = [...cycles, newCycle];
     const computed = computeDatesFromCycles(newCycles);
     onUpdate({ ...atencion, cycles: newCycles, ...computed });
@@ -333,12 +335,27 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1">
                           <GripVertical className="w-3 h-3 text-muted-foreground" />
-                          <input
-                            value={cycle.label}
-                            onChange={e => updateCycle(cycle.id, { label: e.target.value })}
-                            className="bg-transparent text-xs font-semibold text-foreground border-none outline-none w-20"
-                            placeholder={`Ciclo ${ci + 1}`}
-                          />
+                          <select
+                            value={CYCLE_LABEL_OPTIONS.includes(cycle.label as any) ? cycle.label : '__custom__'}
+                            onChange={e => {
+                              const val = e.target.value;
+                              if (val === '__custom__') {
+                                const custom = prompt('Nombre de actividad:', cycle.label);
+                                if (custom) updateCycle(cycle.id, { label: custom });
+                              } else {
+                                updateCycle(cycle.id, { label: val });
+                              }
+                            }}
+                            className="bg-transparent text-xs font-semibold text-foreground border-none outline-none flex-1 min-w-0 cursor-pointer"
+                          >
+                            {CYCLE_LABEL_OPTIONS.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                            <option value="__custom__">+ Otra actividad</option>
+                            {!CYCLE_LABEL_OPTIONS.includes(cycle.label as any) && cycle.label && (
+                              <option value={cycle.label}>{cycle.label}</option>
+                            )}
+                          </select>
                         </div>
                         <button onClick={() => deleteCycle(cycle.id)} className="text-muted-foreground hover:text-destructive">
                           <Trash2 className="w-3 h-3" />
