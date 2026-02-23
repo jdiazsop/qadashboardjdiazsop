@@ -36,7 +36,39 @@ const Index = () => {
   };
 
   const updateAtencion = (a: Atencion) => {
-    updateTabState(s => ({ ...s, atenciones: s.atenciones.map(x => x.id === a.id ? a : x) }));
+    updateTabState(s => {
+      let updated = s.atenciones.map(x => x.id === a.id ? a : x);
+      // Sync duplicates: propagate shared fields to siblings with same sourceId
+      const srcId = a.sourceId;
+      if (srcId) {
+        updated = updated.map(x => {
+          if (x.sourceId === srcId && x.id !== a.id) {
+            return {
+              ...x,
+              description: a.description,
+              aplicativo: a.aplicativo,
+              estadoJira: a.estadoJira,
+              totalCPs: a.totalCPs,
+              tags: a.tags,
+              comments: a.comments,
+              performanceComment: a.performanceComment,
+              securityComment: a.securityComment,
+              status: a.status,
+              cycles: a.cycles,
+              startDate: a.startDate,
+              endDate: a.endDate,
+              delayEndDate: a.delayEndDate,
+              delayLabel: a.delayLabel,
+              realStartDate: a.realStartDate,
+              checklistMap: a.checklistMap,
+              productionDate: a.productionDate,
+            };
+          }
+          return x;
+        });
+      }
+      return { ...s, atenciones: updated };
+    });
   };
 
   const deleteAtencion = (id: string) => {
