@@ -40,8 +40,10 @@ export function ExportExcel({ atenciones, columns }: Props) {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Seguimiento QA');
 
-    // Header style
-    const headerFill: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E79' } };
+    // Header fills by section
+    const blueFill: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E79' } };
+    const purpleFill: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF7030A0' } };
+    const greenFill: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF375623' } };
     const headerFont: Partial<ExcelJS.Font> = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9, name: 'Calibri' };
     const headerAlignment: Partial<ExcelJS.Alignment> = { horizontal: 'center', vertical: 'middle', wrapText: true };
     const borderThin: Partial<ExcelJS.Borders> = {
@@ -56,18 +58,24 @@ export function ExportExcel({ atenciones, columns }: Props) {
       'Cumplimiento de planificación', 'Estatus', 'Comentario Adicional', 'QA',
     ];
 
+    // Column color map: 1-6 blue, 7-12 purple, 13-16 green
+    const colFillMap: Record<number, ExcelJS.Fill> = {};
+    for (let i = 1; i <= 6; i++) colFillMap[i] = blueFill;
+    for (let i = 7; i <= 12; i++) colFillMap[i] = purpleFill;
+    for (let i = 13; i <= 16; i++) colFillMap[i] = greenFill;
+
     // Add header row
     const headerRow = ws.addRow(headers);
     headerRow.height = 40;
-    headerRow.eachCell((cell) => {
-      cell.fill = headerFill;
+    headerRow.eachCell((cell, colNumber) => {
+      cell.fill = colFillMap[colNumber] || blueFill;
       cell.font = headerFont;
       cell.alignment = headerAlignment;
       cell.border = borderThin;
     });
 
-    // Column widths
-    const colWidths = [14, 30, 12, 14, 8, 10, 16, 16, 16, 16, 16, 16, 12, 22, 45, 20];
+    // Column widths (cumplimiento wider)
+    const colWidths = [14, 30, 12, 14, 8, 10, 16, 16, 16, 16, 16, 16, 18, 22, 45, 20];
     colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
 
     const bodyFont: Partial<ExcelJS.Font> = { size: 9, name: 'Calibri' };
