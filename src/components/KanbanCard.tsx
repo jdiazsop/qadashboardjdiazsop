@@ -455,18 +455,24 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
               <div className="grid grid-cols-5 gap-2">
                 {(['conforme', 'enProceso', 'pendientes', 'bloqueados', 'defectos'] as const).map(key => {
                   const labels: Record<string, string> = { conforme: 'Conforme', enProceso: 'En Proceso', pendientes: 'Pendientes', bloqueados: 'Bloqueados', defectos: 'Defectos' };
+                  const isPendientes = key === 'pendientes';
+                  // Auto-calculate pendientes = totalCPs - (conforme + enProceso + bloqueados)
+                  const computedPendientes = (atencion.totalCPs ?? 0) - ((atencion.status?.conforme ?? 0) + (atencion.status?.enProceso ?? 0) + (atencion.status?.bloqueados ?? 0));
+                  const displayValue = isPendientes ? (atencion.totalCPs != null ? Math.max(0, computedPendientes) : '') : (atencion.status?.[key] ?? '');
                   return (
                     <div key={key}>
                       <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">{labels[key]}</label>
                       <input
                         type="number"
                         min={0}
-                        value={atencion.status?.[key] ?? ''}
+                        value={displayValue}
+                        readOnly={isPendientes}
                         onChange={e => {
+                          if (isPendientes) return;
                           const val = e.target.value ? parseInt(e.target.value) : undefined;
                           onUpdate({ ...atencion, status: { ...atencion.status, [key]: val } });
                         }}
-                        className="w-full bg-surface-1 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        className={`w-full border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary ${isPendientes ? 'bg-surface-0/50 cursor-not-allowed' : 'bg-surface-1'}`}
                         placeholder="0"
                       />
                     </div>

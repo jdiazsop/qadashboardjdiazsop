@@ -135,7 +135,9 @@ export function ExportExcel({ atenciones, columns }: Props) {
       if (st) {
         if (st.conforme != null) statusParts.push(`Conforme: ${st.conforme}`);
         if (st.enProceso != null) statusParts.push(`En proceso: ${st.enProceso}`);
-        if (st.pendientes != null) statusParts.push(`Pendientes: ${st.pendientes}`);
+        // Auto-calculate pendientes
+        const computedPendientes = (a.totalCPs ?? 0) - ((st.conforme ?? 0) + (st.enProceso ?? 0) + (st.bloqueados ?? 0));
+        if (a.totalCPs != null) statusParts.push(`Pendientes: ${Math.max(0, computedPendientes)}`);
         if (st.bloqueados != null) statusParts.push(`Bloqueados: ${st.bloqueados}`);
         if (st.defectos != null) statusParts.push(`Defectos: ${st.defectos}`);
       }
@@ -175,20 +177,25 @@ export function ExportExcel({ atenciones, columns }: Props) {
         cell.border = borderThin;
       });
 
-      // Rich text for comments column (15) with bold Performance/Seguridad
+      // Rich text for comments column (15) with bold labels
       const richParts: ExcelJS.RichText[] = [];
       if (commentPlain) {
         richParts.push({ text: commentPlain, font: { ...bodyFont } });
       }
+      if (a.productionDate) {
+        if (richParts.length > 0) richParts.push({ text: '\n', font: { ...bodyFont } });
+        richParts.push({ text: 'Fecha de Pase a Producción Plan:', font: { ...bodyFont, bold: true } });
+        richParts.push({ text: ` ${fmtDate(a.productionDate)}`, font: { ...bodyFont } });
+      }
       if (perfText) {
         if (richParts.length > 0) richParts.push({ text: '\n', font: { ...bodyFont } });
-        richParts.push({ text: 'Performance: ', font: { ...bodyFont, bold: true } });
-        richParts.push({ text: perfText, font: { ...bodyFont } });
+        richParts.push({ text: 'Performance:', font: { ...bodyFont, bold: true } });
+        richParts.push({ text: ` ${perfText}`, font: { ...bodyFont } });
       }
       if (secText) {
         if (richParts.length > 0) richParts.push({ text: '\n', font: { ...bodyFont } });
-        richParts.push({ text: 'Seguridad: ', font: { ...bodyFont, bold: true } });
-        richParts.push({ text: secText, font: { ...bodyFont } });
+        richParts.push({ text: 'Seguridad:', font: { ...bodyFont, bold: true } });
+        richParts.push({ text: ` ${secText}`, font: { ...bodyFont } });
       }
       if (richParts.length > 0) {
         row.getCell(15).value = { richText: richParts };
