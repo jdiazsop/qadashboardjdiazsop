@@ -81,6 +81,20 @@ export interface TestCycle {
   note?: string;
   /** Whether this cycle is marked as completed */
   completed?: boolean;
+  /** Total CPs for this cycle */
+  totalCPs?: number;
+  /** Status counters for this cycle */
+  status?: AtencionStatus;
+}
+
+/** Get the current (latest) Cx cycle from a list of cycles */
+export function getCurrentCxCycle(cycles: TestCycle[]): TestCycle | undefined {
+  const cxPattern = /^C(\d+)$/i;
+  const cxCycles = cycles
+    .filter(c => cxPattern.test(c.label.trim()))
+    .map(c => ({ cycle: c, num: parseInt(c.label.trim().match(cxPattern)![1]) }))
+    .sort((a, b) => a.num - b.num);
+  return cxCycles.length > 0 ? cxCycles[cxCycles.length - 1].cycle : undefined;
 }
 
 export interface AtencionStatus {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Atencion, AtencionStatus, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay, CYCLE_LABEL_OPTIONS } from '@/types/qa';
+import { Atencion, AtencionStatus, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay, CYCLE_LABEL_OPTIONS, getCurrentCxCycle } from '@/types/qa';
 import { TagBadge } from './TagBadge';
 import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin, RefreshCw, Copy, GripVertical } from 'lucide-react';
 
@@ -119,9 +119,13 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
           {atencion.estadoJira && (
             <span className="bg-surface-0 px-1.5 py-0.5 rounded text-[10px]">{atencion.estadoJira}</span>
           )}
-          {atencion.totalCPs != null && atencion.totalCPs > 0 && (
-            <span className="text-[10px]">CPs: {atencion.totalCPs}</span>
-          )}
+          {(() => {
+            const curCycle = getCurrentCxCycle(cycles);
+            const cps = curCycle?.totalCPs ?? atencion.totalCPs;
+            return cps != null && cps > 0 ? (
+              <span className="text-[10px]">CPs: {cps} <span className="text-muted-foreground/60">({curCycle?.label || 'global'})</span></span>
+            ) : null;
+          })()}
           {cicloActual.total > 0 && (
             <span className="inline-flex items-center gap-0.5 text-[10px] bg-surface-0 px-1.5 py-0.5 rounded">
               <RefreshCw className="w-2.5 h-2.5" />
@@ -216,24 +220,31 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                   {JIRA_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total CPs</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={atencion.totalCPs ?? ''}
-                  onChange={e => onUpdate({ ...atencion, totalCPs: e.target.value ? parseInt(e.target.value) : undefined })}
-                  placeholder="0"
-                  className="w-full bg-surface-1 border border-border rounded px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
               <div className="col-span-2">
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Ciclo Actual</label>
                 <div className="bg-surface-1 border border-border rounded px-2 py-1.5 text-sm text-foreground">
-                  {cicloActual.total > 0
-                    ? <span>{cicloActual.current} <span className="text-muted-foreground">({cicloActual.total} {cicloActual.total === 1 ? 'ciclo' : 'ciclos'} secuenciales)</span></span>
-                    : <span className="text-muted-foreground">Sin ciclos Cx</span>
-                  }
+                  {(() => {
+                    const curCycle = getCurrentCxCycle(cycles);
+                    if (cicloActual.total === 0) return <span className="text-muted-foreground">Sin ciclos Cx</span>;
+                    const st = curCycle?.status;
+                    const cps = curCycle?.totalCPs;
+                    const pendientes = cps != null ? Math.max(0, cps - ((st?.conforme ?? 0) + (st?.enProceso ?? 0) + (st?.bloqueados ?? 0))) : null;
+                    return (
+                      <div>
+                        <span>{cicloActual.current} <span className="text-muted-foreground">({cicloActual.total} {cicloActual.total === 1 ? 'ciclo' : 'ciclos'})</span></span>
+                        {cps != null && (
+                          <div className="text-[10px] text-muted-foreground mt-0.5 flex flex-wrap gap-2">
+                            <span>CPs: {cps}</span>
+                            {st?.conforme != null && <span>✓ {st.conforme}</span>}
+                            {st?.enProceso != null && <span>⟳ {st.enProceso}</span>}
+                            {pendientes != null && <span>⏳ {pendientes}</span>}
+                            {st?.bloqueados != null && <span>⊘ {st.bloqueados}</span>}
+                            {st?.defectos != null && <span>✗ {st.defectos}</span>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -392,6 +403,36 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                             className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                         </div>
                       </div>
+                      <div className="grid grid-cols-3 gap-1.5 mt-1">
+                        <div>
+                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Total CPs</label>
+                          <input type="number" min={0} value={cycle.totalCPs ?? ''}
+                            onChange={e => updateCycle(cycle.id, { totalCPs: e.target.value ? parseInt(e.target.value) : undefined })}
+                            placeholder="0"
+                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        </div>
+                        {(['conforme', 'enProceso', 'bloqueados', 'defectos'] as const).map(key => {
+                          const labels: Record<string, string> = { conforme: 'Conf', enProceso: 'EnProc', bloqueados: 'Bloq', defectos: 'Def' };
+                          return (
+                            <div key={key}>
+                              <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">{labels[key]}</label>
+                              <input type="number" min={0} value={cycle.status?.[key] ?? ''}
+                                onChange={e => {
+                                  const val = e.target.value ? parseInt(e.target.value) : undefined;
+                                  updateCycle(cycle.id, { status: { ...cycle.status, [key]: val } });
+                                }}
+                                placeholder="0"
+                                className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                            </div>
+                          );
+                        })}
+                        <div>
+                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Pend</label>
+                          <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground cursor-not-allowed">
+                            {cycle.totalCPs != null ? Math.max(0, cycle.totalCPs - ((cycle.status?.conforme ?? 0) + (cycle.status?.enProceso ?? 0) + (cycle.status?.bloqueados ?? 0))) : '—'}
+                          </div>
+                        </div>
+                      </div>
                       <div>
                         <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Texto atraso</label>
                         <input value={cycle.delayLabel || ''}
@@ -454,36 +495,30 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
               </div>
             ))}
 
-            {/* Status Section */}
+            {/* Status Summary (read-only, from cycles) */}
             <div className="mb-4">
-              <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Status</h3>
-              <div className="grid grid-cols-5 gap-2">
-                {(['conforme', 'enProceso', 'pendientes', 'bloqueados', 'defectos'] as const).map(key => {
-                  const labels: Record<string, string> = { conforme: 'Conforme', enProceso: 'En Proceso', pendientes: 'Pendientes', bloqueados: 'Bloqueados', defectos: 'Defectos' };
-                  const isPendientes = key === 'pendientes';
-                  // Auto-calculate pendientes = totalCPs - (conforme + enProceso + bloqueados)
-                  const computedPendientes = (atencion.totalCPs ?? 0) - ((atencion.status?.conforme ?? 0) + (atencion.status?.enProceso ?? 0) + (atencion.status?.bloqueados ?? 0));
-                  const displayValue = isPendientes ? (atencion.totalCPs != null ? Math.max(0, computedPendientes) : '') : (atencion.status?.[key] ?? '');
-                  return (
-                    <div key={key}>
-                      <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">{labels[key]}</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={displayValue}
-                        readOnly={isPendientes}
-                        onChange={e => {
-                          if (isPendientes) return;
-                          const val = e.target.value ? parseInt(e.target.value) : undefined;
-                          onUpdate({ ...atencion, status: { ...atencion.status, [key]: val } });
-                        }}
-                        className={`w-full border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary ${isPendientes ? 'bg-surface-0/50 cursor-not-allowed' : 'bg-surface-1'}`}
-                        placeholder="0"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+              <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Status por Ciclo (resumen)</h3>
+              {cycles.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Agrega ciclos para gestionar el status.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {cycles.filter(c => c.totalCPs != null || c.status).map(c => {
+                    const st = c.status;
+                    const pend = c.totalCPs != null ? Math.max(0, c.totalCPs - ((st?.conforme ?? 0) + (st?.enProceso ?? 0) + (st?.bloqueados ?? 0))) : null;
+                    return (
+                      <div key={c.id} className="bg-surface-1 rounded px-2 py-1.5 flex items-center gap-3 text-[10px]">
+                        <span className="font-semibold text-foreground min-w-[60px]">{c.label}</span>
+                        {c.totalCPs != null && <span>CPs: {c.totalCPs}</span>}
+                        {st?.conforme != null && <span className="text-green-500">✓{st.conforme}</span>}
+                        {st?.enProceso != null && <span className="text-yellow-500">⟳{st.enProceso}</span>}
+                        {pend != null && <span className="text-muted-foreground">⏳{pend}</span>}
+                        {st?.bloqueados != null && <span className="text-red-500">⊘{st.bloqueados}</span>}
+                        {st?.defectos != null && <span className="text-destructive">✗{st.defectos}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Comentarios / Observaciones</h3>
