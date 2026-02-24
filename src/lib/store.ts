@@ -175,21 +175,14 @@ export function loadAppState(): AppState {
             tags: DEFAULT_TAGS,
             checklistPhases: tab.state.checklistPhases ?? DEFAULT_CHECKLIST_PHASES,
             atenciones: (tab.state.atenciones ?? []).map(a => {
-              // Migrate old cycle delayEndDate → realEndDate
-              let cycles = (a.cycles ?? []).map((c: any) => {
+              // Migrate old cycle delayEndDate → realEndDate (one-time)
+              const cycles = (a.cycles ?? []).map((c: any) => {
                 if (c.delayEndDate && !c.realEndDate) {
                   const { delayEndDate, ...rest } = c;
                   return { ...rest, realEndDate: delayEndDate };
                 }
                 return c;
               });
-              // If no cycles, inject defaults by matching code
-              if (cycles.length === 0) {
-                const defaultCycles = defaultCyclesByCode.get(a.code);
-                if (defaultCycles) {
-                  cycles = defaultCycles;
-                }
-              }
               return { ...a, cycles };
             }),
           },
