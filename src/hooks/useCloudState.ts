@@ -31,24 +31,27 @@ export function useCloudState(userId: string | undefined) {
 
         const localState = loadAppState();
         const localTimestamp = localStorage.getItem(CLOUD_TIMESTAMP_KEY);
-        const localTime = localTimestamp ? new Date(localTimestamp).getTime() : 0;
+        const hasLocalData = localStorage.getItem('qa-dashboard-v13') !== null;
 
         if (data?.state) {
+          // If we've never synced before and localStorage has data,
+          // prefer localStorage (user had changes before cloud was set up)
+          const neverSynced = !localTimestamp;
+          const localTime = localTimestamp ? new Date(localTimestamp).getTime() : 0;
           const cloudTime = new Date(data.updated_at).getTime();
           
-          // Use whichever is more recent
-          if (localTime > cloudTime && localState.tabs.length > 0) {
-            console.log('Using localStorage (newer than cloud)');
+          if ((neverSynced && hasLocalData) || (localTime > cloudTime && localState.tabs.length > 0)) {
+            console.log('Using localStorage (newer or never synced)');
             setAppState(localState);
             // Sync localStorage data to cloud
             await supabase
               .from('user_app_state')
               .update({ state: localState as any })
               .eq('user_id', userId);
+            localStorage.setItem(CLOUD_TIMESTAMP_KEY, new Date().toISOString());
           } else {
             console.log('Using cloud data');
             setAppState(data.state as unknown as AppState);
-            // Update local cache
             saveAppState(data.state as unknown as AppState);
             localStorage.setItem(CLOUD_TIMESTAMP_KEY, data.updated_at);
           }
