@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { KanbanBoard } from '@/components/KanbanBoard';
 import { TimelineView } from '@/components/TimelineView';
 import { ExportExcel } from '@/components/ExportExcel';
-
 import { TagManager } from '@/components/TagManager';
 import { ChecklistManager } from '@/components/ChecklistManager';
-import { loadAppState, saveAppState, AppState, DashboardState, ProjectTab } from '@/lib/store';
+import { useAuth } from '@/hooks/useAuth';
+import { useCloudState } from '@/hooks/useCloudState';
+import { DashboardState, ProjectTab } from '@/lib/store';
 import { Atencion, KanbanColumn, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES } from '@/types/qa';
-import { LayoutDashboard, Kanban, GanttChart, Plus, Pencil, Settings, Trash2 } from 'lucide-react';
+import { LayoutDashboard, Kanban, GanttChart, Plus, Pencil, Settings, Trash2, LogOut } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -17,11 +18,19 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const Index = () => {
-  const [appState, setAppState] = useState<AppState>(() => loadAppState());
+  const { user, signOut } = useAuth();
+  const { appState, setAppState, loading } = useCloudState(user?.id);
 
-  useEffect(() => {
-    saveAppState(appState);
-  }, [appState]);
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
+  const [editTabName, setEditTabName] = useState('');
+
+  if (loading || !appState) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">
+        Cargando datos...
+      </div>
+    );
+  }
 
   const activeTab = appState.tabs.find(t => t.id === appState.activeTabId) ?? appState.tabs[0];
   const state = activeTab?.state;
@@ -38,7 +47,6 @@ const Index = () => {
   const updateAtencion = (a: Atencion) => {
     updateTabState(s => {
       let updated = s.atenciones.map(x => x.id === a.id ? a : x);
-      // Sync duplicates: propagate shared fields to siblings with same sourceId
       const srcId = a.sourceId;
       if (srcId) {
         updated = updated.map(x => {
@@ -76,7 +84,6 @@ const Index = () => {
   };
 
   const addAtencion = (a: Atencion) => {
-    // New items get lowest sortOrder (appear at top)
     const minOrder = Math.min(0, ...state.atenciones.map(x => x.sortOrder ?? 0)) - 1;
     updateTabState(s => ({ ...s, atenciones: [...s.atenciones, { ...a, sortOrder: minOrder }] }));
   };
@@ -100,10 +107,6 @@ const Index = () => {
   const renameColumn = (id: string, title: string) => {
     updateTabState(s => ({ ...s, columns: s.columns.map(c => c.id === id ? { ...c, title } : c) }));
   };
-
-  // Tab management
-  const [editingTabId, setEditingTabId] = useState<string | null>(null);
-  const [editTabName, setEditTabName] = useState('');
 
   const addTab = () => {
     const id = Date.now().toString();
@@ -169,48 +172,49 @@ const Index = () => {
           <h1 className="text-xl font-bold tracking-tight">QA Dashboard</h1>
         </div>
 
-        {/* Settings dropdown - delete tab hidden here */}
-        <AlertDialog>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="ml-auto p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                <Settings className="w-4 h-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {appState.tabs.length > 1 && (
-                <AlertDialogTrigger asChild>
-                  <DropdownMenuItem className="text-destructive focus:text-destructive">
-                    <Trash2 className="w-3.5 h-3.5 mr-2" />
-                    Eliminar pestaña "{activeTab.name}"
-                  </DropdownMenuItem>
-                </AlertDialogTrigger>
-              )}
-              {appState.tabs.length <= 1 && (
-                <DropdownMenuItem disabled className="text-muted-foreground text-xs">
-                  No hay opciones disponibles
+        <div className="ml-auto flex items-center gap-1">
+          <span className="text-xs text-muted-foreground hidden sm:inline">{user?.email}</span>
+          <AlertDialog>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                  <Settings className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {appState.tabs.length > 1 && (
+                  <AlertDialogTrigger asChild>
+                    <DropdownMenuItem className="text-destructive focus:text-destructive">
+                      <Trash2 className="w-3.5 h-3.5 mr-2" />
+                      Eliminar pestaña "{activeTab.name}"
+                    </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                )}
+                <DropdownMenuItem onClick={signOut}>
+                  <LogOut className="w-3.5 h-3.5 mr-2" />
+                  Cerrar sesión
                 </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Eliminar "{activeTab.name}"?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta acción eliminará permanentemente la pestaña y todos sus datos (tarjetas, timeline, ítems críticos). Esta acción no se puede deshacer.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={() => deleteTab(activeTab.id)}
-              >
-                Sí, eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar "{activeTab.name}"?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción eliminará permanentemente la pestaña y todos sus datos. No se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => deleteTab(activeTab.id)}
+                >
+                  Sí, eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </header>
 
       {/* Excel-style tabs */}
@@ -262,7 +266,6 @@ const Index = () => {
 
       {/* Content */}
       <div className="flex-1 p-4 md:p-6 space-y-6">
-        {/* Tag Manager */}
         <div className="flex items-center gap-4">
           <TagManager
             tags={state.tags}
@@ -275,7 +278,6 @@ const Index = () => {
           <ExportExcel atenciones={state.atenciones} columns={state.columns} />
         </div>
 
-        {/* Kanban Section */}
         <section>
           <div className="flex items-center gap-2 mb-3">
             <Kanban className="w-4 h-4 text-primary" />
@@ -296,7 +298,6 @@ const Index = () => {
           />
         </section>
 
-        {/* Timeline */}
         <section className="bg-surface-1 border border-border rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <GanttChart className="w-4 h-4 text-primary" />
@@ -311,7 +312,6 @@ const Index = () => {
             onReorderAtenciones={(atenciones) => updateTabState(s => ({ ...s, atenciones }))}
           />
         </section>
-
       </div>
     </div>
   );
