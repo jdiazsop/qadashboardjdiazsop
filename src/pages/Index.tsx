@@ -17,50 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const Index = () => {
-  const [appState, setAppState] = useState<AppState>(() => {
-    const loaded = loadAppState();
-    // One-time sync: reconcile duplicate cards on load
-    const synced: AppState = {
-      ...loaded,
-      tabs: loaded.tabs.map(tab => {
-        const { atenciones } = tab.state;
-        // Group by sourceId, pick the first as source of truth
-        const sourceMap = new Map<string, Atencion>();
-        for (const a of atenciones) {
-          if (a.sourceId && !sourceMap.has(a.sourceId)) {
-            sourceMap.set(a.sourceId, a);
-          }
-        }
-        const reconciled = atenciones.map(a => {
-          if (!a.sourceId) return a;
-          const source = sourceMap.get(a.sourceId);
-          if (!source || source.id === a.id) return a;
-          return {
-            ...a,
-            description: source.description,
-            aplicativo: source.aplicativo,
-            estadoJira: source.estadoJira,
-            totalCPs: source.totalCPs,
-            tags: source.tags,
-            comments: source.comments,
-            performanceComment: source.performanceComment,
-            securityComment: source.securityComment,
-            status: source.status,
-            cycles: source.cycles,
-            startDate: source.startDate,
-            endDate: source.endDate,
-            delayEndDate: source.delayEndDate,
-            delayLabel: source.delayLabel,
-            realStartDate: source.realStartDate,
-            checklistMap: source.checklistMap,
-            productionDate: source.productionDate,
-          };
-        });
-        return { ...tab, state: { ...tab.state, atenciones: reconciled } };
-      }),
-    };
-    return synced;
-  });
+  const [appState, setAppState] = useState<AppState>(() => loadAppState());
 
   useEffect(() => {
     saveAppState(appState);
