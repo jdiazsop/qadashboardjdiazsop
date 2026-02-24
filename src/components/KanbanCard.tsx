@@ -151,8 +151,13 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setOpen(false)}>
           <div className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-mono text-lg font-bold">{atencion.code}</h2>
-              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
+              <input
+                value={atencion.code}
+                onChange={e => onUpdate({ ...atencion, code: e.target.value })}
+                className="font-mono text-lg font-bold bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none text-foreground w-full mr-2"
+                placeholder="Código..."
+              />
+              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground flex-shrink-0">
                 <X className="w-5 h-5" />
               </button>
             </div>
