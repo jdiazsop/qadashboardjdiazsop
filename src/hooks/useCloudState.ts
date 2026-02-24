@@ -1,18 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { AppState } from '@/lib/store';
-import { loadAppState } from '@/lib/store';
+import { loadAppState, saveAppState } from '@/lib/store';
+
+const STORAGE_KEY = 'qa-dashboard-v13';
+const CLOUD_TIMESTAMP_KEY = 'qa-cloud-last-sync';
 
 /**
  * Hook that syncs AppState to the cloud database for the authenticated user.
- * Falls back to localStorage defaults on first load, then persists to cloud.
+ * Compares localStorage and cloud data, preferring the most recent version.
  */
 export function useCloudState(userId: string | undefined) {
   const [appState, setAppState] = useState<AppState | null>(null);
   const [loading, setLoading] = useState(true);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Load state from cloud on mount
+  // Load state: compare cloud vs localStorage and use the most recent
   useEffect(() => {
     if (!userId) return;
 
@@ -20,26 +23,46 @@ export function useCloudState(userId: string | undefined) {
       try {
         const { data, error } = await supabase
           .from('user_app_state')
-          .select('state')
+          .select('state, updated_at')
           .eq('user_id', userId)
           .maybeSingle();
 
         if (error) throw error;
 
+        const localState = loadAppState();
+        const localTimestamp = localStorage.getItem(CLOUD_TIMESTAMP_KEY);
+        const localTime = localTimestamp ? new Date(localTimestamp).getTime() : 0;
+
         if (data?.state) {
-          setAppState(data.state as unknown as AppState);
+          const cloudTime = new Date(data.updated_at).getTime();
+          
+          // Use whichever is more recent
+          if (localTime > cloudTime && localState.tabs.length > 0) {
+            console.log('Using localStorage (newer than cloud)');
+            setAppState(localState);
+            // Sync localStorage data to cloud
+            await supabase
+              .from('user_app_state')
+              .update({ state: localState as any })
+              .eq('user_id', userId);
+          } else {
+            console.log('Using cloud data');
+            setAppState(data.state as unknown as AppState);
+            // Update local cache
+            saveAppState(data.state as unknown as AppState);
+            localStorage.setItem(CLOUD_TIMESTAMP_KEY, data.updated_at);
+          }
         } else {
-          // First time user — load from localStorage defaults and save to cloud
-          const local = loadAppState();
-          setAppState(local);
+          // First time user — save localStorage to cloud
+          setAppState(localState);
           await supabase.from('user_app_state').insert({
             user_id: userId,
-            state: local as any,
+            state: localState as any,
           });
+          localStorage.setItem(CLOUD_TIMESTAMP_KEY, new Date().toISOString());
         }
       } catch (err) {
         console.error('Error loading cloud state:', err);
-        // Fallback to localStorage
         setAppState(loadAppState());
       } finally {
         setLoading(false);
@@ -53,6 +76,10 @@ export function useCloudState(userId: string | undefined) {
   const saveToCloud = useCallback(
     (newState: AppState) => {
       if (!userId) return;
+      // Always save to localStorage immediately
+      saveAppState(newState);
+      localStorage.setItem(CLOUD_TIMESTAMP_KEY, new Date().toISOString());
+
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
       saveTimeoutRef.current = setTimeout(async () => {
@@ -64,7 +91,7 @@ export function useCloudState(userId: string | undefined) {
         } catch (err) {
           console.error('Error saving to cloud:', err);
         }
-      }, 1000); // debounce 1s
+      }, 1000);
     },
     [userId]
   );
