@@ -145,7 +145,17 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
     });
   };
 
-  const allItems = atenciones
+  // Filter duplicates: keep only one per sourceId (the original)
+  const seenSourceIds = new Set<string>();
+  const uniqueAtenciones = atenciones.filter(a => {
+    if (a.sourceId) {
+      if (seenSourceIds.has(a.sourceId)) return false;
+      seenSourceIds.add(a.sourceId);
+    }
+    return true;
+  });
+
+  const allItems = uniqueAtenciones
     .filter(a => a.startDate && a.endDate)
     .sort((a, b) => {
       const aComp = isCompleted(a) ? 1 : 0;
