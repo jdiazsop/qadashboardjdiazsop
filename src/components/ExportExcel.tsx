@@ -86,7 +86,7 @@ export function ExportExcel({ atenciones, columns }: Props) {
     const colFillMap: Record<number, ExcelJS.Fill> = {};
     for (let i = 1; i <= 6; i++) colFillMap[i] = blueFill;
     for (let i = 7; i <= 12; i++) colFillMap[i] = purpleFill;
-    for (let i = 13; i <= 16; i++) colFillMap[i] = greenFill;
+    for (let i = 13; i <= 16; i++) colFillMap[i] = blueFill;
 
     // Add header row - taller for wrapped text
     const headerRow = ws.addRow(headers);
