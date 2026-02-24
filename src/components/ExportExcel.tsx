@@ -1,4 +1,4 @@
-import { Atencion, KanbanColumn, TestCycle } from '@/types/qa';
+import { Atencion, KanbanColumn, TestCycle, getCurrentCxCycle } from '@/types/qa';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Download } from 'lucide-react';
@@ -123,23 +123,24 @@ export function ExportExcel({ atenciones, columns }: Props) {
       const analisis = findAnalisisCycle(cycles);
       const currentCx = findCurrentCxCycle(cycles);
 
+      // Use current Cx cycle's totalCPs and status, fallback to global
+      const cycleTotalCPs = currentCx?.totalCPs ?? a.totalCPs;
+      const cycleSt = currentCx?.status ?? a.status;
+
       // DESA dates: from the "Análisis y Diseño" cycle
-      // Planificada = startDate of Análisis, Real = realStartDate of Análisis
       const desaPlanificada = analisis?.startDate;
       const desaReal = analisis?.realStartDate;
 
-      // Status text - no date, just execution + counters
-      const st = a.status;
+      // Status text from current cycle
       const statusParts: string[] = [];
       statusParts.push(`Ejecución ${ciclo.current}`);
-      if (st) {
-        if (st.conforme != null) statusParts.push(`Conforme: ${st.conforme}`);
-        if (st.enProceso != null) statusParts.push(`En proceso: ${st.enProceso}`);
-        // Auto-calculate pendientes
-        const computedPendientes = (a.totalCPs ?? 0) - ((st.conforme ?? 0) + (st.enProceso ?? 0) + (st.bloqueados ?? 0));
-        if (a.totalCPs != null) statusParts.push(`Pendientes: ${Math.max(0, computedPendientes)}`);
-        if (st.bloqueados != null) statusParts.push(`Bloqueados: ${st.bloqueados}`);
-        if (st.defectos != null) statusParts.push(`Defectos: ${st.defectos}`);
+      if (cycleSt) {
+        if (cycleSt.conforme != null) statusParts.push(`Conforme: ${cycleSt.conforme}`);
+        if (cycleSt.enProceso != null) statusParts.push(`En proceso: ${cycleSt.enProceso}`);
+        const computedPendientes = (cycleTotalCPs ?? 0) - ((cycleSt.conforme ?? 0) + (cycleSt.enProceso ?? 0) + (cycleSt.bloqueados ?? 0));
+        if (cycleTotalCPs != null) statusParts.push(`Pendientes: ${Math.max(0, computedPendientes)}`);
+        if (cycleSt.bloqueados != null) statusParts.push(`Bloqueados: ${cycleSt.bloqueados}`);
+        if (cycleSt.defectos != null) statusParts.push(`Defectos: ${cycleSt.defectos}`);
       }
 
       // Comments - plain text (bold applied via richText below)
@@ -152,7 +153,7 @@ export function ExportExcel({ atenciones, columns }: Props) {
         a.description || '',
         a.aplicativo || '',
         a.estadoJira || '',
-        a.totalCPs ?? '',
+        cycleTotalCPs ?? '',
         ciclo.total > 0 ? ciclo.total : '',
         fmtDate(desaPlanificada),
         fmtDate(desaReal),
