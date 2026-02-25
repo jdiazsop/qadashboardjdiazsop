@@ -8,7 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCloudState } from '@/hooks/useCloudState';
 import { DashboardState, ProjectTab } from '@/lib/store';
 import { Atencion, KanbanColumn, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES } from '@/types/qa';
-import { LayoutDashboard, Kanban, GanttChart, Plus, Pencil, Settings, Trash2, LogOut } from 'lucide-react';
+import { TestSchedule } from '@/components/TestSchedule';
+import { LayoutDashboard, Kanban, GanttChart, CalendarDays, Plus, Pencil, Settings, Trash2, LogOut } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -311,6 +312,14 @@ const Index = () => {
             onAddAtencion={addAtencion}
             onReorderAtenciones={(atenciones) => updateTabState(s => ({ ...s, atenciones }))}
           />
+        </section>
+
+        <section className="bg-surface-1 border border-border rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <CalendarDays className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Cronograma de Pruebas</h2>
+          </div>
+          <TestSchedule atenciones={state.atenciones} />
         </section>
       </div>
     </div>
