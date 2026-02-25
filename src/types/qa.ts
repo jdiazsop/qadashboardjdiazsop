@@ -220,6 +220,15 @@ export function computeBusinessDates(
 /** Compute all estimation task dates sequentially */
 export function computeEstimation(estimation: DateEstimation): EstimationTask[] {
   const start = new Date(estimation.startDate + 'T12:00:00');
+  if (isNaN(start.getTime())) {
+    // Invalid start date – return tasks without computed dates
+    return estimation.tasks.map(task => ({
+      ...task,
+      adjustedHours: 0,
+      computedStart: '—',
+      computedEnd: '—',
+    }));
+  }
   const qaCount = Math.max(1, estimation.qaCount);
   const hoursPerDay = estimation.hoursPerDay || 9;
   
@@ -232,6 +241,9 @@ export function computeEstimation(estimation: DateEstimation): EstimationTask[] 
   let cursor = new Date(start);
   return estimation.tasks.map(task => {
     const adjustedHours = Math.ceil(task.hours / qaCount * 10) / 10;
+    if (isNaN(cursor.getTime())) {
+      return { ...task, adjustedHours, computedStart: '—', computedEnd: '—' };
+    }
     if (adjustedHours <= 0) {
       const fmt = cursor.toISOString().slice(0, 10);
       return { ...task, adjustedHours, computedStart: fmt, computedEnd: fmt };
@@ -239,10 +251,13 @@ export function computeEstimation(estimation: DateEstimation): EstimationTask[] 
     const { start: cs, end: ce } = computeBusinessDates(cursor, adjustedHours, hoursPerDay, holidays);
     const result = { ...task, adjustedHours, computedStart: cs, computedEnd: ce };
     // Move cursor to next business day after end
-    cursor = new Date(ce + 'T12:00:00');
-    cursor.setDate(cursor.getDate() + 1);
-    while (!isBusinessDay(cursor, holidays)) {
+    const nextCursor = new Date(ce + 'T12:00:00');
+    if (!isNaN(nextCursor.getTime())) {
+      cursor = nextCursor;
       cursor.setDate(cursor.getDate() + 1);
+      while (!isBusinessDay(cursor, holidays)) {
+        cursor.setDate(cursor.getDate() + 1);
+      }
     }
     return result;
   });
