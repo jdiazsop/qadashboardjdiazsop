@@ -65,16 +65,17 @@ function buildDistributionMap(
     return { dailyMap: new Map(), cpsPerQAPerDay: 0 };
   }
   const cpsPerQAPerDay = Math.ceil(totalToDistribute / (bizDays.length * qaCount));
+  const totalPerDay = cpsPerQAPerDay * qaCount;
   const dailyMap = new Map<string, DailyEntry>();
   let cum = 0;
   bizDays.forEach((d, i) => {
     const isLast = i === bizDays.length - 1;
     const dayTarget = isLast
       ? totalToDistribute - cum
-      : Math.min(cpsPerQAPerDay * qaCount, totalToDistribute - cum);
+      : Math.min(totalPerDay, totalToDistribute - cum);
     cum += dayTarget;
     dailyMap.set(dateKey(d), {
-      casesPerQA: Math.ceil(dayTarget / qaCount),
+      casesPerQA: dayTarget,
       cumulative: cum,
     });
   });
