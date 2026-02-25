@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Atencion, getPeruHolidays, isBusinessDay } from '@/types/qa';
 
 interface Props {
@@ -267,100 +267,98 @@ export function TestSchedule({ atenciones }: Props) {
               })}
             </tr>
           </thead>
-          <tbody>
-            {groups.map((g, gIdx) => {
-              const progressPct = g.totalCPs > 0 ? Math.round((g.executed / g.totalCPs) * 100) : 0;
-              return (
-                <tbody key={`${g.atencionId}-${g.cycleLabel}-${gIdx}`}>
-                  {/* Group header row */}
-                  <tr className="bg-secondary/40 border-t border-border">
-                    <td
-                      colSpan={1 + allDays.length}
-                      className="px-2 py-1.5 sticky left-0 z-10"
-                    >
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-foreground">{g.atencionCode}</span>
-                        <span className="bg-primary/20 text-primary px-2 py-0.5 rounded font-medium">{g.cycleLabel}</span>
+          {groups.map((g, gIdx) => {
+            const progressPct = g.totalCPs > 0 ? Math.round((g.executed / g.totalCPs) * 100) : 0;
+            return (
+              <tbody key={`${g.atencionId}-${g.cycleLabel}-${gIdx}`}>
+                {/* Group header row */}
+                <tr className="bg-secondary/40 border-t border-border">
+                  <td
+                    colSpan={1 + allDays.length}
+                    className="px-2 py-1.5"
+                  >
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-foreground">{g.atencionCode}</span>
+                      <span className="bg-primary/20 text-primary px-2 py-0.5 rounded font-medium">{g.cycleLabel}</span>
+                      <span className="text-muted-foreground">
+                        {g.totalCPs} CPs · {g.qaCount} QA{g.qaCount > 1 ? 's' : ''}
+                      </span>
+                      {g.executed > 0 && (
                         <span className="text-muted-foreground">
-                          {g.totalCPs} CPs · {g.qaCount} QA{g.qaCount > 1 ? 's' : ''}
+                          Ejecutados: {g.executed}/{g.totalCPs} ({progressPct}%)
                         </span>
-                        {g.executed > 0 && (
-                          <span className="text-muted-foreground">
-                            Ejecutados: {g.executed}/{g.totalCPs} ({progressPct}%)
+                      )}
+                    </div>
+                  </td>
+                </tr>
+                {/* Data rows */}
+                {g.rows.map((row, rIdx) => (
+                  <React.Fragment key={rIdx}>
+                    {/* CPs/QA row */}
+                    <tr className="border-b border-border/30">
+                      <td className="sticky left-0 z-10 bg-card px-2 py-1 font-medium text-muted-foreground whitespace-nowrap" style={{ width: LABEL_W }}>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-full ${row.type === 'planned' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
+                          {row.label}
+                          <span className="text-[10px] text-muted-foreground/70">
+                            ({row.businessDays}d · ~{row.casesPerQAPerDay} CPs/QA/día)
                           </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                  {/* Data rows */}
-                  {g.rows.map((row, rIdx) => (
-                    <>
-                      {/* CPs/QA row */}
-                      <tr key={`${rIdx}-cp`} className="border-b border-border/30">
-                        <td className="sticky left-0 z-10 bg-card px-2 py-1 font-medium text-muted-foreground whitespace-nowrap" style={{ width: LABEL_W }}>
-                          <div className="flex items-center gap-1.5">
-                            <span className={`w-2 h-2 rounded-full ${row.type === 'planned' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
-                            {row.label}
-                            <span className="text-[10px] text-muted-foreground/70">
-                              ({row.businessDays}d · ~{row.casesPerQAPerDay} CPs/QA/día)
-                            </span>
-                          </div>
-                        </td>
-                        {allDays.map((d, i) => {
-                          const dk = dateKey(d);
-                          const entry = row.dailyMap.get(dk);
-                          const dow = d.getDay();
-                          const isWeekend = dow === 0 || dow === 6;
-                          const isHoliday = holidays.has(dk);
-                          const isNonWorking = isWeekend || isHoliday;
-                          return (
-                            <td
-                              key={i}
-                              className={`text-center px-0.5 py-1 border-l border-border/10 ${isNonWorking ? 'bg-red-900/20' : ''} ${entry ? (row.type === 'planned' ? 'bg-blue-900/20' : 'bg-emerald-900/20') : ''}`}
-                              style={{ minWidth: COL_W, maxWidth: COL_W }}
-                            >
-                              {entry && (
-                                <span className={`font-semibold ${row.type === 'planned' ? 'text-blue-300' : 'text-emerald-300'}`}>
-                                  {entry.casesPerQA}
-                                </span>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                      {/* Cumulative row */}
-                      <tr key={`${rIdx}-cum`} className="border-b border-border/50">
-                        <td className="sticky left-0 z-10 bg-card px-2 py-1 text-muted-foreground/70 text-[10px] pl-6" style={{ width: LABEL_W }}>
-                          Acumulado
-                        </td>
-                        {allDays.map((d, i) => {
-                          const dk = dateKey(d);
-                          const entry = row.dailyMap.get(dk);
-                          const dow = d.getDay();
-                          const isWeekend = dow === 0 || dow === 6;
-                          const isHoliday = holidays.has(dk);
-                          const isNonWorking = isWeekend || isHoliday;
-                          return (
-                            <td
-                              key={i}
-                              className={`text-center px-0.5 py-0.5 border-l border-border/10 text-[10px] ${isNonWorking ? 'bg-red-900/20' : ''} ${entry ? (row.type === 'planned' ? 'bg-blue-900/10' : 'bg-emerald-900/10') : ''}`}
-                              style={{ minWidth: COL_W, maxWidth: COL_W }}
-                            >
-                              {entry && (
-                                <span className="text-muted-foreground">
-                                  {entry.cumulative}
-                                </span>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    </>
-                  ))}
-                </tbody>
-              );
-            })}
-          </tbody>
+                        </div>
+                      </td>
+                      {allDays.map((d, i) => {
+                        const dk = dateKey(d);
+                        const entry = row.dailyMap.get(dk);
+                        const dow = d.getDay();
+                        const isWeekend = dow === 0 || dow === 6;
+                        const isHoliday = holidays.has(dk);
+                        const isNonWorking = isWeekend || isHoliday;
+                        return (
+                          <td
+                            key={i}
+                            className={`text-center px-0.5 py-1 border-l border-border/10 ${isNonWorking ? 'bg-red-900/20' : ''} ${entry ? (row.type === 'planned' ? 'bg-blue-900/20' : 'bg-emerald-900/20') : ''}`}
+                            style={{ minWidth: COL_W, maxWidth: COL_W }}
+                          >
+                            {entry && (
+                              <span className={`font-semibold ${row.type === 'planned' ? 'text-blue-300' : 'text-emerald-300'}`}>
+                                {entry.casesPerQA}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {/* Cumulative row */}
+                    <tr className="border-b border-border/50">
+                      <td className="sticky left-0 z-10 bg-card px-2 py-1 text-muted-foreground/70 text-[10px] pl-6" style={{ width: LABEL_W }}>
+                        Acumulado
+                      </td>
+                      {allDays.map((d, i) => {
+                        const dk = dateKey(d);
+                        const entry = row.dailyMap.get(dk);
+                        const dow = d.getDay();
+                        const isWeekend = dow === 0 || dow === 6;
+                        const isHoliday = holidays.has(dk);
+                        const isNonWorking = isWeekend || isHoliday;
+                        return (
+                          <td
+                            key={i}
+                            className={`text-center px-0.5 py-0.5 border-l border-border/10 text-[10px] ${isNonWorking ? 'bg-red-900/20' : ''} ${entry ? (row.type === 'planned' ? 'bg-blue-900/10' : 'bg-emerald-900/10') : ''}`}
+                            style={{ minWidth: COL_W, maxWidth: COL_W }}
+                          >
+                            {entry && (
+                              <span className="text-muted-foreground">
+                                {entry.cumulative}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </React.Fragment>
+                ))}
+              </tbody>
+            );
+          })}
         </table>
       </div>
     </div>
