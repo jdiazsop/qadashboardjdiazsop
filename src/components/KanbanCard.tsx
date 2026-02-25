@@ -251,6 +251,28 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
               </div>
             </div>
 
+            {/* Date Estimator Section */}
+            <div className="mb-4">
+              <button
+                onClick={() => setEstimatorOpen(v => !v)}
+                className="flex items-center gap-2 w-full text-left"
+              >
+                {estimatorOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                <Calculator className="w-4 h-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                  Estimador de Fechas
+                </h3>
+              </button>
+              {estimatorOpen && (
+                <div className="mt-2">
+                  <DateEstimator
+                    estimation={atencion.estimation}
+                    onChange={(est) => onUpdate({ ...atencion, estimation: est })}
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Cycles Section */}
             <div className="mb-4">
               <button
@@ -519,28 +541,6 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                       </div>
                     );
                   })}
-                </div>
-              )}
-            </div>
-
-            {/* Date Estimator Section */}
-            <div className="mb-4">
-              <button
-                onClick={() => setEstimatorOpen(v => !v)}
-                className="flex items-center gap-2 w-full text-left"
-              >
-                {estimatorOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-                <Calculator className="w-4 h-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  Estimador de Fechas
-                </h3>
-              </button>
-              {estimatorOpen && (
-                <div className="mt-2">
-                  <DateEstimator
-                    estimation={atencion.estimation}
-                    onChange={(est) => onUpdate({ ...atencion, estimation: est })}
-                  />
                 </div>
               )}
             </div>
