@@ -24,8 +24,44 @@ const BAR_BLUE = '#2563EB';
 const BAR_GREEN = '#16A34A';
 const DELAY_RED = '#DC2626';
 const CYCLE_BLUE = '#3B82F6';
+const CYCLE_PENDING_COLOR = '#94A3B8'; // slate-400 for pending cycles
 const CYCLE_DELAY = '#EF4444';
 const REAL_START_COLOR = '#F59E0B';
+
+/** Determine status of each cycle: 'completed' | 'active' | 'pending' */
+function getCycleStatuses(cycles: TestCycle[]): Map<string, 'completed' | 'active' | 'pending'> {
+  const result = new Map<string, 'completed' | 'active' | 'pending'>();
+  // Find the last non-completed cycle that has realStartDate (i.e. has begun)
+  let activeIdx = -1;
+  for (let i = cycles.length - 1; i >= 0; i--) {
+    if (!cycles[i].completed && cycles[i].realStartDate) {
+      activeIdx = i;
+      break;
+    }
+  }
+  // If none has realStartDate, the first non-completed cycle is active
+  if (activeIdx === -1) {
+    for (let i = 0; i < cycles.length; i++) {
+      if (!cycles[i].completed) {
+        activeIdx = i;
+        break;
+      }
+    }
+  }
+  cycles.forEach((c, i) => {
+    if (c.completed) {
+      result.set(c.id, 'completed');
+    } else if (i === activeIdx) {
+      result.set(c.id, 'active');
+    } else if (i > activeIdx && activeIdx >= 0) {
+      result.set(c.id, 'pending');
+    } else {
+      // cycles before the active one that aren't completed -> treat as active
+      result.set(c.id, 'active');
+    }
+  });
+  return result;
+}
 
 function isCompleted(a: Atencion): boolean {
   return a.columnId.toLowerCase().includes('completado');
@@ -829,6 +865,10 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
             Atraso
           </span>
           <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <span className="inline-block w-5 h-2.5 rounded-sm border border-dashed border-slate-400" style={{ background: CYCLE_PENDING_COLOR, opacity: 0.5 }} />
+            Pendiente
+          </span>
+          <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <MapPin className="w-3 h-3 text-amber-500" />
             Inicio real
           </span>
@@ -925,6 +965,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                 const cycles = a.cycles ?? [];
                 const isExpanded = expandedRows.has(a.id);
                 const hasCycles = cycles.length > 0;
+                const cycleStatuses = getCycleStatuses(cycles);
 
                 return (
                   <div key={a.id}>
@@ -1015,6 +1056,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                     {/* Cycle sub-rows in left column */}
                     {isExpanded && cycles.map(c => {
                       const isCycleEditing = editingCycleId === c.id;
+                      const cycleStatus = cycleStatuses.get(c.id) || 'active';
                       return (
                         <div key={c.id}
                           draggable
@@ -1038,15 +1080,17 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                           }}
                         >
                           <div style={{ height: SUB_ROW_H }}
-                            className={`flex items-center gap-1 pl-6 pr-1.5 border-b border-border/20 bg-surface-2/30 group/cycle cursor-grab active:cursor-grabbing ${dragCycleRowId === c.id ? 'opacity-50' : ''}`}>
+                            className={`flex items-center gap-1 pl-6 pr-1.5 border-b border-border/20 bg-surface-2/30 group/cycle cursor-grab active:cursor-grabbing ${dragCycleRowId === c.id ? 'opacity-50' : ''} ${cycleStatus === 'pending' ? 'opacity-50' : ''}`}>
                             <button
                               onClick={() => toggleCycleCompleted(a, c.id)}
                               className="shrink-0 p-0 hover:scale-110 transition-transform"
-                              title={c.completed ? 'Marcar como pendiente' : 'Marcar como finalizado'}
+                              title={c.completed ? 'Marcar como pendiente' : cycleStatus === 'pending' ? 'Pendiente' : 'Marcar como finalizado'}
                             >
                               {c.completed
                                 ? <CheckCircle2 className="w-3 h-3 text-green-500" />
-                                : <Circle className="w-3 h-3 text-muted-foreground/40 hover:text-muted-foreground" />
+                                : cycleStatus === 'pending'
+                                  ? <Circle className="w-3 h-3 text-slate-400/60" strokeDasharray="3 2" />
+                                  : <Circle className="w-3 h-3 text-blue-400 hover:text-blue-300" />
                               }
                             </button>
                             {editingCycleLabelId === c.id ? (
@@ -1082,6 +1126,8 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                                 title="Clic para editar nombre"
                               >
                                 {c.label}
+                                {cycleStatus === 'pending' && <span className="text-[7px] ml-1 text-slate-400 italic">pendiente</span>}
+                                {cycleStatus === 'active' && !c.completed && <span className="text-[7px] ml-1 text-blue-400 italic">en curso</span>}
                               </span>
                             )}
                             {c.realStartDate && <MapPin className="w-2.5 h-2.5 text-amber-500 shrink-0" />}
@@ -1212,6 +1258,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                   const completed = isCompleted(a);
                   const cycles = a.cycles ?? [];
                   const isExpanded = expandedRows.has(a.id);
+                  const cycleStatuses = getCycleStatuses(cycles);
 
                   const startIdx = differenceInCalendarDays(parseISO(a.startDate!), rangeStart);
                   const endIdx = differenceInCalendarDays(parseISO(a.endDate!), rangeStart);
@@ -1282,11 +1329,13 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                       {/* Cycle sub-rows */}
                       {isExpanded && cycles.map(c => {
                         const isCycleEditing = editingCycleId === c.id;
+                        const cycleStatus = cycleStatuses.get(c.id) || 'active';
+                        const cycleBarColor = c.completed ? BAR_GREEN : cycleStatus === 'pending' ? CYCLE_PENDING_COLOR : CYCLE_BLUE;
                         return (
                           <div key={c.id}>
                             <div
                               style={{ height: SUB_ROW_H, position: 'relative' }}
-                              className="border-b border-border/20 bg-surface-2/20"
+                              className={`border-b border-border/20 bg-surface-2/20 ${cycleStatus === 'pending' ? 'opacity-50' : ''}`}
                             >
                               {/* Day grid lines */}
                               {days.map((d, i) => {
@@ -1301,7 +1350,7 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                                 );
                               })}
 
-                              {renderBar(c.startDate, c.endDate, computeCycleDelay(c), c.realStartDate, c.completed ? BAR_GREEN : CYCLE_BLUE, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false, a, c, rowIdx >= items.length - 2, c.realEndDate)}
+                              {renderBar(c.startDate, c.endDate, computeCycleDelay(c), c.realStartDate, cycleBarColor, SUB_BAR_H, SUB_BAR_TOP, c.label, c.delayLabel, false, a, c, rowIdx >= items.length - 2, c.realEndDate)}
 
                               {/* Cycle note */}
                               {(() => {
