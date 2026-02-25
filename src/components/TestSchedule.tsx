@@ -33,17 +33,17 @@ function dateKey(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+interface DailyEntry {
+  casesPerQA: number;
+  cumulative: number;
+}
+
 interface RowData {
-  label: string; // "Planificado" or "Real"
+  label: string;
   type: 'planned' | 'real';
-  startDate: string;
-  endDate: string;
-  totalCPs: number;
-  qaCount: number;
   businessDays: number;
   casesPerQAPerDay: number;
-  // map dateKey -> { casesPerQA, cumulative }
-  dailyMap: Map<string, { casesPerQA: number; cumulative: number }>;
+  dailyMap: Map<string, DailyEntry>;
 }
 
 interface CycleGroup {
@@ -52,13 +52,37 @@ interface CycleGroup {
   cycleLabel: string;
   totalCPs: number;
   qaCount: number;
-  executed: number;
+  conformes: number;
   rows: RowData[];
+}
+
+function buildDistributionMap(
+  bizDays: Date[],
+  totalToDistribute: number,
+  qaCount: number,
+): { dailyMap: Map<string, DailyEntry>; cpsPerQAPerDay: number } {
+  if (bizDays.length === 0 || totalToDistribute <= 0) {
+    return { dailyMap: new Map(), cpsPerQAPerDay: 0 };
+  }
+  const cpsPerQAPerDay = Math.ceil(totalToDistribute / (bizDays.length * qaCount));
+  const dailyMap = new Map<string, DailyEntry>();
+  let cum = 0;
+  bizDays.forEach((d, i) => {
+    const isLast = i === bizDays.length - 1;
+    const dayTarget = isLast
+      ? totalToDistribute - cum
+      : Math.min(cpsPerQAPerDay * qaCount, totalToDistribute - cum);
+    cum += dayTarget;
+    dailyMap.set(dateKey(d), {
+      casesPerQA: Math.ceil(dayTarget / qaCount),
+      cumulative: cum,
+    });
+  });
+  return { dailyMap, cpsPerQAPerDay };
 }
 
 export function TestSchedule({ atenciones }: Props) {
   const { groups, allDays, holidays, monthHeaders } = useMemo(() => {
-    // Deduplicate
     const seen = new Set<string>();
     const unique = atenciones.filter(a => {
       const key = a.sourceId || a.id;
@@ -67,7 +91,6 @@ export function TestSchedule({ atenciones }: Props) {
       return true;
     });
 
-    // Collect all years for holidays
     const allYears = new Set<number>();
     let globalMin: Date | null = null;
     let globalMax: Date | null = null;
@@ -100,7 +123,6 @@ export function TestSchedule({ atenciones }: Props) {
 
     const allDays = getAllCalendarDays(globalMin, globalMax);
 
-    // Build month headers
     const mHeaders: { label: string; span: number }[] = [];
     let curMonth = -1;
     let curYear = -1;
@@ -116,7 +138,6 @@ export function TestSchedule({ atenciones }: Props) {
       }
     }
 
-    // Build groups
     const result: CycleGroup[] = [];
 
     for (const a of unique) {
@@ -132,32 +153,19 @@ export function TestSchedule({ atenciones }: Props) {
         const plannedEnd = new Date(cycle.endDate + 'T12:00:00');
         if (isNaN(plannedEnd.getTime())) continue;
 
-        const executed = (cycle.status?.conforme || 0) + (cycle.status?.enProceso || 0) + (cycle.status?.bloqueados || 0);
-
+        const conformes = cycle.status?.conforme || 0;
         const rows: RowData[] = [];
 
-        // Row 1: Planned (startDate → endDate)
+        // --- PLANIFICADO: startDate → endDate, distribute totalCPs ---
         if (cycle.startDate) {
           const pStart = new Date(cycle.startDate + 'T12:00:00');
           if (!isNaN(pStart.getTime())) {
             const bizDays = getBusinessDaysList(pStart, plannedEnd, hol);
             if (bizDays.length > 0) {
-              const cpsPerQAPerDay = Math.ceil(totalCPs / (bizDays.length * qaCount));
-              const dailyMap = new Map<string, { casesPerQA: number; cumulative: number }>();
-              let cum = 0;
-              bizDays.forEach((d, i) => {
-                const isLast = i === bizDays.length - 1;
-                const dayTarget = isLast ? totalCPs - cum : Math.min(cpsPerQAPerDay * qaCount, totalCPs - cum);
-                cum += dayTarget;
-                dailyMap.set(dateKey(d), { casesPerQA: Math.ceil(dayTarget / qaCount), cumulative: cum });
-              });
+              const { dailyMap, cpsPerQAPerDay } = buildDistributionMap(bizDays, totalCPs, qaCount);
               rows.push({
                 label: 'Planificado',
                 type: 'planned',
-                startDate: cycle.startDate,
-                endDate: cycle.endDate,
-                totalCPs,
-                qaCount,
                 businessDays: bizDays.length,
                 casesPerQAPerDay: cpsPerQAPerDay,
                 dailyMap,
@@ -166,28 +174,20 @@ export function TestSchedule({ atenciones }: Props) {
           }
         }
 
-        // Row 2: Real (realStartDate → endDate)
-        if (cycle.realStartDate) {
+        // --- REAL: realStartDate → endDate, distribute only conformes ---
+        if (cycle.realStartDate && conformes > 0) {
           const rStart = new Date(cycle.realStartDate + 'T12:00:00');
           if (!isNaN(rStart.getTime())) {
-            const bizDays = getBusinessDaysList(rStart, plannedEnd, hol);
+            // Business days from realStart up to today or plannedEnd (whichever is earlier)
+            const today = new Date();
+            today.setHours(12, 0, 0, 0);
+            const effectiveEnd = today < plannedEnd ? today : plannedEnd;
+            const bizDays = getBusinessDaysList(rStart, effectiveEnd, hol);
             if (bizDays.length > 0) {
-              const cpsPerQAPerDay = Math.ceil(totalCPs / (bizDays.length * qaCount));
-              const dailyMap = new Map<string, { casesPerQA: number; cumulative: number }>();
-              let cum = 0;
-              bizDays.forEach((d, i) => {
-                const isLast = i === bizDays.length - 1;
-                const dayTarget = isLast ? totalCPs - cum : Math.min(cpsPerQAPerDay * qaCount, totalCPs - cum);
-                cum += dayTarget;
-                dailyMap.set(dateKey(d), { casesPerQA: Math.ceil(dayTarget / qaCount), cumulative: cum });
-              });
+              const { dailyMap, cpsPerQAPerDay } = buildDistributionMap(bizDays, conformes, qaCount);
               rows.push({
                 label: 'Real',
                 type: 'real',
-                startDate: cycle.realStartDate,
-                endDate: cycle.endDate,
-                totalCPs,
-                qaCount,
                 businessDays: bizDays.length,
                 casesPerQAPerDay: cpsPerQAPerDay,
                 dailyMap,
@@ -203,7 +203,7 @@ export function TestSchedule({ atenciones }: Props) {
             cycleLabel: cycle.label,
             totalCPs,
             qaCount,
-            executed,
+            conformes,
             rows,
           });
         }
@@ -229,29 +229,21 @@ export function TestSchedule({ atenciones }: Props) {
       <div className="overflow-x-auto">
         <table className="text-xs border-collapse" style={{ minWidth: LABEL_W + allDays.length * COL_W }}>
           <thead>
-            {/* Month row */}
             <tr className="border-b border-border bg-muted/40">
               <th className="sticky left-0 z-20 bg-muted/40 min-w-[180px]" style={{ width: LABEL_W }} />
               {monthHeaders.map((mh, i) => (
-                <th
-                  key={i}
-                  colSpan={mh.span}
-                  className="text-center text-muted-foreground font-semibold px-1 py-1 border-l border-border/40"
-                >
+                <th key={i} colSpan={mh.span} className="text-center text-muted-foreground font-semibold px-1 py-1 border-l border-border/40">
                   {mh.label}
                 </th>
               ))}
             </tr>
-            {/* Day row */}
             <tr className="border-b border-border bg-muted/30">
               <th className="sticky left-0 z-20 bg-muted/30 text-left px-2 py-1 text-muted-foreground font-medium" style={{ width: LABEL_W }}>
                 Atención / Ciclo
               </th>
               {allDays.map((d, i) => {
                 const dow = d.getDay();
-                const isWeekend = dow === 0 || dow === 6;
-                const isHoliday = holidays.has(dateKey(d));
-                const isNonWorking = isWeekend || isHoliday;
+                const isNonWorking = dow === 0 || dow === 6 || holidays.has(dateKey(d));
                 return (
                   <th
                     key={i}
@@ -267,38 +259,40 @@ export function TestSchedule({ atenciones }: Props) {
               })}
             </tr>
           </thead>
-          {groups.map((g, gIdx) => {
-            const progressPct = g.totalCPs > 0 ? Math.round((g.executed / g.totalCPs) * 100) : 0;
-            return (
-              <tbody key={`${g.atencionId}-${g.cycleLabel}-${gIdx}`}>
-                {/* Group header row */}
-                <tr className="bg-secondary/40 border-t border-border">
-                  <td
-                    colSpan={1 + allDays.length}
-                    className="px-2 py-1.5"
-                  >
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-foreground">{g.atencionCode}</span>
-                      <span className="bg-primary/20 text-primary px-2 py-0.5 rounded font-medium">{g.cycleLabel}</span>
+          {groups.map((g, gIdx) => (
+            <tbody key={`${g.atencionId}-${g.cycleLabel}-${gIdx}`}>
+              {/* Group header */}
+              <tr className="bg-secondary/40 border-t border-border">
+                <td colSpan={1 + allDays.length} className="px-2 py-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-foreground">{g.atencionCode}</span>
+                    <span className="bg-primary/20 text-primary px-2 py-0.5 rounded font-medium">{g.cycleLabel}</span>
+                    <span className="text-muted-foreground">
+                      {g.totalCPs} CPs · {g.qaCount} QA{g.qaCount > 1 ? 's' : ''}
+                    </span>
+                    {g.conformes > 0 && (
                       <span className="text-muted-foreground">
-                        {g.totalCPs} CPs · {g.qaCount} QA{g.qaCount > 1 ? 's' : ''}
+                        Conformes: {g.conformes}/{g.totalCPs} ({Math.round((g.conformes / g.totalCPs) * 100)}%)
                       </span>
-                      {g.executed > 0 && (
-                        <span className="text-muted-foreground">
-                          Ejecutados: {g.executed}/{g.totalCPs} ({progressPct}%)
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-                {/* Data rows */}
-                {g.rows.map((row, rIdx) => (
+                    )}
+                  </div>
+                </td>
+              </tr>
+              {/* Rows: each RowData produces 2 table rows (CPs/QA + Acumulado) */}
+              {g.rows.map((row, rIdx) => {
+                const isPlanned = row.type === 'planned';
+                const colorBg = isPlanned ? 'bg-blue-900/20' : 'bg-emerald-900/20';
+                const colorBgLight = isPlanned ? 'bg-blue-900/10' : 'bg-emerald-900/10';
+                const colorText = isPlanned ? 'text-blue-300' : 'text-emerald-300';
+                const dotColor = isPlanned ? 'bg-blue-500' : 'bg-emerald-500';
+
+                return (
                   <React.Fragment key={rIdx}>
-                    {/* CPs/QA row */}
+                    {/* Row 1: CPs per QA */}
                     <tr className="border-b border-border/30">
                       <td className="sticky left-0 z-10 bg-card px-2 py-1 font-medium text-muted-foreground whitespace-nowrap" style={{ width: LABEL_W }}>
                         <div className="flex items-center gap-1.5">
-                          <span className={`w-2 h-2 rounded-full ${row.type === 'planned' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
+                          <span className={`w-2 h-2 rounded-full ${dotColor}`} />
                           {row.label}
                           <span className="text-[10px] text-muted-foreground/70">
                             ({row.businessDays}d · ~{row.casesPerQAPerDay} CPs/QA/día)
@@ -309,25 +303,19 @@ export function TestSchedule({ atenciones }: Props) {
                         const dk = dateKey(d);
                         const entry = row.dailyMap.get(dk);
                         const dow = d.getDay();
-                        const isWeekend = dow === 0 || dow === 6;
-                        const isHoliday = holidays.has(dk);
-                        const isNonWorking = isWeekend || isHoliday;
+                        const isNonWorking = dow === 0 || dow === 6 || holidays.has(dk);
                         return (
                           <td
                             key={i}
-                            className={`text-center px-0.5 py-1 border-l border-border/10 ${isNonWorking ? 'bg-red-900/20' : ''} ${entry ? (row.type === 'planned' ? 'bg-blue-900/20' : 'bg-emerald-900/20') : ''}`}
+                            className={`text-center px-0.5 py-1 border-l border-border/10 ${isNonWorking ? 'bg-red-900/20' : ''} ${entry ? colorBg : ''}`}
                             style={{ minWidth: COL_W, maxWidth: COL_W }}
                           >
-                            {entry && (
-                              <span className={`font-semibold ${row.type === 'planned' ? 'text-blue-300' : 'text-emerald-300'}`}>
-                                {entry.casesPerQA}
-                              </span>
-                            )}
+                            {entry && <span className={`font-semibold ${colorText}`}>{entry.casesPerQA}</span>}
                           </td>
                         );
                       })}
                     </tr>
-                    {/* Cumulative row */}
+                    {/* Row 2: Acumulado */}
                     <tr className="border-b border-border/50">
                       <td className="sticky left-0 z-10 bg-card px-2 py-1 text-muted-foreground/70 text-[10px] pl-6" style={{ width: LABEL_W }}>
                         Acumulado
@@ -336,29 +324,23 @@ export function TestSchedule({ atenciones }: Props) {
                         const dk = dateKey(d);
                         const entry = row.dailyMap.get(dk);
                         const dow = d.getDay();
-                        const isWeekend = dow === 0 || dow === 6;
-                        const isHoliday = holidays.has(dk);
-                        const isNonWorking = isWeekend || isHoliday;
+                        const isNonWorking = dow === 0 || dow === 6 || holidays.has(dk);
                         return (
                           <td
                             key={i}
-                            className={`text-center px-0.5 py-0.5 border-l border-border/10 text-[10px] ${isNonWorking ? 'bg-red-900/20' : ''} ${entry ? (row.type === 'planned' ? 'bg-blue-900/10' : 'bg-emerald-900/10') : ''}`}
+                            className={`text-center px-0.5 py-0.5 border-l border-border/10 text-[10px] ${isNonWorking ? 'bg-red-900/20' : ''} ${entry ? colorBgLight : ''}`}
                             style={{ minWidth: COL_W, maxWidth: COL_W }}
                           >
-                            {entry && (
-                              <span className="text-muted-foreground">
-                                {entry.cumulative}
-                              </span>
-                            )}
+                            {entry && <span className="text-muted-foreground">{entry.cumulative}</span>}
                           </td>
                         );
                       })}
                     </tr>
                   </React.Fragment>
-                ))}
-              </tbody>
-            );
-          })}
+                );
+              })}
+            </tbody>
+          ))}
         </table>
       </div>
     </div>
