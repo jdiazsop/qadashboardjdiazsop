@@ -167,14 +167,23 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
   const items = hideCompleted ? allItems.filter(a => !isCompleted(a)) : allItems;
 
   const allDates: Date[] = [];
+  const safeParseDate = (s: string | undefined): Date | null => {
+    if (!s) return null;
+    const d = parseISO(s);
+    if (isNaN(d.getTime())) return null;
+    const year = d.getFullYear();
+    if (year < 2020 || year > 2100) return null;
+    return d;
+  };
   items.forEach(a => {
-    allDates.push(parseISO(a.startDate!), parseISO(a.endDate!));
-    if (a.delayEndDate) allDates.push(parseISO(a.delayEndDate));
-    if (a.productionDate) allDates.push(parseISO(a.productionDate));
+    const s = safeParseDate(a.startDate); if (s) allDates.push(s);
+    const e = safeParseDate(a.endDate); if (e) allDates.push(e);
+    const del = safeParseDate(a.delayEndDate); if (del) allDates.push(del);
+    const prod = safeParseDate(a.productionDate); if (prod) allDates.push(prod);
     (a.cycles ?? []).forEach(c => {
-      if (c.startDate) allDates.push(parseISO(c.startDate));
-      if (c.endDate) allDates.push(parseISO(c.endDate));
-      if (c.realEndDate) allDates.push(parseISO(c.realEndDate));
+      const cs = safeParseDate(c.startDate); if (cs) allDates.push(cs);
+      const ce = safeParseDate(c.endDate); if (ce) allDates.push(ce);
+      const cre = safeParseDate(c.realEndDate); if (cre) allDates.push(cre);
     });
   });
 
