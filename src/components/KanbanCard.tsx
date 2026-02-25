@@ -222,6 +222,16 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                   {JIRA_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Cantidad de QA</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={atencion.qaCount ?? 1}
+                  onChange={e => onUpdate({ ...atencion, qaCount: Math.max(1, parseInt(e.target.value) || 1) })}
+                  className="w-full bg-surface-1 border border-border rounded px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
               <div className="col-span-2">
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Ciclo Actual</label>
                 <div className="bg-surface-1 border border-border rounded px-2 py-1.5 text-sm text-foreground">

@@ -142,7 +142,7 @@ export function TestSchedule({ atenciones }: Props) {
 
     for (const a of unique) {
       if (!a.cycles) continue;
-      const qaCount = a.estimation?.qaCount || 1;
+      const qaCount = a.qaCount || 1;
 
       for (const cycle of a.cycles) {
         if (!CYCLE_PATTERN.test(cycle.label.trim())) continue;
