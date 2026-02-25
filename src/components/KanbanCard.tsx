@@ -427,7 +427,7 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                             className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                         </div>
                       </div>
-                      {cycle.label !== 'Análisis y Diseño' && (
+                      {cycle.label !== 'Análisis y Diseño' && cycle.label !== 'Rendimiento' && (
                       <div className="grid grid-cols-3 gap-1.5 mt-1">
                         <div>
                           <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Total CPs</label>
