@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Atencion, Tag, KanbanColumn, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles, computeCycleDelay, CYCLE_LABEL_OPTIONS } from '@/types/qa';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Atencion, Tag, KanbanColumn, CHECKLIST_ITEMS, TestCycle, computeDatesFromCycles, computeCycleDelay, CYCLE_LABEL_OPTIONS, getPeruHolidays } from '@/types/qa';
 import { TagBadge } from './TagBadge';
 import { Plus, Pencil, Check, X, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, MapPin, Trash2, CheckCircle2, Circle, Rocket } from 'lucide-react';
 import {
@@ -197,6 +197,12 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
   const rangeStart = addDays(minDate, -3);
   const rangeEnd = addDays(maxDate, 5);
   const days = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
+  const holidays = useMemo(() => {
+    const years = new Set(days.map(d => d.getFullYear()));
+    const all = new Set<string>();
+    years.forEach(y => { getPeruHolidays(y).forEach(h => all.add(h)); });
+    return all;
+  }, [days]);
   const totalDays = days.length;
 
   const colWidth = totalDays > 0 && chartAreaWidth > 0
@@ -1174,11 +1180,13 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                 {days.map((d, i) => {
                   const isToday = format(d, 'yyyy-MM-dd') === todayStr;
                   const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                  const isHoliday = holidays.has(format(d, 'yyyy-MM-dd'));
+                  const isNonWorking = isWeekend || isHoliday;
                   return (
                     <div key={i}
                       style={{ width: colWidth, minWidth: colWidth }}
                       className={`flex flex-col items-center justify-center border-r border-border/50 select-none shrink-0
-                        ${isToday ? 'bg-destructive/25 text-destructive font-bold' : isWeekend ? 'bg-surface-2/50 text-muted-foreground/50' : 'text-muted-foreground'}`}
+                        ${isToday ? 'bg-destructive/25 text-destructive font-bold' : isNonWorking ? 'bg-red-900/30 text-red-400/70' : 'text-muted-foreground'}`}
                     >
                       <span className="text-[9px] leading-none">{format(d, 'dd')}</span>
                     </div>
@@ -1230,9 +1238,11 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                         {/* Day grid lines */}
                         {days.map((d, i) => {
                           const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                          const isHoliday = holidays.has(format(d, 'yyyy-MM-dd'));
+                          const isNonWorking = isWeekend || isHoliday;
                           return (
                             <div key={i}
-                              className={`absolute top-0 bottom-0 border-r border-border/20 pointer-events-none ${isWeekend ? 'bg-surface-2/10' : ''}`}
+                              className={`absolute top-0 bottom-0 border-r border-border/20 pointer-events-none ${isNonWorking ? 'bg-red-900/20' : ''}`}
                               style={{ left: i * colWidth, width: colWidth }}
                             />
                           );
@@ -1281,9 +1291,11 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                               {/* Day grid lines */}
                               {days.map((d, i) => {
                                 const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                                const isHoliday = holidays.has(format(d, 'yyyy-MM-dd'));
+                                const isNonWorking = isWeekend || isHoliday;
                                 return (
                                   <div key={i}
-                                    className={`absolute top-0 bottom-0 border-r border-border/10 pointer-events-none ${isWeekend ? 'bg-surface-2/5' : ''}`}
+                                    className={`absolute top-0 bottom-0 border-r border-border/10 pointer-events-none ${isNonWorking ? 'bg-red-900/20' : ''}`}
                                     style={{ left: i * colWidth, width: colWidth }}
                                   />
                                 );
