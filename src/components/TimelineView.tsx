@@ -976,9 +976,10 @@ export function TimelineView({ atenciones, tags, columns, onUpdateAtencion, onAd
                             </div>
                           </div>
                           <div>
-                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Real</label>
-                            <input type="date" value={editData.realStartDate || ''} onChange={e => setEditData(p => ({ ...p, realStartDate: e.target.value }))}
-                              className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Real (auto)</label>
+                            <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
+                              {a.realStartDate || '—'}
+                            </div>
                           </div>
                           <div>
                             <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Atraso (auto)</label>

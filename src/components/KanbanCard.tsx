@@ -329,16 +329,16 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                         </div>
                       </div>
                       <div>
-                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Real Global</label>
-                        <input type="date" value={atencion.realStartDate || ''}
-                          onChange={e => onUpdate({ ...atencion, realStartDate: e.target.value || undefined })}
-                          className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Real Global (auto)</label>
+                        <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
+                          {atencion.realStartDate || '—'}
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Atraso Global</label>
-                        <input type="date" value={atencion.delayEndDate || ''}
-                          onChange={e => onUpdate({ ...atencion, delayEndDate: e.target.value || undefined })}
-                          className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Atraso Global (auto)</label>
+                        <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
+                          {atencion.delayEndDate || '—'}
+                        </div>
                       </div>
                       <div className="col-span-2">
                         <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Texto Atraso Global</label>
@@ -427,6 +427,7 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                             className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
                         </div>
                       </div>
+                      {cycle.label !== 'Análisis y Diseño' && (
                       <div className="grid grid-cols-3 gap-1.5 mt-1">
                         <div>
                           <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Total CPs</label>
@@ -457,6 +458,7 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                           </div>
                         </div>
                       </div>
+                      )}
                       <div>
                         <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Texto atraso</label>
                         <input value={cycle.delayLabel || ''}
