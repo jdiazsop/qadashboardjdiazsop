@@ -105,6 +105,149 @@ export interface AtencionStatus {
   defectos?: number;
 }
 
+export const ESTIMATION_TASK_LABELS = [
+  'Análisis de Pruebas',
+  'Diseño de Pruebas',
+  'Despliegue',
+  'Generación de Data',
+  'Pruebas de Humo',
+  'Ejecución C1',
+  'Ejecución C2',
+  'Ejecución C3',
+  'UAT',
+  'Cierre / Post Producción',
+] as const;
+
+export interface EstimationTask {
+  id: string;
+  label: string;
+  hours: number;
+  /** Computed: adjusted hours after dividing by qaCount */
+  adjustedHours?: number;
+  /** Computed start date */
+  computedStart?: string;
+  /** Computed end date */
+  computedEnd?: string;
+}
+
+export interface DateEstimation {
+  startDate: string;
+  qaCount: number;
+  hoursPerDay: number;
+  tasks: EstimationTask[];
+}
+
+export function createDefaultEstimation(): DateEstimation {
+  return {
+    startDate: new Date().toISOString().slice(0, 10),
+    qaCount: 1,
+    hoursPerDay: 9,
+    tasks: ESTIMATION_TASK_LABELS.map((label, i) => ({
+      id: `est-${i}`,
+      label,
+      hours: 0,
+    })),
+  };
+}
+
+/** Peru public holidays (fixed + approximate movable ones for 2024-2027) */
+export function getPeruHolidays(year: number): Set<string> {
+  const fixed = [
+    `${year}-01-01`, // Año Nuevo
+    `${year}-05-01`, // Día del Trabajo
+    `${year}-06-07`, // Batalla de Arica  
+    `${year}-06-29`, // San Pedro y San Pablo
+    `${year}-07-23`, // Día de la Fuerza Aérea
+    `${year}-07-28`, // Fiestas Patrias
+    `${year}-07-29`, // Fiestas Patrias
+    `${year}-08-06`, // Batalla de Junín
+    `${year}-08-30`, // Santa Rosa de Lima
+    `${year}-10-08`, // Combate de Angamos
+    `${year}-11-01`, // Día de Todos los Santos
+    `${year}-12-08`, // Inmaculada Concepción
+    `${year}-12-09`, // Batalla de Ayacucho
+    `${year}-12-25`, // Navidad
+  ];
+  // Semana Santa (approximate - Thursday + Friday before Easter)
+  const easterDates: Record<number, string[]> = {
+    2024: ['2024-03-28', '2024-03-29'],
+    2025: ['2025-04-17', '2025-04-18'],
+    2026: ['2026-04-02', '2026-04-03'],
+    2027: ['2027-03-25', '2027-03-26'],
+  };
+  const easter = easterDates[year] || [];
+  return new Set([...fixed, ...easter]);
+}
+
+export function isBusinessDay(date: Date, holidays: Set<string>): boolean {
+  const day = date.getDay();
+  if (day === 0 || day === 6) return false; // Weekend
+  const iso = date.toISOString().slice(0, 10);
+  return !holidays.has(iso);
+}
+
+/** Add business hours starting from a date, returns { start, end } business dates */
+export function computeBusinessDates(
+  startDate: Date,
+  hours: number,
+  hoursPerDay: number,
+  holidays: Set<string>
+): { start: string; end: string } {
+  if (hours <= 0) {
+    const fmt = startDate.toISOString().slice(0, 10);
+    return { start: fmt, end: fmt };
+  }
+  // Find first business day >= startDate
+  let current = new Date(startDate);
+  while (!isBusinessDay(current, holidays)) {
+    current.setDate(current.getDate() + 1);
+  }
+  const startIso = current.toISOString().slice(0, 10);
+  
+  let remainingHours = hours;
+  while (remainingHours > hoursPerDay) {
+    remainingHours -= hoursPerDay;
+    current.setDate(current.getDate() + 1);
+    while (!isBusinessDay(current, holidays)) {
+      current.setDate(current.getDate() + 1);
+    }
+  }
+  // If there are remaining hours (partial day), that day is the end
+  const endIso = current.toISOString().slice(0, 10);
+  return { start: startIso, end: endIso };
+}
+
+/** Compute all estimation task dates sequentially */
+export function computeEstimation(estimation: DateEstimation): EstimationTask[] {
+  const start = new Date(estimation.startDate + 'T12:00:00');
+  const qaCount = Math.max(1, estimation.qaCount);
+  const hoursPerDay = estimation.hoursPerDay || 9;
+  
+  // Collect holidays for relevant years
+  const holidays = new Set<string>();
+  for (let y = start.getFullYear(); y <= start.getFullYear() + 2; y++) {
+    getPeruHolidays(y).forEach(h => holidays.add(h));
+  }
+  
+  let cursor = new Date(start);
+  return estimation.tasks.map(task => {
+    const adjustedHours = Math.ceil(task.hours / qaCount * 10) / 10;
+    if (adjustedHours <= 0) {
+      const fmt = cursor.toISOString().slice(0, 10);
+      return { ...task, adjustedHours, computedStart: fmt, computedEnd: fmt };
+    }
+    const { start: cs, end: ce } = computeBusinessDates(cursor, adjustedHours, hoursPerDay, holidays);
+    const result = { ...task, adjustedHours, computedStart: cs, computedEnd: ce };
+    // Move cursor to next business day after end
+    cursor = new Date(ce + 'T12:00:00');
+    cursor.setDate(cursor.getDate() + 1);
+    while (!isBusinessDay(cursor, holidays)) {
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return result;
+  });
+}
+
 export interface Atencion {
   id: string;
   code: string;
@@ -152,6 +295,8 @@ export interface Atencion {
   productionDate?: string;
   /** Order within kanban column */
   cardOrder?: number;
+  /** Date estimation data */
+  estimation?: DateEstimation;
 }
 
 export interface KanbanColumn {
