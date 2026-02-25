@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
-import { Atencion, getPeruHolidays, isBusinessDay } from '@/types/qa';
+import React, { useMemo, useCallback } from 'react';
+import { Atencion, TestCycle, getPeruHolidays, isBusinessDay } from '@/types/qa';
 
 interface Props {
   atenciones: Atencion[];
+  onUpdateAtencion?: (a: Atencion) => void;
 }
 
 const CYCLE_PATTERN = /^(C\d+|UAT)$/i;
@@ -49,11 +50,15 @@ interface RowData {
 interface CycleGroup {
   atencionCode: string;
   atencionId: string;
+  cycleId: string;
   cycleLabel: string;
   totalCPs: number;
   qaCount: number;
   conformes: number;
   rows: RowData[];
+  /** Business day keys where Real row cells should be editable */
+  editableDays: string[];
+  dailyConformes: Record<string, number>;
 }
 
 function buildDistributionMap(
@@ -82,7 +87,25 @@ function buildDistributionMap(
   return { dailyMap, cpsPerQAPerDay };
 }
 
-export function TestSchedule({ atenciones }: Props) {
+/** Build real row from dailyConformes record */
+function buildRealFromDaily(
+  dailyConformes: Record<string, number>,
+): Map<string, DailyEntry> {
+  const dailyMap = new Map<string, DailyEntry>();
+  // Sort dates to compute cumulative
+  const sortedDates = Object.keys(dailyConformes).sort();
+  let cum = 0;
+  for (const dk of sortedDates) {
+    const val = dailyConformes[dk] || 0;
+    if (val > 0) {
+      cum += val;
+      dailyMap.set(dk, { casesPerQA: val, cumulative: cum });
+    }
+  }
+  return dailyMap;
+}
+
+export function TestSchedule({ atenciones, onUpdateAtencion }: Props) {
   const { groups, allDays, holidays, monthHeaders } = useMemo(() => {
     const seen = new Set<string>();
     const unique = atenciones.filter(a => {
@@ -118,7 +141,13 @@ export function TestSchedule({ atenciones }: Props) {
       return { groups: [] as CycleGroup[], allDays: [] as Date[], holidays: new Set<string>(), monthHeaders: [] as { label: string; span: number }[] };
     }
 
+    // Extend globalMax to today if needed (so we can edit today's cell)
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    if (today > globalMax) globalMax = today;
+
     if (allYears.size === 0) allYears.add(new Date().getFullYear());
+    allYears.add(today.getFullYear());
     const hol = new Set<string>();
     allYears.forEach(y => getPeruHolidays(y).forEach(h => hol.add(h)));
 
@@ -154,10 +183,11 @@ export function TestSchedule({ atenciones }: Props) {
         const plannedEnd = new Date(cycle.endDate + 'T12:00:00');
         if (isNaN(plannedEnd.getTime())) continue;
 
-        const conformes = cycle.status?.conforme || 0;
+        const dailyConformes = cycle.dailyConformes || {};
+        const conformes = Object.values(dailyConformes).reduce((s, v) => s + (v || 0), 0);
         const rows: RowData[] = [];
 
-        // --- PLANIFICADO: startDate → endDate, distribute totalCPs ---
+        // --- PLANIFICADO ---
         if (cycle.startDate) {
           const pStart = new Date(cycle.startDate + 'T12:00:00');
           if (!isNaN(pStart.getTime())) {
@@ -175,41 +205,69 @@ export function TestSchedule({ atenciones }: Props) {
           }
         }
 
-        // --- REAL: show all conformes on today (single point, no artificial distribution) ---
-        if (conformes > 0) {
-          const today = new Date();
-          today.setHours(12, 0, 0, 0);
-          const todayKey = dateKey(today);
-          const dailyMap = new Map<string, DailyEntry>();
-          dailyMap.set(todayKey, {
-            casesPerQA: conformes,
-            cumulative: conformes,
-          });
-          rows.push({
-            label: 'Real',
-            type: 'real',
-            businessDays: 1,
-            casesPerQAPerDay: conformes,
-            dailyMap,
-          });
+        // --- REAL (from dailyConformes) ---
+        const realMap = buildRealFromDaily(dailyConformes);
+        const realDaysCount = realMap.size;
+        rows.push({
+          label: 'Real',
+          type: 'real',
+          businessDays: realDaysCount,
+          casesPerQAPerDay: 0,
+          dailyMap: realMap,
+        });
+
+        // Determine editable business days: from realStartDate (or startDate) up to today
+        const editStart = cycle.realStartDate
+          ? new Date(cycle.realStartDate + 'T12:00:00')
+          : cycle.startDate
+            ? new Date(cycle.startDate + 'T12:00:00')
+            : null;
+
+        let editableDays: string[] = [];
+        if (editStart && !isNaN(editStart.getTime())) {
+          const editEnd = today < plannedEnd ? today : plannedEnd;
+          const bizDays = getBusinessDaysList(editStart, editEnd, hol);
+          editableDays = bizDays.map(d => dateKey(d));
         }
 
-        if (rows.length > 0) {
-          result.push({
-            atencionCode: a.code,
-            atencionId: a.id,
-            cycleLabel: cycle.label,
-            totalCPs,
-            qaCount,
-            conformes,
-            rows,
-          });
-        }
+        result.push({
+          atencionCode: a.code,
+          atencionId: a.id,
+          cycleId: cycle.id,
+          cycleLabel: cycle.label,
+          totalCPs,
+          qaCount,
+          conformes,
+          rows,
+          editableDays,
+          dailyConformes,
+        });
       }
     }
 
     return { groups: result, allDays, holidays: hol, monthHeaders: mHeaders };
   }, [atenciones]);
+
+  const handleDailyChange = useCallback((atencionId: string, cycleId: string, day: string, value: number) => {
+    if (!onUpdateAtencion) return;
+    const atencion = atenciones.find(a => a.id === atencionId);
+    if (!atencion || !atencion.cycles) return;
+
+    const updatedCycles = atencion.cycles.map(c => {
+      if (c.id !== cycleId) return c;
+      const newDaily = { ...(c.dailyConformes || {}), [day]: value };
+      if (value <= 0) delete newDaily[day];
+      // Recompute conforme from dailyConformes
+      const totalConformes = Object.values(newDaily).reduce((s, v) => s + (v || 0), 0);
+      return {
+        ...c,
+        dailyConformes: newDaily,
+        status: { ...c.status, conforme: totalConformes },
+      };
+    });
+
+    onUpdateAtencion({ ...atencion, cycles: updatedCycles });
+  }, [atenciones, onUpdateAtencion]);
 
   if (groups.length === 0) {
     return (
@@ -276,9 +334,10 @@ export function TestSchedule({ atenciones }: Props) {
                   </div>
                 </td>
               </tr>
-              {/* Rows: each RowData produces 2 table rows (CPs/QA + Acumulado) */}
+              {/* Rows */}
               {g.rows.map((row, rIdx) => {
                 const isPlanned = row.type === 'planned';
+                const isReal = row.type === 'real';
                 const colorBg = isPlanned ? 'bg-blue-900/20' : 'bg-emerald-900/20';
                 const colorBgLight = isPlanned ? 'bg-blue-900/10' : 'bg-emerald-900/10';
                 const colorText = isPlanned ? 'text-blue-300' : 'text-emerald-300';
@@ -286,15 +345,17 @@ export function TestSchedule({ atenciones }: Props) {
 
                 return (
                   <React.Fragment key={rIdx}>
-                    {/* Row 1: CPs per QA */}
+                    {/* Row 1: CPs per day */}
                     <tr className="border-b border-border/30">
                       <td className="sticky left-0 z-10 bg-card px-2 py-1 font-medium text-muted-foreground whitespace-nowrap" style={{ width: LABEL_W }}>
                         <div className="flex items-center gap-1.5">
                           <span className={`w-2 h-2 rounded-full ${dotColor}`} />
                           {row.label}
-                          <span className="text-[10px] text-muted-foreground/70">
-                            ({row.businessDays}d · ~{row.casesPerQAPerDay} CPs/QA/día)
-                          </span>
+                          {isPlanned && (
+                            <span className="text-[10px] text-muted-foreground/70">
+                              ({row.businessDays}d · ~{row.casesPerQAPerDay} CPs/QA/día)
+                            </span>
+                          )}
                         </div>
                       </td>
                       {allDays.map((d, i) => {
@@ -302,6 +363,31 @@ export function TestSchedule({ atenciones }: Props) {
                         const entry = row.dailyMap.get(dk);
                         const dow = d.getDay();
                         const isNonWorking = dow === 0 || dow === 6 || holidays.has(dk);
+                        const isEditable = isReal && g.editableDays.includes(dk) && onUpdateAtencion;
+
+                        if (isEditable) {
+                          const currentVal = g.dailyConformes[dk] || '';
+                          return (
+                            <td
+                              key={i}
+                              className={`text-center px-0 py-0 border-l border-border/10 ${isNonWorking ? 'bg-red-900/20' : ''} ${entry ? colorBg : 'bg-emerald-900/5'}`}
+                              style={{ minWidth: COL_W, maxWidth: COL_W }}
+                            >
+                              <input
+                                type="number"
+                                min={0}
+                                value={currentVal}
+                                onChange={e => {
+                                  const val = e.target.value ? parseInt(e.target.value) : 0;
+                                  handleDailyChange(g.atencionId, g.cycleId, dk, val);
+                                }}
+                                className="w-full h-full bg-transparent text-center text-emerald-300 font-semibold text-xs py-1 px-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                placeholder="·"
+                              />
+                            </td>
+                          );
+                        }
+
                         return (
                           <td
                             key={i}

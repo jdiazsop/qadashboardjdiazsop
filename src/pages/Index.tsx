@@ -319,7 +319,7 @@ const Index = () => {
             <CalendarDays className="w-4 h-4 text-primary" />
             <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Cronograma de Pruebas</h2>
           </div>
-          <TestSchedule atenciones={state.atenciones} />
+          <TestSchedule atenciones={state.atenciones} onUpdateAtencion={updateAtencion} />
         </section>
       </div>
     </div>
