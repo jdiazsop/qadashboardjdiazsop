@@ -193,26 +193,37 @@ export function computeBusinessDates(
   hoursPerDay: number,
   holidays: Set<string>
 ): { start: string; end: string } {
-  if (hours <= 0) {
+  const safeHpd = Math.max(0.5, hoursPerDay || 9);
+  const safeHours = Math.min(Math.max(0, hours || 0), 10000);
+
+  if (isNaN(startDate.getTime())) {
+    return { start: '—', end: '—' };
+  }
+  if (safeHours <= 0) {
     const fmt = startDate.toISOString().slice(0, 10);
     return { start: fmt, end: fmt };
   }
-  // Find first business day >= startDate
+  // Find first business day >= startDate (max 30 days skip)
   let current = new Date(startDate);
-  while (!isBusinessDay(current, holidays)) {
+  let guard = 0;
+  while (!isBusinessDay(current, holidays) && guard < 30) {
     current.setDate(current.getDate() + 1);
+    guard++;
   }
   const startIso = current.toISOString().slice(0, 10);
   
-  let remainingHours = hours;
-  while (remainingHours > hoursPerDay) {
-    remainingHours -= hoursPerDay;
+  let remainingHours = safeHours;
+  let maxIter = 5000;
+  while (remainingHours > safeHpd && maxIter > 0) {
+    remainingHours -= safeHpd;
     current.setDate(current.getDate() + 1);
-    while (!isBusinessDay(current, holidays)) {
+    guard = 0;
+    while (!isBusinessDay(current, holidays) && guard < 30) {
       current.setDate(current.getDate() + 1);
+      guard++;
     }
+    maxIter--;
   }
-  // If there are remaining hours (partial day), that day is the end
   const endIso = current.toISOString().slice(0, 10);
   return { start: startIso, end: endIso };
 }
