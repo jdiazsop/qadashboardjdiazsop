@@ -17,7 +17,12 @@ export function useCloudState(userId: string | undefined) {
 
   // Load state: compare cloud vs localStorage and use the most recent
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      // No user yet — fall back to localStorage so UI isn't stuck on "loading"
+      setAppState(loadAppState());
+      setLoading(false);
+      return;
+    }
 
     const load = async () => {
       try {
@@ -34,8 +39,6 @@ export function useCloudState(userId: string | undefined) {
         const hasLocalData = localStorage.getItem('qa-dashboard-v13') !== null;
 
         if (data?.state) {
-          // If we've never synced before and localStorage has data,
-          // prefer localStorage (user had changes before cloud was set up)
           const neverSynced = !localTimestamp;
           const localTime = localTimestamp ? new Date(localTimestamp).getTime() : 0;
           const cloudTime = new Date(data.updated_at).getTime();
@@ -43,7 +46,6 @@ export function useCloudState(userId: string | undefined) {
           if ((neverSynced && hasLocalData) || (localTime > cloudTime && localState.tabs.length > 0)) {
             console.log('Using localStorage (newer or never synced)');
             setAppState(localState);
-            // Sync localStorage data to cloud
             await supabase
               .from('user_app_state')
               .update({ state: localState as any })
@@ -56,7 +58,6 @@ export function useCloudState(userId: string | undefined) {
             localStorage.setItem(CLOUD_TIMESTAMP_KEY, data.updated_at);
           }
         } else {
-          // First time user — save localStorage to cloud
           setAppState(localState);
           await supabase.from('user_app_state').insert({
             user_id: userId,
