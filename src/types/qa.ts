@@ -288,6 +288,8 @@ export interface Atencion {
   aplicativo?: string;
   /** Jira status */
   estadoJira?: string;
+  /** Number of QAs assigned to this atencion (used in test schedule) */
+  qaCount?: number;
   /** Total CPs (casos de prueba) */
   totalCPs?: number;
   checklist: boolean[];
