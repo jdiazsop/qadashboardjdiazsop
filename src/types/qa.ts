@@ -85,6 +85,8 @@ export interface TestCycle {
   totalCPs?: number;
   /** Status counters for this cycle */
   status?: AtencionStatus;
+  /** Daily conforme values keyed by date string (YYYY-MM-DD) */
+  dailyConformes?: Record<string, number>;
 }
 
 /** Get the current (latest) Cx cycle from a list of cycles */

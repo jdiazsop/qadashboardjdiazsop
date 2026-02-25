@@ -448,16 +448,26 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                         </div>
                         {(['conforme', 'enProceso', 'bloqueados', 'defectos'] as const).map(key => {
                           const labels: Record<string, string> = { conforme: 'Conf', enProceso: 'EnProc', bloqueados: 'Bloq', defectos: 'Def' };
+                          const isConformeField = key === 'conforme';
+                          const conformeFromDaily = isConformeField && cycle.dailyConformes
+                            ? Object.values(cycle.dailyConformes).reduce((s, v) => s + (v || 0), 0)
+                            : null;
                           return (
                             <div key={key}>
                               <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">{labels[key]}</label>
-                              <input type="number" min={0} value={cycle.status?.[key] ?? ''}
-                                onChange={e => {
-                                  const val = e.target.value ? parseInt(e.target.value) : undefined;
-                                  updateCycle(cycle.id, { status: { ...cycle.status, [key]: val } });
-                                }}
-                                placeholder="0"
-                                className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                              {isConformeField ? (
+                                <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground cursor-not-allowed" title="Se edita desde el cronograma">
+                                  {conformeFromDaily ?? cycle.status?.conforme ?? 0}
+                                </div>
+                              ) : (
+                                <input type="number" min={0} value={cycle.status?.[key] ?? ''}
+                                  onChange={e => {
+                                    const val = e.target.value ? parseInt(e.target.value) : undefined;
+                                    updateCycle(cycle.id, { status: { ...cycle.status, [key]: val } });
+                                  }}
+                                  placeholder="0"
+                                  className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                              )}
                             </div>
                           );
                         })}
