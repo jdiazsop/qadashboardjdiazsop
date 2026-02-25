@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Atencion, AtencionStatus, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay, CYCLE_LABEL_OPTIONS, getCurrentCxCycle } from '@/types/qa';
+import { Atencion, AtencionStatus, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay, CYCLE_LABEL_OPTIONS, getCurrentCxCycle, DateEstimation } from '@/types/qa';
 import { TagBadge } from './TagBadge';
-import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin, RefreshCw, Copy, GripVertical } from 'lucide-react';
+import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin, RefreshCw, Copy, GripVertical, Calculator } from 'lucide-react';
+import { DateEstimator } from './DateEstimator';
 
 const JIRA_STATES = [
   'Registrado',
@@ -37,6 +38,7 @@ function computeCicloActual(cycles: TestCycle[]): { total: number; current: stri
 export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete, onDuplicate }: Props) {
   const [open, setOpen] = useState(false);
   const [cyclesOpen, setCyclesOpen] = useState(false);
+  const [estimatorOpen, setEstimatorOpen] = useState(false);
   const [dragCycleId, setDragCycleId] = useState<string | null>(null);
 
   // Compute checklist counts from phases + checklistMap
@@ -517,6 +519,28 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+
+            {/* Date Estimator Section */}
+            <div className="mb-4">
+              <button
+                onClick={() => setEstimatorOpen(v => !v)}
+                className="flex items-center gap-2 w-full text-left"
+              >
+                {estimatorOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                <Calculator className="w-4 h-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                  Estimador de Fechas
+                </h3>
+              </button>
+              {estimatorOpen && (
+                <div className="mt-2">
+                  <DateEstimator
+                    estimation={atencion.estimation}
+                    onChange={(est) => onUpdate({ ...atencion, estimation: est })}
+                  />
                 </div>
               )}
             </div>
