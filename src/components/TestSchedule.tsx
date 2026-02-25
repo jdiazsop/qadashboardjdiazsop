@@ -175,26 +175,23 @@ export function TestSchedule({ atenciones }: Props) {
           }
         }
 
-        // --- REAL: realStartDate → endDate, distribute only conformes ---
-        if (cycle.realStartDate && conformes > 0) {
-          const rStart = new Date(cycle.realStartDate + 'T12:00:00');
-          if (!isNaN(rStart.getTime())) {
-            // Business days from realStart up to today or plannedEnd (whichever is earlier)
-            const today = new Date();
-            today.setHours(12, 0, 0, 0);
-            const effectiveEnd = today < plannedEnd ? today : plannedEnd;
-            const bizDays = getBusinessDaysList(rStart, effectiveEnd, hol);
-            if (bizDays.length > 0) {
-              const { dailyMap, cpsPerQAPerDay } = buildDistributionMap(bizDays, conformes, qaCount);
-              rows.push({
-                label: 'Real',
-                type: 'real',
-                businessDays: bizDays.length,
-                casesPerQAPerDay: cpsPerQAPerDay,
-                dailyMap,
-              });
-            }
-          }
+        // --- REAL: show all conformes on today (single point, no artificial distribution) ---
+        if (conformes > 0) {
+          const today = new Date();
+          today.setHours(12, 0, 0, 0);
+          const todayKey = dateKey(today);
+          const dailyMap = new Map<string, DailyEntry>();
+          dailyMap.set(todayKey, {
+            casesPerQA: conformes,
+            cumulative: conformes,
+          });
+          rows.push({
+            label: 'Real',
+            type: 'real',
+            businessDays: 1,
+            casesPerQAPerDay: conformes,
+            dailyMap,
+          });
         }
 
         if (rows.length > 0) {
