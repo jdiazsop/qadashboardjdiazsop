@@ -155,7 +155,7 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
       {/* Detail Modal */}
       {open && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setOpen(false)}>
-          <div className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+          <div className="bg-card border border-border rounded-xl w-full max-w-4xl max-h-[85vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <input
                 value={atencion.code}
@@ -261,242 +261,245 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
               </div>
             </div>
 
-            {/* Date Estimator Section */}
-            <div className="mb-4">
-              <button
-                onClick={() => setEstimatorOpen(v => !v)}
-                className="flex items-center gap-2 w-full text-left"
-              >
-                {estimatorOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-                <Calculator className="w-4 h-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  Estimador de Fechas
-                </h3>
-              </button>
-              {estimatorOpen && (
-                <div className="mt-2">
-                  <DateEstimator
-                    estimation={atencion.estimation}
-                    onChange={(est) => onUpdate({ ...atencion, estimation: est })}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Cycles Section */}
-            <div className="mb-4">
-              <button
-                onClick={() => setCyclesOpen(v => !v)}
-                className="flex items-center gap-2 w-full text-left"
-              >
-                {cyclesOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                  Ciclos de Prueba
-                </h3>
-                <span className="text-xs text-muted-foreground/70">({cycles.length})</span>
-              </button>
-
-              {/* Collapsed summary */}
-              {!cyclesOpen && (
-                <div className="mt-2 bg-surface-1 rounded-lg p-2.5 text-xs text-muted-foreground space-y-1">
-                  <div className="flex justify-between">
-                    <span>Total ciclos: {cycles.length}</span>
-                    <span>
-                      {atencion.startDate && atencion.endDate
-                        ? `${atencion.startDate} → ${atencion.endDate}`
-                        : 'Sin fechas'}
-                    </span>
+            {/* Estimator + Cycles side by side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {/* Date Estimator Section */}
+              <div className="md:sticky md:top-0 self-start">
+                <button
+                  onClick={() => setEstimatorOpen(v => !v)}
+                  className="flex items-center gap-2 w-full text-left"
+                >
+                  {estimatorOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                  <Calculator className="w-4 h-4 text-muted-foreground" />
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                    Estimador de Fechas
+                  </h3>
+                </button>
+                {estimatorOpen && (
+                  <div className="mt-2">
+                    <DateEstimator
+                      estimation={atencion.estimation}
+                      onChange={(est) => onUpdate({ ...atencion, estimation: est })}
+                    />
                   </div>
-                    {atencion.realStartDate && (
-                      <div className="flex items-center gap-1 text-primary">
-                        <MapPin className="w-3 h-3" />
-                        <span>Inicio real: {atencion.realStartDate}</span>
-                      </div>
-                    )}
-                    {atencion.delayEndDate && (
-                    <div className="text-destructive">Fin atraso: {atencion.delayEndDate}</div>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
 
-              {/* Expanded cycles */}
-              {cyclesOpen && (
-                <div className="mt-2 space-y-2">
-                  {/* Global read-only planned dates + editable delays */}
-                  <div className="bg-surface-1 rounded-lg p-2.5 space-y-1.5 border border-border/50">
-                    <span className="text-[9px] uppercase text-muted-foreground font-semibold">Fechas globales (auto-calculadas de ciclos)</span>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <div>
-                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Plan</label>
-                        <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
-                          {atencion.startDate || '—'}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Plan</label>
-                        <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
-                          {atencion.endDate || '—'}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Real Global (auto)</label>
-                        <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
-                          {atencion.realStartDate || '—'}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Atraso Global (auto)</label>
-                        <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
-                          {atencion.delayEndDate || '—'}
-                        </div>
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Texto Atraso Global</label>
-                        <input value={atencion.delayLabel || ''}
-                          onChange={e => onUpdate({ ...atencion, delayLabel: e.target.value || undefined })}
-                          placeholder="Ej: Atrasos Dev - C4"
-                          className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                      </div>
+              {/* Cycles Section */}
+              <div>
+                <button
+                  onClick={() => setCyclesOpen(v => !v)}
+                  className="flex items-center gap-2 w-full text-left"
+                >
+                  {cyclesOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                    Ciclos de Prueba
+                  </h3>
+                  <span className="text-xs text-muted-foreground/70">({cycles.length})</span>
+                </button>
+
+                {/* Collapsed summary */}
+                {!cyclesOpen && (
+                  <div className="mt-2 bg-surface-1 rounded-lg p-2.5 text-xs text-muted-foreground space-y-1">
+                    <div className="flex justify-between">
+                      <span>Total ciclos: {cycles.length}</span>
+                      <span>
+                        {atencion.startDate && atencion.endDate
+                          ? `${atencion.startDate} → ${atencion.endDate}`
+                          : 'Sin fechas'}
+                      </span>
                     </div>
-                  </div>
-
-                  {/* Cycle entries */}
-                  {cycles.map((cycle, ci) => (
-                    <div key={cycle.id}
-                      draggable
-                      onDragStart={e => { e.dataTransfer.setData('cycleId', cycle.id); setDragCycleId(cycle.id); }}
-                      onDragEnd={() => setDragCycleId(null)}
-                      onDragOver={e => e.preventDefault()}
-                      onDrop={e => {
-                        e.preventDefault();
-                        const srcId = e.dataTransfer.getData('cycleId');
-                        if (!srcId || srcId === cycle.id) return;
-                        const newCycles = [...cycles];
-                        const srcIdx = newCycles.findIndex(c => c.id === srcId);
-                        const tgtIdx = newCycles.findIndex(c => c.id === cycle.id);
-                        const [moved] = newCycles.splice(srcIdx, 1);
-                        newCycles.splice(tgtIdx, 0, moved);
-                        const computed = computeDatesFromCycles(newCycles);
-                        onUpdate({ ...atencion, cycles: newCycles, ...computed });
-                        setDragCycleId(null);
-                      }}
-                      className={`bg-surface-1 rounded-lg p-2.5 space-y-1.5 border border-border/50 cursor-grab active:cursor-grabbing transition-opacity ${dragCycleId === cycle.id ? 'opacity-50' : ''}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
-                          <GripVertical className="w-3 h-3 text-muted-foreground" />
-                          <select
-                            value={CYCLE_LABEL_OPTIONS.includes(cycle.label as any) ? cycle.label : '__custom__'}
-                            onChange={e => {
-                              const val = e.target.value;
-                              if (val === '__custom__') {
-                                const custom = prompt('Nombre de actividad:', cycle.label);
-                                if (custom) updateCycle(cycle.id, { label: custom });
-                              } else {
-                                updateCycle(cycle.id, { label: val });
-                              }
-                            }}
-                            className="bg-transparent text-xs font-semibold text-foreground border-none outline-none flex-1 min-w-0 cursor-pointer"
-                          >
-                            {CYCLE_LABEL_OPTIONS.map(opt => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                            <option value="__custom__">+ Otra actividad</option>
-                            {!CYCLE_LABEL_OPTIONS.includes(cycle.label as any) && cycle.label && (
-                              <option value={cycle.label}>{cycle.label}</option>
-                            )}
-                          </select>
+                      {atencion.realStartDate && (
+                        <div className="flex items-center gap-1 text-primary">
+                          <MapPin className="w-3 h-3" />
+                          <span>Inicio real: {atencion.realStartDate}</span>
                         </div>
-                        <button onClick={() => deleteCycle(cycle.id)} className="text-muted-foreground hover:text-destructive">
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
+                      )}
+                      {atencion.delayEndDate && (
+                      <div className="text-destructive">Fin atraso: {atencion.delayEndDate}</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Expanded cycles */}
+                {cyclesOpen && (
+                  <div className="mt-2 space-y-2">
+                    {/* Global read-only planned dates + editable delays */}
+                    <div className="bg-surface-1 rounded-lg p-2.5 space-y-1.5 border border-border/50">
+                      <span className="text-[9px] uppercase text-muted-foreground font-semibold">Fechas globales (auto-calculadas de ciclos)</span>
                       <div className="grid grid-cols-2 gap-1.5">
                         <div>
                           <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Plan</label>
-                          <input type="date" value={cycle.startDate || ''}
-                            onChange={e => updateCycle(cycle.id, { startDate: e.target.value || undefined })}
-                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                          <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
+                            {atencion.startDate || '—'}
+                          </div>
                         </div>
                         <div>
                           <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Plan</label>
-                          <input type="date" value={cycle.endDate || ''}
-                            onChange={e => updateCycle(cycle.id, { endDate: e.target.value || undefined })}
-                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Real</label>
-                          <input type="date" value={cycle.realStartDate || ''}
-                            onChange={e => updateCycle(cycle.id, { realStartDate: e.target.value || undefined })}
-                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Real</label>
-                          <input type="date" value={cycle.realEndDate || ''}
-                            onChange={e => updateCycle(cycle.id, { realEndDate: e.target.value || undefined })}
-                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                        </div>
-                      </div>
-                      {cycle.label !== 'Análisis y Diseño' && cycle.label !== 'Rendimiento' && (
-                      <div className="grid grid-cols-3 gap-1.5 mt-1">
-                        <div>
-                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Total CPs</label>
-                          <input type="number" min={0} value={cycle.totalCPs ?? ''}
-                            onChange={e => updateCycle(cycle.id, { totalCPs: e.target.value ? parseInt(e.target.value) : undefined })}
-                            placeholder="0"
-                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                        </div>
-                        {(['conforme', 'enProceso', 'bloqueados', 'defectos'] as const).map(key => {
-                          const labels: Record<string, string> = { conforme: 'Conf', enProceso: 'EnProc', bloqueados: 'Bloq', defectos: 'Def' };
-                          const isConformeField = key === 'conforme';
-                          const conformeFromDaily = isConformeField && cycle.dailyConformes
-                            ? Object.values(cycle.dailyConformes).reduce((s, v) => s + (v || 0), 0)
-                            : null;
-                          return (
-                            <div key={key}>
-                              <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">{labels[key]}</label>
-                              {isConformeField ? (
-                                <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground cursor-not-allowed" title="Se edita desde el cronograma">
-                                  {conformeFromDaily ?? cycle.status?.conforme ?? 0}
-                                </div>
-                              ) : (
-                                <input type="number" min={0} value={cycle.status?.[key] ?? ''}
-                                  onChange={e => {
-                                    const val = e.target.value ? parseInt(e.target.value) : undefined;
-                                    updateCycle(cycle.id, { status: { ...cycle.status, [key]: val } });
-                                  }}
-                                  placeholder="0"
-                                  className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                              )}
-                            </div>
-                          );
-                        })}
-                        <div>
-                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Pend</label>
-                          <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground cursor-not-allowed">
-                            {cycle.totalCPs != null ? Math.max(0, cycle.totalCPs - ((cycle.status?.conforme ?? 0) + (cycle.status?.enProceso ?? 0) + (cycle.status?.bloqueados ?? 0))) : '—'}
+                          <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
+                            {atencion.endDate || '—'}
                           </div>
                         </div>
-                      </div>
-                      )}
-                      <div>
-                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Texto atraso</label>
-                        <input value={cycle.delayLabel || ''}
-                          onChange={e => updateCycle(cycle.id, { delayLabel: e.target.value || undefined })}
-                          placeholder="Ej: Atrasos Dev"
-                          className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        <div>
+                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Real Global (auto)</label>
+                          <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
+                            {atencion.realStartDate || '—'}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Atraso Global (auto)</label>
+                          <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground">
+                            {atencion.delayEndDate || '—'}
+                          </div>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Texto Atraso Global</label>
+                          <input value={atencion.delayLabel || ''}
+                            onChange={e => onUpdate({ ...atencion, delayLabel: e.target.value || undefined })}
+                            placeholder="Ej: Atrasos Dev - C4"
+                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        </div>
                       </div>
                     </div>
-                  ))}
 
-                  <button
-                    onClick={addCycle}
-                    className="text-xs text-primary hover:text-primary/80 inline-flex items-center gap-1 transition-colors"
-                  >
-                    <Plus className="w-3 h-3" /> Agregar Actividad
-                  </button>
-                </div>
-              )}
+                    {/* Cycle entries */}
+                    {cycles.map((cycle, ci) => (
+                      <div key={cycle.id}
+                        draggable
+                        onDragStart={e => { e.dataTransfer.setData('cycleId', cycle.id); setDragCycleId(cycle.id); }}
+                        onDragEnd={() => setDragCycleId(null)}
+                        onDragOver={e => e.preventDefault()}
+                        onDrop={e => {
+                          e.preventDefault();
+                          const srcId = e.dataTransfer.getData('cycleId');
+                          if (!srcId || srcId === cycle.id) return;
+                          const newCycles = [...cycles];
+                          const srcIdx = newCycles.findIndex(c => c.id === srcId);
+                          const tgtIdx = newCycles.findIndex(c => c.id === cycle.id);
+                          const [moved] = newCycles.splice(srcIdx, 1);
+                          newCycles.splice(tgtIdx, 0, moved);
+                          const computed = computeDatesFromCycles(newCycles);
+                          onUpdate({ ...atencion, cycles: newCycles, ...computed });
+                          setDragCycleId(null);
+                        }}
+                        className={`bg-surface-1 rounded-lg p-2.5 space-y-1.5 border border-border/50 cursor-grab active:cursor-grabbing transition-opacity ${dragCycleId === cycle.id ? 'opacity-50' : ''}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1">
+                            <GripVertical className="w-3 h-3 text-muted-foreground" />
+                            <select
+                              value={CYCLE_LABEL_OPTIONS.includes(cycle.label as any) ? cycle.label : '__custom__'}
+                              onChange={e => {
+                                const val = e.target.value;
+                                if (val === '__custom__') {
+                                  const custom = prompt('Nombre de actividad:', cycle.label);
+                                  if (custom) updateCycle(cycle.id, { label: custom });
+                                } else {
+                                  updateCycle(cycle.id, { label: val });
+                                }
+                              }}
+                              className="bg-transparent text-xs font-semibold text-foreground border-none outline-none flex-1 min-w-0 cursor-pointer"
+                            >
+                              {CYCLE_LABEL_OPTIONS.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                              <option value="__custom__">+ Otra actividad</option>
+                              {!CYCLE_LABEL_OPTIONS.includes(cycle.label as any) && cycle.label && (
+                                <option value={cycle.label}>{cycle.label}</option>
+                              )}
+                            </select>
+                          </div>
+                          <button onClick={() => deleteCycle(cycle.id)} className="text-muted-foreground hover:text-destructive">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div>
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Plan</label>
+                            <input type="date" value={cycle.startDate || ''}
+                              onChange={e => updateCycle(cycle.id, { startDate: e.target.value || undefined })}
+                              className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                          </div>
+                          <div>
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Plan</label>
+                            <input type="date" value={cycle.endDate || ''}
+                              onChange={e => updateCycle(cycle.id, { endDate: e.target.value || undefined })}
+                              className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                          </div>
+                          <div>
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Inicio Real</label>
+                            <input type="date" value={cycle.realStartDate || ''}
+                              onChange={e => updateCycle(cycle.id, { realStartDate: e.target.value || undefined })}
+                              className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                          </div>
+                          <div>
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Fin Real</label>
+                            <input type="date" value={cycle.realEndDate || ''}
+                              onChange={e => updateCycle(cycle.id, { realEndDate: e.target.value || undefined })}
+                              className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                          </div>
+                        </div>
+                        {cycle.label !== 'Análisis y Diseño' && cycle.label !== 'Rendimiento' && (
+                        <div className="grid grid-cols-3 gap-1.5 mt-1">
+                          <div>
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Total CPs</label>
+                            <input type="number" min={0} value={cycle.totalCPs ?? ''}
+                              onChange={e => updateCycle(cycle.id, { totalCPs: e.target.value ? parseInt(e.target.value) : undefined })}
+                              placeholder="0"
+                              className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                          </div>
+                          {(['conforme', 'enProceso', 'bloqueados', 'defectos'] as const).map(key => {
+                            const labels: Record<string, string> = { conforme: 'Conf', enProceso: 'EnProc', bloqueados: 'Bloq', defectos: 'Def' };
+                            const isConformeField = key === 'conforme';
+                            const conformeFromDaily = isConformeField && cycle.dailyConformes
+                              ? Object.values(cycle.dailyConformes).reduce((s, v) => s + (v || 0), 0)
+                              : null;
+                            return (
+                              <div key={key}>
+                                <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">{labels[key]}</label>
+                                {isConformeField ? (
+                                  <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground cursor-not-allowed" title="Se edita desde el cronograma">
+                                    {conformeFromDaily ?? cycle.status?.conforme ?? 0}
+                                  </div>
+                                ) : (
+                                  <input type="number" min={0} value={cycle.status?.[key] ?? ''}
+                                    onChange={e => {
+                                      const val = e.target.value ? parseInt(e.target.value) : undefined;
+                                      updateCycle(cycle.id, { status: { ...cycle.status, [key]: val } });
+                                    }}
+                                    placeholder="0"
+                                    className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                                )}
+                              </div>
+                            );
+                          })}
+                          <div>
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Pend</label>
+                            <div className="w-full bg-surface-0/50 border border-border rounded px-1.5 py-1 text-[10px] text-muted-foreground cursor-not-allowed">
+                              {cycle.totalCPs != null ? Math.max(0, cycle.totalCPs - ((cycle.status?.conforme ?? 0) + (cycle.status?.enProceso ?? 0) + (cycle.status?.bloqueados ?? 0))) : '—'}
+                            </div>
+                          </div>
+                        </div>
+                        )}
+                        <div>
+                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Texto atraso</label>
+                          <input value={cycle.delayLabel || ''}
+                            onChange={e => updateCycle(cycle.id, { delayLabel: e.target.value || undefined })}
+                            placeholder="Ej: Atrasos Dev"
+                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                        </div>
+                      </div>
+                    ))}
+
+                    <button
+                      onClick={addCycle}
+                      className="text-xs text-primary hover:text-primary/80 inline-flex items-center gap-1 transition-colors"
+                    >
+                      <Plus className="w-3 h-3" /> Agregar Actividad
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {checklistPhases.map(phase => (
