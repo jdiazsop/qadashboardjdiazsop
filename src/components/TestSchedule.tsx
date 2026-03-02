@@ -41,7 +41,7 @@ interface DailyEntry {
 
 interface RowData {
   label: string;
-  type: 'planned' | 'real';
+  type: 'planned' | 'real' | 'diff';
   businessDays: number;
   casesPerQAPerDay: number;
   dailyMap: Map<string, DailyEntry>;
@@ -216,6 +216,42 @@ export function TestSchedule({ atenciones, onUpdateAtencion }: Props) {
           dailyMap: realMap,
         });
 
+        // --- DIFERENCIA (Acumulado Real - Acumulado Planificado) ---
+        // Only if we have a planned row
+        const plannedRow = rows.find(r => r.type === 'planned');
+        if (plannedRow) {
+          const diffMap = new Map<string, DailyEntry>();
+          // For each day that has either planned or real cumulative, compute diff
+          const allKeys = new Set<string>();
+          plannedRow.dailyMap.forEach((_, k) => allKeys.add(k));
+          realMap.forEach((_, k) => allKeys.add(k));
+
+          // We need running cumulative for real across all days (fill forward)
+          let lastRealCum = 0;
+          let lastPlannedCum = 0;
+          const sortedAllDayKeys = allDays.map(d => dateKey(d));
+
+          for (const dk of sortedAllDayKeys) {
+            const plannedEntry = plannedRow.dailyMap.get(dk);
+            const realEntry = realMap.get(dk);
+            if (plannedEntry) lastPlannedCum = plannedEntry.cumulative;
+            if (realEntry) lastRealCum = realEntry.cumulative;
+            // Only show diff on days where planned has data
+            if (plannedEntry || realEntry) {
+              const diff = lastRealCum - lastPlannedCum;
+              diffMap.set(dk, { casesPerQA: diff, cumulative: diff });
+            }
+          }
+
+          rows.push({
+            label: 'Diferencia',
+            type: 'diff',
+            businessDays: 0,
+            casesPerQAPerDay: 0,
+            dailyMap: diffMap,
+          });
+        }
+
         // Determine editable business days: from realStartDate (or startDate) up to today
         const editStart = cycle.realStartDate
           ? new Date(cycle.realStartDate + 'T12:00:00')
@@ -338,10 +374,50 @@ export function TestSchedule({ atenciones, onUpdateAtencion }: Props) {
               {g.rows.map((row, rIdx) => {
                 const isPlanned = row.type === 'planned';
                 const isReal = row.type === 'real';
-                const colorBg = isPlanned ? 'bg-blue-900/20' : 'bg-emerald-900/20';
-                const colorBgLight = isPlanned ? 'bg-blue-900/10' : 'bg-emerald-900/10';
-                const colorText = isPlanned ? 'text-blue-300' : 'text-emerald-300';
-                const dotColor = isPlanned ? 'bg-blue-500' : 'bg-emerald-500';
+                const isDiff = row.type === 'diff';
+                const colorBg = isPlanned ? 'bg-blue-900/20' : isReal ? 'bg-amber-900/20' : '';
+                const colorBgLight = isPlanned ? 'bg-blue-900/10' : isReal ? 'bg-amber-900/10' : '';
+                const colorText = isPlanned ? 'text-blue-300' : isReal ? 'text-amber-300' : '';
+                const dotColor = isPlanned ? 'bg-blue-500' : isReal ? 'bg-amber-500' : 'bg-gray-500';
+
+                // For diff row, render single combined row (no separate acumulado)
+                if (isDiff) {
+                  return (
+                    <tr key={rIdx} className="border-b border-border/50">
+                      <td className="sticky left-0 z-10 bg-card px-2 py-1 font-medium text-muted-foreground whitespace-nowrap" style={{ width: LABEL_W }}>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-gray-500" />
+                          Diferencia
+                        </div>
+                      </td>
+                      {allDays.map((d, i) => {
+                        const dk = dateKey(d);
+                        const entry = row.dailyMap.get(dk);
+                        const dow = d.getDay();
+                        const isNonWorking = dow === 0 || dow === 6 || holidays.has(dk);
+                        if (!entry) {
+                          return (
+                            <td key={i} className={`text-center px-0.5 py-1 border-l border-border/10 ${isNonWorking ? 'bg-red-900/20' : ''}`} style={{ minWidth: COL_W, maxWidth: COL_W }} />
+                          );
+                        }
+                        const diff = entry.casesPerQA;
+                        const isNeg = diff < 0;
+                        const isPos = diff >= 0;
+                        const bgClass = isNeg ? 'bg-red-900/30' : 'bg-emerald-900/30';
+                        const textClass = isNeg ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold';
+                        return (
+                          <td
+                            key={i}
+                            className={`text-center px-0.5 py-1 border-l border-border/10 ${isNonWorking ? 'bg-red-900/20' : ''} ${bgClass}`}
+                            style={{ minWidth: COL_W, maxWidth: COL_W }}
+                          >
+                            <span className={textClass}>{diff > 0 ? `+${diff}` : diff}</span>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                }
 
                 return (
                   <React.Fragment key={rIdx}>
@@ -370,7 +446,7 @@ export function TestSchedule({ atenciones, onUpdateAtencion }: Props) {
                           return (
                             <td
                               key={i}
-                              className={`text-center px-0 py-0 border-l border-border/10 ${isNonWorking ? 'bg-red-900/20' : ''} ${entry ? colorBg : 'bg-emerald-900/5'}`}
+                              className={`text-center px-0 py-0 border-l border-border/10 ${isNonWorking ? 'bg-red-900/20' : ''} ${entry ? colorBg : 'bg-amber-900/5'}`}
                               style={{ minWidth: COL_W, maxWidth: COL_W }}
                             >
                               <input
@@ -381,7 +457,7 @@ export function TestSchedule({ atenciones, onUpdateAtencion }: Props) {
                                   const val = e.target.value ? parseInt(e.target.value) : 0;
                                   handleDailyChange(g.atencionId, g.cycleId, dk, val);
                                 }}
-                                className="w-full h-full bg-transparent text-center text-emerald-300 font-semibold text-xs py-1 px-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-full h-full bg-transparent text-center text-amber-300 font-semibold text-xs py-1 px-0.5 focus:outline-none focus:ring-1 focus:ring-amber-500 rounded-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="·"
                               />
                             </td>
