@@ -236,8 +236,8 @@ export function TestSchedule({ atenciones, onUpdateAtencion }: Props) {
             const realEntry = realMap.get(dk);
             if (plannedEntry) lastPlannedCum = plannedEntry.cumulative;
             if (realEntry) lastRealCum = realEntry.cumulative;
-            // Only show diff on days where planned has data
-            if (plannedEntry || realEntry) {
+            // Only show diff on days where real data has been entered
+            if (realEntry) {
               const diff = lastRealCum - lastPlannedCum;
               diffMap.set(dk, { casesPerQA: diff, cumulative: diff });
             }
