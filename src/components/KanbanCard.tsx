@@ -357,13 +357,6 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                             {atencion.delayEndDate || '—'}
                           </div>
                         </div>
-                        <div className="col-span-2">
-                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Texto Atraso Global</label>
-                          <input value={atencion.delayLabel || ''}
-                            onChange={e => onUpdate({ ...atencion, delayLabel: e.target.value || undefined })}
-                            placeholder="Ej: Atrasos Dev - C4"
-                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                        </div>
                       </div>
                     </div>
 
@@ -486,13 +479,6 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                           </div>
                         </div>
                         )}
-                        <div>
-                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Texto atraso</label>
-                          <input value={cycle.delayLabel || ''}
-                            onChange={e => updateCycle(cycle.id, { delayLabel: e.target.value || undefined })}
-                            placeholder="Ej: Atrasos Dev"
-                            className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                        </div>
                       </div>
                     ))}
 
