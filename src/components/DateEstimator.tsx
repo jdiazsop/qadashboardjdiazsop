@@ -1,15 +1,70 @@
 import { useMemo, useRef, useState } from 'react';
-import { DateEstimation, EstimationTask, computeEstimation, createDefaultEstimation, ESTIMATION_TASK_LABELS } from '@/types/qa';
-import { Calculator, Plus, Trash2, Clock, Users, CalendarDays, Upload, Loader2 } from 'lucide-react';
+import { DateEstimation, EstimationTask, computeEstimation, createDefaultEstimation, ESTIMATION_TASK_LABELS, TestCycle } from '@/types/qa';
+import { Calculator, Plus, Trash2, Clock, Users, CalendarDays, Upload, Loader2, ArrowRightFromLine } from 'lucide-react';
 import { parseEstimationExcel } from '@/lib/parseEstimationExcel';
 import { toast } from '@/hooks/use-toast';
+
+/** Map estimation task labels to cycle labels with grouped date ranges */
+export function mapEstimationToCycles(computed: EstimationTask[]): TestCycle[] {
+  // Define grouping: estimation labels → cycle label
+  const groups: { cycleLabel: string; taskLabels: string[] }[] = [
+    {
+      cycleLabel: 'Análisis y Diseño',
+      taskLabels: ['Análisis de Pruebas', 'Diseño de Pruebas', 'Despliegue', 'Generación de Data'],
+    },
+  ];
+
+  // Dynamically find all Ejecución Cx tasks
+  const execTasks = computed.filter(t => /^Ejecuci[oó]n\s+C(\d+)$/i.test(t.label));
+  const execCycles = execTasks.map(t => {
+    const m = t.label.match(/C(\d+)$/i);
+    return { num: m ? parseInt(m[1]) : 0, label: t.label };
+  }).sort((a, b) => a.num - b.num);
+
+  // C1 groups with Pruebas de Humo + Ejecución Antes + Ejecución C1
+  const c1Labels = ['Pruebas de Humo', 'Ejecución Antes'];
+  const c1Exec = execCycles.find(c => c.num === 1);
+  if (c1Exec) c1Labels.push(c1Exec.label);
+  groups.push({ cycleLabel: 'C1', taskLabels: c1Labels });
+
+  // C2, C3, C4, ... each maps individually
+  for (const ec of execCycles.filter(c => c.num >= 2)) {
+    groups.push({ cycleLabel: `C${ec.num}`, taskLabels: [ec.label] });
+  }
+
+  // UAT groups with UAT + Cierre
+  groups.push({
+    cycleLabel: 'UAT',
+    taskLabels: ['UAT', 'Cierre / Post Producción'],
+  });
+
+  const cycles: TestCycle[] = [];
+  for (const group of groups) {
+    const tasks = computed.filter(t => group.taskLabels.includes(t.label) && t.adjustedHours && t.adjustedHours > 0);
+    if (tasks.length === 0) continue;
+
+    const starts = tasks.map(t => t.computedStart).filter(Boolean) as string[];
+    const ends = tasks.map(t => t.computedEnd).filter(Boolean) as string[];
+    if (starts.length === 0 || ends.length === 0) continue;
+
+    cycles.push({
+      id: `cycle-est-${Date.now()}-${group.cycleLabel}`,
+      label: group.cycleLabel,
+      startDate: starts.sort()[0],
+      endDate: ends.sort().reverse()[0],
+    });
+  }
+
+  return cycles;
+}
 
 interface Props {
   estimation: DateEstimation | undefined;
   onChange: (est: DateEstimation) => void;
+  onTransferToCycles?: (cycles: TestCycle[]) => void;
 }
 
-export function DateEstimator({ estimation, onChange }: Props) {
+export function DateEstimator({ estimation, onChange, onTransferToCycles }: Props) {
   const est = estimation ?? createDefaultEstimation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -171,7 +226,7 @@ export function DateEstimator({ estimation, onChange }: Props) {
         ))}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <button
           onClick={addTask}
           className="text-[10px] text-primary hover:text-primary/80 inline-flex items-center gap-1 transition-colors"
@@ -193,6 +248,22 @@ export function DateEstimator({ estimation, onChange }: Props) {
           {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
           Cargar Excel
         </button>
+        {onTransferToCycles && totalHours > 0 && (
+          <button
+            onClick={() => {
+              const cycles = mapEstimationToCycles(computed);
+              if (cycles.length === 0) {
+                toast({ title: 'Sin datos', description: 'No hay tareas con horas para trasladar.', variant: 'destructive' });
+                return;
+              }
+              onTransferToCycles(cycles);
+              toast({ title: 'Ciclos actualizados', description: `${cycles.length} ciclos trasladados desde la estimación.` });
+            }}
+            className="text-[10px] text-primary hover:text-primary/80 inline-flex items-center gap-1 transition-colors"
+          >
+            <ArrowRightFromLine className="w-3 h-3" /> Trasladar a Ciclos
+          </button>
+        )}
       </div>
     </div>
   );

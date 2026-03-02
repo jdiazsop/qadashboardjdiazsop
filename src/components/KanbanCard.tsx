@@ -280,6 +280,11 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                     <DateEstimator
                       estimation={atencion.estimation}
                       onChange={(est) => onUpdate({ ...atencion, estimation: est })}
+                      onTransferToCycles={(newCycles) => {
+                        // Replace existing cycles with the ones from estimation
+                        const computed = computeDatesFromCycles(newCycles);
+                        onUpdate({ ...atencion, cycles: newCycles, ...computed });
+                      }}
                     />
                   </div>
                 )}
