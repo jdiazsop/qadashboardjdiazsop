@@ -1,6 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { DateEstimation, EstimationTask, computeEstimation, createDefaultEstimation, ESTIMATION_TASK_LABELS } from '@/types/qa';
-import { Calculator, Plus, Trash2, Clock, Users, CalendarDays } from 'lucide-react';
+import { Calculator, Plus, Trash2, Clock, Users, CalendarDays, Upload, Loader2 } from 'lucide-react';
+import { parseEstimationExcel } from '@/lib/parseEstimationExcel';
+import { toast } from '@/hooks/use-toast';
 
 interface Props {
   estimation: DateEstimation | undefined;
@@ -9,6 +11,8 @@ interface Props {
 
 export function DateEstimator({ estimation, onChange }: Props) {
   const est = estimation ?? createDefaultEstimation();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   const computed = useMemo(() => computeEstimation(est), [est]);
 
@@ -38,6 +42,22 @@ export function DateEstimator({ estimation, onChange }: Props) {
 
   const initEstimation = () => {
     onChange(createDefaultEstimation());
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const tasks = await parseEstimationExcel(file);
+      onChange({ ...est, tasks });
+      toast({ title: 'Estimación cargada', description: `${tasks.length} tareas importadas del Excel.` });
+    } catch (err: any) {
+      toast({ title: 'Error al cargar', description: err.message || 'No se pudo leer el archivo.', variant: 'destructive' });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   if (!estimation) {
@@ -151,12 +171,29 @@ export function DateEstimator({ estimation, onChange }: Props) {
         ))}
       </div>
 
-      <button
-        onClick={addTask}
-        className="text-[10px] text-primary hover:text-primary/80 inline-flex items-center gap-1 transition-colors"
-      >
-        <Plus className="w-3 h-3" /> Agregar tarea
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={addTask}
+          className="text-[10px] text-primary hover:text-primary/80 inline-flex items-center gap-1 transition-colors"
+        >
+          <Plus className="w-3 h-3" /> Agregar tarea
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="text-[10px] text-primary hover:text-primary/80 inline-flex items-center gap-1 transition-colors disabled:opacity-50"
+        >
+          {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+          Cargar Excel
+        </button>
+      </div>
     </div>
   );
 }
