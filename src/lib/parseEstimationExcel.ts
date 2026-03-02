@@ -6,19 +6,21 @@ import type { EstimationTask } from '@/types/qa';
  * EJECUCIÓN is handled specially — it gets split by cycle sub-sections.
  */
 const PHASE_PATTERNS: { pattern: RegExp; label: string }[] = [
-  { pattern: /AN[ÁA]LISIS\s+DE\s+PRUEBAS/i, label: 'Análisis de Pruebas' },
-  { pattern: /DISE[ÑN]O\s+DE\s+PRUEBAS/i, label: 'Diseño de Pruebas' },
-  { pattern: /DESPLIEGUE/i, label: 'Despliegue' },
-  { pattern: /GENERACI[ÓO]N\s+DE\s+DATA/i, label: 'Generación de Data' },
-  { pattern: /PRUEBAS\s+DE\s+HUMO/i, label: 'Pruebas de Humo' },
-  { pattern: /EJECUCI[ÓO]N/i, label: '__EJECUCION__' }, // special marker
-  { pattern: /UAT/i, label: 'UAT' },
-  { pattern: /CIERRE/i, label: 'Cierre / Post Producción' },
+  { pattern: /^AN[ÁA]LISIS\s+DE\s+PRUEBAS$/i, label: 'Análisis de Pruebas' },
+  { pattern: /^DISE[ÑN]O\s+DE\s+PRUEBAS$/i, label: 'Diseño de Pruebas' },
+  { pattern: /^DESPLIEGUE$/i, label: 'Despliegue' },
+  { pattern: /^GENERACI[ÓO]N\s+DE\s+DATA$/i, label: 'Generación de Data' },
+  { pattern: /^PRUEBAS\s+DE\s+HUMO$/i, label: 'Pruebas de Humo' },
+  { pattern: /^EJECUCI[ÓO]N$/i, label: '__EJECUCION__' },
+  { pattern: /^UAT$/i, label: 'UAT' },
+  { pattern: /^CIERRE\s*(\/\s*POST\s*PRODUCCI[ÓO]N)?$/i, label: 'Cierre / Post Producción' },
 ];
 
-/** Detect if a cell text is a phase header */
+/** Detect if a cell text is a phase header (must be an exact/short match) */
 function matchPhase(text: string): string | null {
   const trimmed = text.trim();
+  // Phase headers are short standalone labels, skip long task descriptions
+  if (trimmed.length > 40) return null;
   for (const p of PHASE_PATTERNS) {
     if (p.pattern.test(trimmed)) return p.label;
   }
