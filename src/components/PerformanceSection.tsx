@@ -54,6 +54,20 @@ export function PerformanceSection({ data, onChange }: Props) {
   };
 
 
+  /* ── Helper to extract text from ExcelJS cell values (handles rich text objects) ── */
+  const cellText = (val: any): string => {
+    if (val == null) return '';
+    if (typeof val === 'string') return val.toLowerCase().trim();
+    if (typeof val === 'number' || typeof val === 'boolean') return String(val).toLowerCase().trim();
+    // Rich text: { richText: [{ text: '...' }, ...] }
+    if (val.richText && Array.isArray(val.richText)) {
+      return val.richText.map((r: any) => String(r.text ?? '')).join('').toLowerCase().trim();
+    }
+    // Formula result
+    if (val.result != null) return cellText(val.result);
+    return String(val).toLowerCase().trim();
+  };
+
   /* ── Checklist Excel import ── */
   const handleChecklistImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -70,7 +84,7 @@ export function PerformanceSection({ data, onChange }: Props) {
       let result: string | undefined;
       ws.eachRow((row) => {
         row.eachCell((cell) => {
-          const val = String(cell.value ?? '').toLowerCase().trim();
+          const val = cellText(cell.value);
           if (val === 'conforme' || val === 'no conforme' || val === 'no_conforme' || val === 'pendiente') {
             if (val === 'conforme') result = 'conforme';
             else if (val.includes('no')) result = 'no_conforme';
@@ -84,16 +98,15 @@ export function PerformanceSection({ data, onChange }: Props) {
         update({ checklistResult: result as any, checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
         toast.success(`Checklist importado: ${result}`);
       } else {
-        // Check for Alta/Baja pattern – look for the "Prioridad" row and read adjacent cell
+        // Check for Alta/Baja – look for the "Prioridad" row first
         let found = false;
         let detectedLevel: 'alta' | 'baja' | undefined;
         ws.eachRow((row) => {
           if (found) return;
           const cells: string[] = [];
           row.eachCell((cell) => {
-            cells.push(String(cell.value ?? '').toLowerCase().trim());
+            cells.push(cellText(cell.value));
           });
-          // Check if this row contains "prioridad"
           const hasPrioridad = cells.some(c => c.includes('prioridad'));
           if (hasPrioridad) {
             const level = cells.find(c => c === 'alta' || c === 'baja');
@@ -103,12 +116,12 @@ export function PerformanceSection({ data, onChange }: Props) {
             }
           }
         });
-        // Fallback: scan all cells but only accept a single unambiguous match
+        // Fallback: scan all cells for exact "alta"/"baja"
         if (!found) {
           const levels = new Set<string>();
           ws.eachRow((row) => {
             row.eachCell((cell) => {
-              const val = String(cell.value ?? '').toLowerCase().trim();
+              const val = cellText(cell.value);
               if (val === 'alta' || val === 'baja') levels.add(val);
             });
           });
