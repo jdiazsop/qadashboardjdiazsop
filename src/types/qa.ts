@@ -327,6 +327,8 @@ export interface Atencion {
   cardOrder?: number;
   /** Date estimation data */
   estimation?: DateEstimation;
+  /** Performance data per atencion */
+  performanceData?: PerformanceData;
 }
 
 export interface KanbanColumn {
