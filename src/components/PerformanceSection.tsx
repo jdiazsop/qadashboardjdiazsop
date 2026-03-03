@@ -318,7 +318,7 @@ export function PerformanceSection({ data, onChange }: Props) {
             </button>
           </div>
           {/* Evidence upload for session */}
-          <div className="flex flex-wrap items-center gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-2">
             <button
               onClick={() => sessionEvidenceRef.current?.click()}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors"
@@ -342,7 +342,7 @@ export function PerformanceSection({ data, onChange }: Props) {
               className="hidden"
             />
             {d.sessionEvidenceFileName ? (
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
                 <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
                 <span className="text-[10px] text-foreground truncate">{d.sessionEvidenceFileName}</span>
                 <button
@@ -412,9 +412,9 @@ export function PerformanceSection({ data, onChange }: Props) {
                 rows={2}
                 className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
               />
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
                 {d.sessionEvidenceFileName ? (
-                  <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 max-w-full">
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
                     <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
                     <span className="text-[10px] text-foreground truncate">{d.sessionEvidenceFileName}</span>
                     <button
@@ -431,7 +431,7 @@ export function PerformanceSection({ data, onChange }: Props) {
                   </div>
                 )}
                 {(d.additionalEvidenceFiles ?? []).map((f, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0">
+                  <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
                     <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
                     <span className="text-[10px] text-foreground truncate">{f.name}</span>
                     <button onClick={() => downloadFile(f.storagePath, f.name)} className="text-primary hover:text-primary/80 transition-colors shrink-0">
