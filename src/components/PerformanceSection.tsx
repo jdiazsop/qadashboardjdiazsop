@@ -300,16 +300,6 @@ export function PerformanceSection({ data, onChange }: Props) {
                 Sí
               </button>
               <button
-                onClick={() => update({ hadUnderstandingSession: false })}
-                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors
-                  ${d.hadUnderstandingSession === false
-                    ? 'bg-red-500/20 border-red-500 text-red-400'
-                    : 'border-border text-muted-foreground hover:border-primary/50'
-                  }`}
-              >
-                No
-              </button>
-              <button
                 onClick={() => update({ hadUnderstandingSession: 'pending' as any })}
                 className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors
                   ${d.hadUnderstandingSession === 'pending'
@@ -321,6 +311,16 @@ export function PerformanceSection({ data, onChange }: Props) {
               </button>
             </div>
           </div>
+          {d.hadUnderstandingSession === 'pending' && (
+            <div className="mt-2">
+              <textarea
+                placeholder="Comentarios sobre la sesión pendiente..."
+                value={(d as any).understandingSessionComment ?? ''}
+                onChange={(e) => update({ understandingSessionComment: e.target.value } as any)}
+                className="w-full min-h-[60px] rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+              />
+            </div>
+          )}
           {/* Evidence upload for session */}
           <div className="flex items-center gap-2 mt-2">
             <button
