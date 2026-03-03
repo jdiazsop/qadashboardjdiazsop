@@ -54,18 +54,27 @@ export function PerformanceSection({ data, onChange }: Props) {
   };
 
 
-  /* ── Helper to extract text from ExcelJS cell values (handles rich text objects) ── */
-  const cellText = (val: any): string => {
-    if (val == null) return '';
-    if (typeof val === 'string') return val.toLowerCase().trim();
-    if (typeof val === 'number' || typeof val === 'boolean') return String(val).toLowerCase().trim();
-    // Rich text: { richText: [{ text: '...' }, ...] }
-    if (val.richText && Array.isArray(val.richText)) {
-      return val.richText.map((r: any) => String(r.text ?? '')).join('').toLowerCase().trim();
-    }
-    // Formula result
-    if (val.result != null) return cellText(val.result);
-    return String(val).toLowerCase().trim();
+  /* ── Helper robusto para extraer texto de celdas ExcelJS ── */
+  const cellText = (cell: any): string => {
+    const toText = (val: any): string => {
+      if (val == null) return '';
+      if (typeof val === 'string') return val;
+      if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+      if (val instanceof Date) return val.toISOString();
+      if (Array.isArray(val)) return val.map(toText).join(' ');
+      if (typeof val === 'object') {
+        if (typeof val.text === 'string') return val.text;
+        if (Array.isArray(val.richText)) {
+          return val.richText.map((r: any) => String(r?.text ?? '')).join('');
+        }
+        if (val.result != null) return toText(val.result);
+      }
+      return String(val);
+    };
+
+    const fromCellText = toText(cell?.text);
+    if (fromCellText) return fromCellText.trim();
+    return toText(cell?.value ?? cell).trim();
   };
 
   /* ── Checklist Excel import ── */
@@ -77,38 +86,44 @@ export function PerformanceSection({ data, onChange }: Props) {
       const ExcelJS = await import('exceljs');
       const wb = new ExcelJS.Workbook();
       await wb.xlsx.load(await file.arrayBuffer());
-      const ws = wb.worksheets[0];
-      if (!ws) throw new Error('No worksheet found');
+      if (wb.worksheets.length === 0) throw new Error('No worksheet found');
 
-      // Try to find a "resultado" or "result" cell
-      let result: string | undefined;
-      ws.eachRow((row) => {
-        row.eachCell((cell) => {
-          const val = cellText(cell.value);
-          if (val === 'conforme' || val === 'no conforme' || val === 'no_conforme' || val === 'pendiente') {
+      const normalizeText = (text: string): string =>
+        text
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase();
+
+      // Buscar resultado checklist clásico en todas las hojas
+      let result: 'conforme' | 'no_conforme' | 'pendiente' | undefined;
+      for (const ws of wb.worksheets) {
+        ws.eachRow((row) => {
+          if (result) return;
+          row.eachCell({ includeEmpty: true }, (cell) => {
+            if (result) return;
+            const val = normalizeText(cellText(cell));
             if (val === 'conforme') result = 'conforme';
-            else if (val.includes('no')) result = 'no_conforme';
-            else result = 'pendiente';
-          }
+            else if (val === 'no conforme' || val === 'no_conforme') result = 'no_conforme';
+            else if (val === 'pendiente') result = 'pendiente';
+          });
         });
-      });
+        if (result) break;
+      }
 
       const storagePath = await uploadFile(file, 'checklist');
       if (result) {
-        update({ checklistResult: result as any, checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
+        update({
+          checklistResult: result,
+          checklistLevel: undefined,
+          checklistFileName: file.name,
+          checklistStoragePath: storagePath ?? undefined,
+        });
         toast.success(`Checklist importado: ${result}`);
       } else {
-        // Check for Alta/Baja – priorizar el valor explícito de "Resultado"
-        let found = false;
-        let detectedLevel: 'alta' | 'baja' | undefined;
-
-        const normalizeText = (text: string): string =>
-          text
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .toLowerCase();
+        // Check for Alta/Baja – priorizar marca real y evitar matches ambiguos
+        const markerRegex = /^(x|✓|✔|si|sí|s|1|true|ok|v)$/;
 
         const extractSingleLevel = (text: string): 'alta' | 'baja' | undefined => {
           const normalized = normalizeText(text);
@@ -120,6 +135,10 @@ export function PerformanceSection({ data, onChange }: Props) {
 
         const extractInlineResult = (text: string): 'alta' | 'baja' | undefined => {
           const normalized = normalizeText(text);
+          const levels = [...new Set([...normalized.matchAll(/\b(alta|baja)\b/g)].map((m) => m[1]))];
+          // Evita tomar "resultado: alta o baja" como ALTA
+          if (levels.length !== 1) return undefined;
+
           const patterns = [
             /\bresultado(?:\s+final)?(?:\s+de\s+rendimiento)?\b[\s:;-]*(alta|baja)\b/,
             /\bprioridad(?:\s+de\s+rendimiento)?\b[\s:;-]*(alta|baja)\b/,
@@ -133,72 +152,134 @@ export function PerformanceSection({ data, onChange }: Props) {
         };
 
         type Anchor = { row: number; col: number; kind: 'resultado' | 'prioridad' };
-        type LevelCell = { row: number; col: number; level: 'alta' | 'baja' };
+        type LevelCell = {
+          row: number;
+          col: number;
+          level: 'alta' | 'baja';
+          hasFill: boolean;
+          hasBold: boolean;
+          hasEmbeddedMarker: boolean;
+        };
 
-        const anchors: Anchor[] = [];
-        const levelCells: LevelCell[] = [];
+        const detectLevelInSheet = (ws: any): { level: 'alta' | 'baja'; score: number } | undefined => {
+          const anchors: Anchor[] = [];
+          const levelCells: LevelCell[] = [];
+          const markerPositions = new Set<string>();
+          const inlineMatches: { level: 'alta' | 'baja'; score: number }[] = [];
 
-        ws.eachRow((row, rowNumber) => {
-          row.eachCell((cell, colNumber) => {
-            if (found) return;
-            const rawText = cellText(cell.value);
-            const normalized = normalizeText(rawText);
-
-            // Caso más confiable: resultado/prioridad y nivel en la misma celda
-            const inline = extractInlineResult(normalized);
-            if (inline) {
-              detectedLevel = inline;
-              found = true;
-              return;
+          const key = (r: number, c: number) => `${r}:${c}`;
+          const hasNearbyMarker = (row: number, col: number): boolean => {
+            for (let r = row - 1; r <= row + 1; r++) {
+              for (let c = col - 2; c <= col + 2; c++) {
+                if (markerPositions.has(key(r, c))) return true;
+              }
             }
+            return false;
+          };
 
-            if (normalized.includes('resultado')) {
-              anchors.push({ row: rowNumber, col: colNumber, kind: 'resultado' });
-            } else if (normalized.includes('prioridad')) {
-              anchors.push({ row: rowNumber, col: colNumber, kind: 'prioridad' });
-            }
+          ws.eachRow((row: any, rowNumber: number) => {
+            row.eachCell({ includeEmpty: true }, (cell: any, colNumber: number) => {
+              const text = normalizeText(cellText(cell));
+              if (!text) return;
 
-            const level = extractSingleLevel(normalized);
-            if (level) levelCells.push({ row: rowNumber, col: colNumber, level });
+              if (markerRegex.test(text)) markerPositions.add(key(rowNumber, colNumber));
+
+              const inline = extractInlineResult(text);
+              if (inline) inlineMatches.push({ level: inline, score: 600 });
+
+              if (text.includes('resultado')) anchors.push({ row: rowNumber, col: colNumber, kind: 'resultado' });
+              else if (text.includes('prioridad')) anchors.push({ row: rowNumber, col: colNumber, kind: 'prioridad' });
+
+              const level = extractSingleLevel(text);
+              if (!level) return;
+
+              const fill = cell?.fill;
+              const hasFill = Boolean(fill && (fill.fgColor || fill.bgColor || (fill.pattern && fill.pattern !== 'none')));
+              const hasBold = Boolean(cell?.font?.bold);
+              const hasEmbeddedMarker = /\b(x|✓|✔|ok)\b/.test(text);
+
+              levelCells.push({ row: rowNumber, col: colNumber, level, hasFill, hasBold, hasEmbeddedMarker });
+            });
           });
-        });
 
-        // Si no hubo match inline, elegir el nivel más cercano a "resultado" (o "prioridad" como respaldo)
-        if (!found && levelCells.length > 0) {
-          if (anchors.length > 0) {
-            const scored = levelCells
-              .map((lc) => {
-                let bestScore = -Infinity;
+          if (inlineMatches.length > 0) {
+            return inlineMatches.sort((a, b) => b.score - a.score)[0];
+          }
+
+          if (levelCells.length === 0) return undefined;
+
+          const byRow = new Map<number, LevelCell[]>();
+          for (const lc of levelCells) {
+            const arr = byRow.get(lc.row) ?? [];
+            arr.push(lc);
+            byRow.set(lc.row, arr);
+          }
+
+          const scored = levelCells
+            .map((lc) => {
+              let score = 0;
+              const nearMarker = hasNearbyMarker(lc.row, lc.col);
+
+              if (lc.hasFill) score += 180;
+              if (lc.hasBold) score += 30;
+              if (lc.hasEmbeddedMarker || nearMarker) score += 260;
+
+              if (anchors.length > 0) {
+                let bestAnchor = 0;
                 for (const a of anchors) {
                   const dist = Math.abs(lc.row - a.row) + Math.abs(lc.col - a.col);
-                  const anchorWeight = a.kind === 'resultado' ? 100 : 60;
-                  const proximity = Math.max(0, 30 - dist);
-                  const score = anchorWeight + proximity;
-                  if (score > bestScore) bestScore = score;
+                  const anchorWeight = a.kind === 'resultado' ? 120 : 70;
+                  const proximity = Math.max(0, 40 - dist);
+                  bestAnchor = Math.max(bestAnchor, anchorWeight + proximity);
                 }
-                return { ...lc, score: bestScore };
-              })
-              .sort((a, b) => b.score - a.score);
+                score += bestAnchor;
+              }
 
-            if (scored.length > 0) {
-              detectedLevel = scored[0].level;
-              found = true;
-            }
-          } else {
-            // Último fallback: aceptar solo si toda la hoja tiene un único nivel
-            const uniqueLevels = [...new Set(levelCells.map((c) => c.level))];
-            if (uniqueLevels.length === 1) {
-              detectedLevel = uniqueLevels[0];
-              found = true;
-            }
+              const sameRow = byRow.get(lc.row) ?? [];
+              const opposite = sameRow.find((c) => c.level !== lc.level);
+              if (opposite) {
+                const thisSignal = Number(lc.hasFill) + Number(lc.hasEmbeddedMarker || nearMarker);
+                const oppositeSignal = Number(opposite.hasFill) + Number(opposite.hasEmbeddedMarker || hasNearbyMarker(opposite.row, opposite.col));
+                if (thisSignal > oppositeSignal) score += 120;
+                if (thisSignal < oppositeSignal) score -= 120;
+              }
+
+              return { ...lc, score, nearMarker };
+            })
+            .sort((a, b) => b.score - a.score);
+
+          const top = scored[0];
+          const second = scored[1];
+
+          if (second && top.level !== second.level && Math.abs(top.score - second.score) < 20) {
+            return undefined;
           }
+
+          const hasConfidence = top.hasFill || top.nearMarker || top.hasEmbeddedMarker || anchors.length > 0;
+          if (!hasConfidence) {
+            const uniqueLevels = [...new Set(levelCells.map((c) => c.level))];
+            if (uniqueLevels.length !== 1) return undefined;
+          }
+
+          return { level: top.level, score: top.score };
+        };
+
+        let bestLevel: { level: 'alta' | 'baja'; score: number } | undefined;
+        for (const ws of wb.worksheets) {
+          const detected = detectLevelInSheet(ws);
+          if (!detected) continue;
+          if (!bestLevel || detected.score > bestLevel.score) bestLevel = detected;
         }
 
-        if (found && detectedLevel) {
-          update({ checklistLevel: detectedLevel, checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
-          toast.success(`Checklist nivel detectado: ${detectedLevel.charAt(0).toUpperCase() + detectedLevel.slice(1)}`);
-        }
-        if (!found) {
+        if (bestLevel) {
+          update({
+            checklistLevel: bestLevel.level,
+            checklistResult: undefined,
+            checklistFileName: file.name,
+            checklistStoragePath: storagePath ?? undefined,
+          });
+          toast.success(`Checklist nivel detectado: ${bestLevel.level.charAt(0).toUpperCase() + bestLevel.level.slice(1)}`);
+        } else {
           toast.warning('No se encontró un resultado claro en el checklist. Selecciónelo manualmente.');
         }
       }
