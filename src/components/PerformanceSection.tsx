@@ -84,18 +84,43 @@ export function PerformanceSection({ data, onChange }: Props) {
         update({ checklistResult: result as any, checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
         toast.success(`Checklist importado: ${result}`);
       } else {
-        // Check for Alta/Baja pattern
+        // Check for Alta/Baja pattern – look for the "Prioridad" row and read adjacent cell
         let found = false;
+        let detectedLevel: 'alta' | 'baja' | undefined;
         ws.eachRow((row) => {
+          if (found) return;
+          const cells: string[] = [];
           row.eachCell((cell) => {
-            const val = String(cell.value ?? '').toLowerCase().trim();
-            if (val === 'alta' || val === 'baja') {
-              update({ checklistLevel: val as 'alta' | 'baja', checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
-              toast.success(`Checklist nivel detectado: ${val.charAt(0).toUpperCase() + val.slice(1)}`);
+            cells.push(String(cell.value ?? '').toLowerCase().trim());
+          });
+          // Check if this row contains "prioridad"
+          const hasPrioridad = cells.some(c => c.includes('prioridad'));
+          if (hasPrioridad) {
+            const level = cells.find(c => c === 'alta' || c === 'baja');
+            if (level) {
+              detectedLevel = level as 'alta' | 'baja';
               found = true;
             }
-          });
+          }
         });
+        // Fallback: scan all cells but only accept a single unambiguous match
+        if (!found) {
+          const levels = new Set<string>();
+          ws.eachRow((row) => {
+            row.eachCell((cell) => {
+              const val = String(cell.value ?? '').toLowerCase().trim();
+              if (val === 'alta' || val === 'baja') levels.add(val);
+            });
+          });
+          if (levels.size === 1) {
+            detectedLevel = [...levels][0] as 'alta' | 'baja';
+            found = true;
+          }
+        }
+        if (found && detectedLevel) {
+          update({ checklistLevel: detectedLevel, checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
+          toast.success(`Checklist nivel detectado: ${detectedLevel.charAt(0).toUpperCase() + detectedLevel.slice(1)}`);
+        }
         if (!found) {
           toast.warning('No se encontró un resultado claro en el checklist. Selecciónelo manualmente.');
         }
