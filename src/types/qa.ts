@@ -395,8 +395,8 @@ export interface PerformanceData {
   checklistFileName?: string;
   /** Email evidence file name */
   evidenceFileName?: string;
-  /** Whether an understanding session took place */
-  hadUnderstandingSession?: boolean;
+  /** Whether an understanding session took place: true / false / 'pending' */
+  hadUnderstandingSession?: boolean | 'pending';
   /** Whether performance tests apply – null = undecided */
   appliesPerformanceTests?: boolean | null;
   /** Reason if not applicable */
