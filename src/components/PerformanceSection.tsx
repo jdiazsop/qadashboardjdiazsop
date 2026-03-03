@@ -162,6 +162,7 @@ export function PerformanceSection({ data, onChange }: Props) {
 
       if (error) throw error;
 
+      console.log('[PDF RAW RESULTS]', JSON.stringify(fnData?.results));
       const results: PerformanceTestResult[] = (fnData?.results ?? []).map(
         (r: any, i: number) => {
           // Post-process status for stress tests:

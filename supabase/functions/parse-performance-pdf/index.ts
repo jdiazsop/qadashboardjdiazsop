@@ -134,6 +134,11 @@ No incluyas explicaciones, solo el JSON.`;
 
     const parsed = JSON.parse(jsonMatch[0]);
 
+    // Debug: log what AI returned for each result
+    for (const r of (parsed.results ?? [])) {
+      console.log(`[PDF] type="${r.type}" status="${r.status}" evidence="${r.statusEvidence}"`);
+    }
+
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
