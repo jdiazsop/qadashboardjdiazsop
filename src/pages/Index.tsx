@@ -9,8 +9,8 @@ import { useCloudState } from '@/hooks/useCloudState';
 import { DashboardState, ProjectTab } from '@/lib/store';
 import { Atencion, KanbanColumn, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES } from '@/types/qa';
 import { TestSchedule } from '@/components/TestSchedule';
-
-import { LayoutDashboard, Kanban, GanttChart, CalendarDays, Plus, Pencil, Settings, Trash2, LogOut } from 'lucide-react';
+import { PerformanceSection } from '@/components/PerformanceSection';
+import { LayoutDashboard, Kanban, GanttChart, CalendarDays, Plus, Pencil, Settings, Trash2, LogOut, Activity } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -25,6 +25,7 @@ const Index = () => {
 
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editTabName, setEditTabName] = useState('');
+  const [selectedPerfAtencionId, setSelectedPerfAtencionId] = useState<string | null>(null);
 
   if (loading || !appState) {
     return (
@@ -322,6 +323,42 @@ const Index = () => {
             <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Cronograma de Pruebas</h2>
           </div>
           <TestSchedule atenciones={state.atenciones} onUpdateAtencion={updateAtencion} />
+        </section>
+
+        <section className="bg-surface-1 border border-border rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Activity className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Rendimiento</h2>
+          </div>
+          {state.atenciones.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No hay atenciones. Crea una en el Kanban para gestionar rendimiento.</p>
+          ) : (
+            <>
+              <div className="mb-3">
+                <label className="block text-[10px] uppercase text-muted-foreground mb-1 font-semibold">Seleccionar Atención</label>
+                <select
+                  value={selectedPerfAtencionId ?? ''}
+                  onChange={e => setSelectedPerfAtencionId(e.target.value || null)}
+                  className="bg-surface-0 border border-border rounded px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-md"
+                >
+                  <option value="">— Seleccionar atención —</option>
+                  {state.atenciones.map(a => (
+                    <option key={a.id} value={a.id}>{a.code}{a.aplicativo ? ` — ${a.aplicativo}` : ''}</option>
+                  ))}
+                </select>
+              </div>
+              {(() => {
+                const selected = state.atenciones.find(a => a.id === selectedPerfAtencionId);
+                if (!selected) return <p className="text-xs text-muted-foreground italic">Selecciona una atención para ver/editar su información de rendimiento.</p>;
+                return (
+                  <PerformanceSection
+                    data={selected.performanceData}
+                    onChange={(performanceData) => updateAtencion({ ...selected, performanceData })}
+                  />
+                );
+              })()}
+            </>
+          )}
         </section>
 
       </div>

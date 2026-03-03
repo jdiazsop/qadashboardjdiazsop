@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Atencion, AtencionStatus, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay, CYCLE_LABEL_OPTIONS, getCurrentCxCycle, DateEstimation, PerformanceData } from '@/types/qa';
+import { Atencion, AtencionStatus, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, TestCycle, computeDatesFromCycles, computeCycleDelay, CYCLE_LABEL_OPTIONS, getCurrentCxCycle, DateEstimation } from '@/types/qa';
 import { TagBadge } from './TagBadge';
-import { PerformanceSection } from './PerformanceSection';
-import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin, RefreshCw, Copy, GripVertical, Calculator, Activity } from 'lucide-react';
+import { CheckSquare, MessageSquare, X, ChevronDown, ChevronRight, Plus, Trash2, MapPin, RefreshCw, Copy, GripVertical, Calculator } from 'lucide-react';
 import { DateEstimator } from './DateEstimator';
 
 const JIRA_STATES = [
@@ -570,19 +569,6 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
               className="w-full bg-surface-1 border border-border rounded-lg p-3 text-sm text-foreground placeholder:text-muted-foreground resize-none h-20 focus:outline-none focus:ring-1 focus:ring-primary"
             />
 
-            <div className="mb-4">
-              <button
-                onClick={() => {/* toggle is handled by PerformanceSection's own collapse */}}
-                className="flex items-center gap-2 w-full text-left mb-2"
-              >
-                <Activity className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Rendimiento</h3>
-              </button>
-              <PerformanceSection
-                data={atencion.performanceData}
-                onChange={(performanceData) => onUpdate({ ...atencion, performanceData })}
-              />
-            </div>
 
             <h3 className="text-sm font-semibold mb-2 mt-3 text-muted-foreground uppercase tracking-wider">Seguridad</h3>
             <textarea
