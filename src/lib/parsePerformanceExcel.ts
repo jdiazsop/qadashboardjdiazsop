@@ -257,5 +257,7 @@ function parseNum(val: string): number | undefined {
   }
 
   const num = parseFloat(normalized);
-  return isNaN(num) ? undefined : num;
+  if (isNaN(num)) return undefined;
+  // Never return negative values for count fields – clamp to 0
+  return num < 0 ? 0 : num;
 }
