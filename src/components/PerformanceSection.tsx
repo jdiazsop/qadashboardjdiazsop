@@ -109,7 +109,13 @@ export function PerformanceSection({ data, onChange }: Props) {
         });
         toast.success(`Checklist nivel detectado: ${level.charAt(0).toUpperCase() + level.slice(1)}`);
       } else {
-        toast.warning('No se encontró un resultado claro en el checklist. Selecciónelo manualmente.');
+        update({
+          checklistLevel: undefined,
+          checklistResult: undefined,
+          checklistFileName: file.name,
+          checklistStoragePath: storagePath ?? undefined,
+        });
+        toast.warning('No se encontró un resultado claro en el checklist. Se limpió el valor anterior; selecciónelo manualmente.');
       }
     } catch (err) {
       console.error(err);

@@ -6,7 +6,7 @@ export interface ChecklistDetection {
   level?: ChecklistLevel;
 }
 
-type Candidate = { level: ChecklistLevel; score: number; source: string };
+type Candidate = { level: ChecklistLevel; score: number; source: string; strongSignal?: boolean };
 type HeaderMap = { row: number; resultCol: number; confidence: number };
 
 const MARKER_REGEX = /^(x|✓|✔|si|sí|s|1|true|ok|v)$/i;
@@ -189,7 +189,7 @@ const detectFromMappedResultColumn = (ws: any, cellText: (cell: any) => string):
   const headerMap = buildResultColumnMap(ws, cellText);
   if (!headerMap) return undefined;
 
-  let best: Candidate | undefined;
+  const candidates: Candidate[] = [];
   let emptyStreak = 0;
   const maxRow = Math.min(ws.rowCount ?? headerMap.row, headerMap.row + 250);
 
@@ -212,26 +212,57 @@ const detectFromMappedResultColumn = (ws: any, cellText: (cell: any) => string):
     const level = extractUniqueLevel(value);
     if (!level) continue;
 
-    let score = headerMap.confidence + 320;
-    if (value === level) score += 100;
-    else score += 40;
+    const visual = hasVisualSignal(resultCell);
+    const nearMarker = hasNearbyMarker(ws, rowNumber, headerMap.resultCol, cellText);
 
-    score += hasVisualSignal(resultCell);
-    if (hasNearbyMarker(ws, rowNumber, headerMap.resultCol, cellText)) score += 200;
+    let score = headerMap.confidence + 280;
+    if (value === level) score += 90;
+    else score += 30;
+
+    score += visual;
+    if (nearMarker) score += 200;
 
     let rowContext = '';
+    let sameRowAlta = false;
+    let sameRowBaja = false;
+
     for (let c = Math.max(1, headerMap.resultCol - 3); c <= headerMap.resultCol + 2; c++) {
-      rowContext += ` ${normalizeText(cellText(readCell(ws, rowNumber, c)))}`;
+      const txt = normalizeText(cellText(readCell(ws, rowNumber, c)));
+      rowContext += ` ${txt}`;
+      if (txt === 'alta') sameRowAlta = true;
+      if (txt === 'baja') sameRowBaja = true;
     }
 
     if (rowContext.includes('resultado final')) score += 90;
     else if (rowContext.includes('resultado') || rowContext.includes('prioridad')) score += 50;
     if (rowContext.includes('checklist') && rowContext.includes('rendimiento')) score += 25;
 
-    best = pickBest(best, { level, score, source: 'mapped_result_column' });
+    const strongSignal = nearMarker || visual > 0 || rowContext.includes('resultado final');
+
+    // Si la fila muestra ALTA y BAJA como opciones, exigir señal fuerte
+    if (sameRowAlta && sameRowBaja && !strongSignal) continue;
+
+    candidates.push({ level, score, source: 'mapped_result_column', strongSignal });
   }
 
-  return best;
+  if (candidates.length === 0) return undefined;
+
+  const sorted = [...candidates].sort((a, b) => b.score - a.score);
+  const top = sorted[0];
+
+  const topAlta = sorted.find((c) => c.level === 'alta');
+  const topBaja = sorted.find((c) => c.level === 'baja');
+
+  // Si existen ambas opciones con puntajes cercanos, tratarlo como ambiguo
+  if (topAlta && topBaja) {
+    const diff = Math.abs(topAlta.score - topBaja.score);
+    if (diff < 120) return undefined;
+
+    // Si gana por poco y sin señal fuerte, no confiar
+    if (!top.strongSignal && diff < 200) return undefined;
+  }
+
+  return top;
 };
 
 const detectFromBinaryRowSelection = (ws: any, cellText: (cell: any) => string): Candidate | undefined => {
@@ -353,12 +384,31 @@ export function detectChecklistOutcome(
 
   // 2) Prioridad estricta: columna Resultado mapeada dinámicamente
   let mappedBest: Candidate | undefined;
+  let hasMappedHeader = false;
   for (const ws of workbook.worksheets) {
+    const hasHeaderInSheet = Boolean(buildResultColumnMap(ws, cellText));
+    if (hasHeaderInSheet) hasMappedHeader = true;
     mappedBest = pickBest(mappedBest, detectFromMappedResultColumn(ws, cellText));
   }
   if (mappedBest) {
     console.info(`[checklist-parser] nivel=${mappedBest.level} source=${mappedBest.source}`);
     return { level: mappedBest.level };
+  }
+
+  // Si existe columna Resultado pero no hubo evidencia sólida,
+  // permitir solo fallback binario (marcado visual) y bloquear inferencias débiles.
+  if (hasMappedHeader) {
+    let binaryBest: Candidate | undefined;
+    for (const ws of workbook.worksheets) {
+      binaryBest = pickBest(binaryBest, detectFromBinaryRowSelection(ws, cellText));
+    }
+
+    if (binaryBest) {
+      console.info(`[checklist-parser] nivel=${binaryBest.level} source=${binaryBest.source}`);
+      return { level: binaryBest.level };
+    }
+
+    return {};
   }
 
   // 3) Fallbacks (más conservadores)

@@ -87,4 +87,21 @@ describe('detectChecklistOutcome', () => {
     const detected = detectChecklistOutcome(wb);
     expect(detected.level).toBe('baja');
   });
+
+  it('si columna Resultado tiene ALTA y BAJA con puntaje similar y sin señal fuerte, no fuerza ALTA', async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Ambiguo');
+
+    ws.getCell('A1').value = 'Item';
+    ws.getCell('B1').value = 'Resultado';
+
+    ws.getCell('A2').value = 'Fila 1';
+    ws.getCell('B2').value = 'ALTA';
+
+    ws.getCell('A3').value = 'Fila 2';
+    ws.getCell('B3').value = 'BAJA';
+
+    const detected = detectChecklistOutcome(wb);
+    expect(detected.level).toBeUndefined();
+  });
 });
