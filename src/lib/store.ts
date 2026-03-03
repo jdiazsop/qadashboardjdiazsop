@@ -1,4 +1,4 @@
-import { Atencion, KanbanColumn, CriticalItem, NoteItem, DEFAULT_TAGS, Tag, CHECKLIST_ITEMS, ChecklistPhase, DEFAULT_CHECKLIST_PHASES } from '@/types/qa';
+import { Atencion, KanbanColumn, CriticalItem, NoteItem, DEFAULT_TAGS, Tag, CHECKLIST_ITEMS, ChecklistPhase, DEFAULT_CHECKLIST_PHASES, PerformanceData } from '@/types/qa';
 
 const STORAGE_KEY = 'qa-dashboard-v13';
 
@@ -9,6 +9,7 @@ export interface DashboardState {
   notes: NoteItem[];
   tags: Tag[];
   checklistPhases: ChecklistPhase[];
+  performanceData?: PerformanceData;
 }
 
 export interface ProjectTab {
