@@ -164,18 +164,20 @@ export function PerformanceSection({ data, onChange }: Props) {
 
       const results: PerformanceTestResult[] = (fnData?.results ?? []).map(
         (r: any, i: number) => {
-          // Post-process status: for stress tests, default to CONFORME unless explicitly NO CONFORME
+          // Post-process status for stress tests:
+          // only keep NO CONFORME when there is explicit negative evidence from report
           let status = r.status ?? undefined;
           const typeUpper = (r.type ?? '').toUpperCase();
           const isStress = typeUpper.includes('ESTR') || typeUpper.includes('STRESS');
           if (isStress) {
             const statusUpper = (status ?? '').toUpperCase();
-            if (statusUpper.includes('NO CONFORME') || statusUpper.includes('NO_CONFORME')) {
-              status = 'NO CONFORME';
-            } else {
-              // No explicit NO CONFORME → default to CONFORME
-              status = 'CONFORME';
-            }
+            const evidence = String(r.statusEvidence ?? '').trim();
+            const hasNegativeEvidence = /(no\s*conforme|degrad|incumpl|error|falla|critic|observaci)/i.test(evidence);
+            const explicitlyNoConforme = statusUpper.includes('NO CONFORME') || statusUpper.includes('NO_CONFORME');
+
+            status = explicitlyNoConforme && hasNegativeEvidence
+              ? 'NO CONFORME'
+              : 'CONFORME';
           }
           return {
             id: `perf-${Date.now()}-${i}`,
