@@ -9,8 +9,8 @@ import { useCloudState } from '@/hooks/useCloudState';
 import { DashboardState, ProjectTab } from '@/lib/store';
 import { Atencion, KanbanColumn, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES } from '@/types/qa';
 import { TestSchedule } from '@/components/TestSchedule';
-import { PerformanceSection } from '@/components/PerformanceSection';
-import { LayoutDashboard, Kanban, GanttChart, CalendarDays, Plus, Pencil, Settings, Trash2, LogOut, Activity } from 'lucide-react';
+
+import { LayoutDashboard, Kanban, GanttChart, CalendarDays, Plus, Pencil, Settings, Trash2, LogOut } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -72,6 +72,7 @@ const Index = () => {
               realStartDate: a.realStartDate,
               checklistMap: a.checklistMap,
               productionDate: a.productionDate,
+              performanceData: a.performanceData,
             };
           }
           return x;
@@ -323,16 +324,6 @@ const Index = () => {
           <TestSchedule atenciones={state.atenciones} onUpdateAtencion={updateAtencion} />
         </section>
 
-        <section className="bg-surface-1 border border-border rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Activity className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Rendimiento</h2>
-          </div>
-          <PerformanceSection
-            data={state.performanceData}
-            onChange={(performanceData) => updateTabState(s => ({ ...s, performanceData }))}
-          />
-        </section>
       </div>
     </div>
   );

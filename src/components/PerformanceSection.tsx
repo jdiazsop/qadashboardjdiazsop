@@ -15,10 +15,12 @@ interface Props {
 
 export function PerformanceSection({ data, onChange }: Props) {
   const d = data ?? {};
+  const [parsingChecklist, setParsingChecklist] = useState(false);
   const [parsingExcel, setParsingExcel] = useState(false);
   const [parsingPdf, setParsingPdf] = useState(false);
   const [expandedCriteria, setExpandedCriteria] = useState(true);
   const [expandedResults, setExpandedResults] = useState(true);
+  const checklistRef = useRef<HTMLInputElement>(null);
   const excelRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
 
@@ -26,7 +28,61 @@ export function PerformanceSection({ data, onChange }: Props) {
 
   const applies = d.appliesPerformanceTests;
 
-  /* ── Excel import ── */
+  /* ── Checklist Excel import ── */
+  const handleChecklistImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setParsingChecklist(true);
+    try {
+      const ExcelJS = await import('exceljs');
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(await file.arrayBuffer());
+      const ws = wb.worksheets[0];
+      if (!ws) throw new Error('No worksheet found');
+
+      // Try to find a "resultado" or "result" cell
+      let result: string | undefined;
+      ws.eachRow((row) => {
+        row.eachCell((cell) => {
+          const val = String(cell.value ?? '').toLowerCase().trim();
+          if (val === 'conforme' || val === 'no conforme' || val === 'no_conforme' || val === 'pendiente') {
+            if (val === 'conforme') result = 'conforme';
+            else if (val.includes('no')) result = 'no_conforme';
+            else result = 'pendiente';
+          }
+        });
+      });
+
+      if (result) {
+        update({ checklistResult: result as any });
+        toast.success(`Checklist importado: ${result}`);
+      } else {
+        // Check for Alta/Baja pattern
+        let found = false;
+        ws.eachRow((row) => {
+          row.eachCell((cell) => {
+            const val = String(cell.value ?? '').toLowerCase().trim();
+            if (val === 'alta' || val === 'baja') {
+              update({ checklistResult: 'pendiente' });
+              toast.info(`Checklist nivel detectado: ${val}. Resultado marcado como Pendiente.`);
+              found = true;
+            }
+          });
+        });
+        if (!found) {
+          toast.warning('No se encontró un resultado claro en el checklist. Selecciónelo manualmente.');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al parsear el checklist Excel');
+    } finally {
+      setParsingChecklist(false);
+      if (checklistRef.current) checklistRef.current.value = '';
+    }
+  };
+
+  /* ── Matriz Excel import ── */
   const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -141,13 +197,24 @@ export function PerformanceSection({ data, onChange }: Props) {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* ── 1. Checklist Result ── */}
       <div className="bg-surface-0 border border-border rounded-lg p-3">
         <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
           <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
           Resultado del Checklist de Rendimiento
         </h4>
+        <div className="flex flex-wrap gap-2 mb-2">
+          <button
+            onClick={() => checklistRef.current?.click()}
+            disabled={parsingChecklist}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+          >
+            <Upload className="w-3 h-3" />
+            {parsingChecklist ? 'Procesando...' : 'Importar Checklist Excel'}
+          </button>
+          <input ref={checklistRef} type="file" accept=".xlsx,.xls" onChange={handleChecklistImport} className="hidden" />
+        </div>
         <div className="flex gap-2">
           {(['conforme', 'no_conforme', 'pendiente'] as const).map(opt => (
             <button
@@ -226,7 +293,6 @@ export function PerformanceSection({ data, onChange }: Props) {
           </button>
         </div>
 
-        {/* If not applicable */}
         {applies === false && (
           <div className="mt-3 p-3 bg-yellow-500/5 border border-yellow-500/30 rounded-md space-y-2">
             <div className="flex items-start gap-2">
