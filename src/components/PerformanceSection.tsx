@@ -321,7 +321,7 @@ export function PerformanceSection({ data, onChange }: Props) {
           <div className="flex items-center gap-2 mt-2">
             <button
               onClick={() => sessionEvidenceRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors shrink-0 whitespace-nowrap"
             >
               <Paperclip className="w-3 h-3" />
               Adjuntar sustento
@@ -413,6 +413,13 @@ export function PerformanceSection({ data, onChange }: Props) {
                 className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
               />
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => additionalEvidenceRef.current?.click()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 transition-colors shrink-0 whitespace-nowrap"
+                >
+                  <Paperclip className="w-3 h-3" />
+                  + Sustento adicional
+                </button>
                 {d.sessionEvidenceFileName ? (
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
                     <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
@@ -427,7 +434,7 @@ export function PerformanceSection({ data, onChange }: Props) {
                 ) : (
                   <div className="flex items-center gap-1.5">
                     <AlertTriangle className="w-3 h-3 text-yellow-400" />
-                    <span className="text-[10px] text-yellow-400 italic">Adjunte sustento en la sección de Sesión de Entendimiento</span>
+                    <span className="text-[10px] text-yellow-400 italic">Adjunte sustento en Sesión de Entendimiento</span>
                   </div>
                 )}
                 {(d.additionalEvidenceFiles ?? []).map((f, idx) => (
@@ -448,13 +455,6 @@ export function PerformanceSection({ data, onChange }: Props) {
                     </button>
                   </div>
                 ))}
-                <button
-                  onClick={() => additionalEvidenceRef.current?.click()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 transition-colors shrink-0"
-                >
-                  <Paperclip className="w-3 h-3" />
-                  + Sustento adicional
-                </button>
                 <input
                   ref={additionalEvidenceRef}
                   type="file"
