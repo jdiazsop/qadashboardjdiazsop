@@ -163,21 +163,36 @@ export function PerformanceSection({ data, onChange }: Props) {
       if (error) throw error;
 
       const results: PerformanceTestResult[] = (fnData?.results ?? []).map(
-        (r: any, i: number) => ({
-          id: `perf-${Date.now()}-${i}`,
-          type: r.type ?? '',
-          startDate: r.startDate ?? undefined,
-          trx: r.trx ?? undefined,
-          simulatedUsers: r.simulatedUsers ?? undefined,
-          duration: r.duration ?? undefined,
-          errors: r.errors ?? undefined,
-          errorRate: r.errorRate ?? undefined,
-          responseTimeAvg: r.responseTimeAvg ?? undefined,
-          responseTimeMin: r.responseTimeMin ?? undefined,
-          responseTimeMax: r.responseTimeMax ?? undefined,
-          tps: r.tps ?? undefined,
-          status: r.status ?? undefined,
-        })
+        (r: any, i: number) => {
+          // Post-process status: for stress tests, default to CONFORME unless explicitly NO CONFORME
+          let status = r.status ?? undefined;
+          const typeUpper = (r.type ?? '').toUpperCase();
+          const isStress = typeUpper.includes('ESTR') || typeUpper.includes('STRESS');
+          if (isStress) {
+            const statusUpper = (status ?? '').toUpperCase();
+            if (statusUpper.includes('NO CONFORME') || statusUpper.includes('NO_CONFORME')) {
+              status = 'NO CONFORME';
+            } else {
+              // No explicit NO CONFORME → default to CONFORME
+              status = 'CONFORME';
+            }
+          }
+          return {
+            id: `perf-${Date.now()}-${i}`,
+            type: r.type ?? '',
+            startDate: r.startDate ?? undefined,
+            trx: r.trx ?? undefined,
+            simulatedUsers: r.simulatedUsers ?? undefined,
+            duration: r.duration ?? undefined,
+            errors: r.errors ?? undefined,
+            errorRate: r.errorRate ?? undefined,
+            responseTimeAvg: r.responseTimeAvg ?? undefined,
+            responseTimeMin: r.responseTimeMin ?? undefined,
+            responseTimeMax: r.responseTimeMax ?? undefined,
+            tps: r.tps ?? undefined,
+            status,
+          };
+        }
       );
 
       const storagePath = await uploadFile(file, 'pdf-informe');
