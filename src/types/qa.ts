@@ -391,26 +391,18 @@ export interface PerformanceData {
   checklistResult?: 'conforme' | 'no_conforme' | 'pendiente';
   /** Checklist level detected from Excel: alta / baja */
   checklistLevel?: 'alta' | 'baja';
-  /** Name of the imported checklist file */
   checklistFileName?: string;
-  /** Email evidence file name */
+  checklistStoragePath?: string;
   evidenceFileName?: string;
-  /** Whether an understanding session took place: true / false / 'pending' */
   hadUnderstandingSession?: boolean | 'pending';
-  /** Evidence file name for understanding session */
   sessionEvidenceFileName?: string;
-  /** Whether performance tests apply – null = undecided */
+  sessionEvidenceStoragePath?: string;
   appliesPerformanceTests?: boolean | null;
-  /** Reason if not applicable */
   notApplicableReason?: string;
-  /** Whether email evidence was attached */
   notApplicableEmailAttached?: boolean;
-  /** Acceptance criteria extracted from Excel matrix */
   acceptanceCriteria?: PerformanceAcceptanceCriteria;
-  /** Test results extracted from PDF report */
   testResults?: PerformanceTestResult[];
-  /** Additional evidence file names for No Aplica */
-  additionalEvidenceFiles?: string[];
+  additionalEvidenceFiles?: { name: string; storagePath: string }[];
 }
 
 /** Compute delay for a single cycle: if realEndDate > endDate, delay = realEndDate */

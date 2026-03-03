@@ -2,10 +2,11 @@ import { useState, useRef } from 'react';
 import { PerformanceData, PerformanceTestResult, PerformanceAcceptanceCriteria } from '@/types/qa';
 import { parsePerformanceExcel } from '@/lib/parsePerformanceExcel';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import {
   Upload, FileSpreadsheet, FileText, CheckCircle2, XCircle,
-  AlertTriangle, Users, Clock, Activity, ChevronDown, ChevronUp, Paperclip, X,
+  AlertTriangle, Users, Clock, Activity, ChevronDown, ChevronUp, Paperclip, X, Download,
 } from 'lucide-react';
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function PerformanceSection({ data, onChange }: Props) {
+  const { user } = useAuth();
   const d = data ?? {};
   const [parsingChecklist, setParsingChecklist] = useState(false);
   const [parsingExcel, setParsingExcel] = useState(false);
@@ -23,13 +25,34 @@ export function PerformanceSection({ data, onChange }: Props) {
   const checklistRef = useRef<HTMLInputElement>(null);
   const excelRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
-  
   const sessionEvidenceRef = useRef<HTMLInputElement>(null);
   const additionalEvidenceRef = useRef<HTMLInputElement>(null);
 
   const update = (partial: Partial<PerformanceData>) => onChange({ ...d, ...partial });
 
   const applies = d.appliesPerformanceTests;
+
+  const uploadFile = async (file: File, prefix: string): Promise<string | null> => {
+    if (!user) return null;
+    const path = `${user.id}/${prefix}-${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from('performance-evidence').upload(path, file);
+    if (error) { toast.error('Error al subir archivo'); console.error(error); return null; }
+    return path;
+  };
+
+  const downloadFile = async (storagePath: string, fileName: string) => {
+    const { data: blob, error } = await supabase.storage.from('performance-evidence').download(storagePath);
+    if (error || !blob) { toast.error('Error al descargar'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const deleteFile = async (storagePath: string) => {
+    await supabase.storage.from('performance-evidence').remove([storagePath]);
+  };
+
 
   /* ── Checklist Excel import ── */
   const handleChecklistImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,8 +79,9 @@ export function PerformanceSection({ data, onChange }: Props) {
         });
       });
 
+      const storagePath = await uploadFile(file, 'checklist');
       if (result) {
-        update({ checklistResult: result as any, checklistFileName: file.name });
+        update({ checklistResult: result as any, checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
         toast.success(`Checklist importado: ${result}`);
       } else {
         // Check for Alta/Baja pattern
@@ -66,7 +90,7 @@ export function PerformanceSection({ data, onChange }: Props) {
           row.eachCell((cell) => {
             const val = String(cell.value ?? '').toLowerCase().trim();
             if (val === 'alta' || val === 'baja') {
-              update({ checklistLevel: val as 'alta' | 'baja', checklistFileName: file.name });
+              update({ checklistLevel: val as 'alta' | 'baja', checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
               toast.success(`Checklist nivel detectado: ${val.charAt(0).toUpperCase() + val.slice(1)}`);
               found = true;
             }
@@ -221,11 +245,19 @@ export function PerformanceSection({ data, onChange }: Props) {
             <input ref={checklistRef} type="file" accept=".xlsx,.xls" onChange={handleChecklistImport} className="hidden" />
             {d.checklistFileName && (
               <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
-                <Paperclip className="w-3 h-3 text-muted-foreground" />
-                <span className="text-[10px] text-foreground truncate max-w-[200px]">{d.checklistFileName}</span>
+                <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="text-[10px] text-foreground break-all">{d.checklistFileName}</span>
+                {d.checklistStoragePath && (
+                  <button onClick={() => downloadFile(d.checklistStoragePath!, d.checklistFileName!)} className="text-primary hover:text-primary/80 transition-colors shrink-0">
+                    <Download className="w-3 h-3" />
+                  </button>
+                )}
                 <button
-                  onClick={() => update({ checklistFileName: undefined, checklistLevel: undefined, checklistResult: undefined })}
-                  className="text-muted-foreground hover:text-destructive transition-colors"
+                  onClick={async () => {
+                    if (d.checklistStoragePath) await deleteFile(d.checklistStoragePath);
+                    update({ checklistFileName: undefined, checklistStoragePath: undefined, checklistLevel: undefined, checklistResult: undefined });
+                  }}
+                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -297,10 +329,11 @@ export function PerformanceSection({ data, onChange }: Props) {
               ref={sessionEvidenceRef}
               type="file"
               accept=".pdf,.xlsx,.xls,.msg,.eml,.png,.jpg,.jpeg,.docx"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  update({ sessionEvidenceFileName: file.name, evidenceFileName: file.name, notApplicableEmailAttached: true });
+                  const path = await uploadFile(file, 'session');
+                  update({ sessionEvidenceFileName: file.name, sessionEvidenceStoragePath: path ?? undefined, evidenceFileName: file.name, notApplicableEmailAttached: true });
                   toast.success(`Sustento adjuntado: ${file.name}`);
                 }
                 if (sessionEvidenceRef.current) sessionEvidenceRef.current.value = '';
@@ -309,11 +342,19 @@ export function PerformanceSection({ data, onChange }: Props) {
             />
             {d.sessionEvidenceFileName ? (
               <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
-                <Paperclip className="w-3 h-3 text-muted-foreground" />
-                <span className="text-[10px] text-foreground truncate max-w-[200px]">{d.sessionEvidenceFileName}</span>
+                <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="text-[10px] text-foreground break-all">{d.sessionEvidenceFileName}</span>
+                {d.sessionEvidenceStoragePath && (
+                  <button onClick={() => downloadFile(d.sessionEvidenceStoragePath!, d.sessionEvidenceFileName!)} className="text-primary hover:text-primary/80 transition-colors shrink-0">
+                    <Download className="w-3 h-3" />
+                  </button>
+                )}
                 <button
-                  onClick={() => update({ sessionEvidenceFileName: undefined, evidenceFileName: undefined, notApplicableEmailAttached: false })}
-                  className="text-muted-foreground hover:text-destructive transition-colors"
+                  onClick={async () => {
+                    if (d.sessionEvidenceStoragePath) await deleteFile(d.sessionEvidenceStoragePath);
+                    update({ sessionEvidenceFileName: undefined, sessionEvidenceStoragePath: undefined, evidenceFileName: undefined, notApplicableEmailAttached: false });
+                  }}
+                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -368,51 +409,66 @@ export function PerformanceSection({ data, onChange }: Props) {
                 rows={2}
                 className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
               />
-              {d.sessionEvidenceFileName ? (
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
-                  <Paperclip className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-[10px] text-foreground truncate max-w-[200px]">Sustento: {d.sessionEvidenceFileName}</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5">
-                  <AlertTriangle className="w-3 h-3 text-yellow-400" />
-                  <span className="text-[10px] text-yellow-400 italic">Adjunte sustento en la sección de Sesión de Entendimiento</span>
-                </div>
-              )}
-              {/* Additional evidence files */}
-              {(d.additionalEvidenceFiles ?? []).map((fname, idx) => (
-                <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
-                  <Paperclip className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-[10px] text-foreground truncate max-w-[200px]">Sustento: {fname}</span>
-                  <button
-                    onClick={() => update({ additionalEvidenceFiles: (d.additionalEvidenceFiles ?? []).filter((_, i) => i !== idx) })}
-                    className="text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-              <button
-                onClick={() => additionalEvidenceRef.current?.click()}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 transition-colors"
-              >
-                <Paperclip className="w-3 h-3" />
-                Adjuntar sustento adicional
-              </button>
-              <input
-                ref={additionalEvidenceRef}
-                type="file"
-                accept=".pdf,.xlsx,.xls,.msg,.eml,.png,.jpg,.jpeg,.docx"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    update({ additionalEvidenceFiles: [...(d.additionalEvidenceFiles ?? []), file.name] });
-                    toast.success(`Sustento adicional adjuntado: ${file.name}`);
-                  }
-                  if (additionalEvidenceRef.current) additionalEvidenceRef.current.value = '';
-                }}
-                className="hidden"
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                {d.sessionEvidenceFileName ? (
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
+                    <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
+                    <span className="text-[10px] text-foreground break-all">Sustento: {d.sessionEvidenceFileName}</span>
+                    {d.sessionEvidenceStoragePath && (
+                      <button onClick={() => downloadFile(d.sessionEvidenceStoragePath!, d.sessionEvidenceFileName!)} className="text-primary hover:text-primary/80 transition-colors shrink-0">
+                        <Download className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <AlertTriangle className="w-3 h-3 text-yellow-400" />
+                    <span className="text-[10px] text-yellow-400 italic">Adjunte sustento en la sección de Sesión de Entendimiento</span>
+                  </div>
+                )}
+                {(d.additionalEvidenceFiles ?? []).map((f, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
+                    <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
+                    <span className="text-[10px] text-foreground break-all">Sustento: {f.name}</span>
+                    <button onClick={() => downloadFile(f.storagePath, f.name)} className="text-primary hover:text-primary/80 transition-colors shrink-0">
+                      <Download className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await deleteFile(f.storagePath);
+                        update({ additionalEvidenceFiles: (d.additionalEvidenceFiles ?? []).filter((_, i) => i !== idx) });
+                      }}
+                      className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => additionalEvidenceRef.current?.click()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 transition-colors shrink-0"
+                >
+                  <Paperclip className="w-3 h-3" />
+                  + Sustento adicional
+                </button>
+                <input
+                  ref={additionalEvidenceRef}
+                  type="file"
+                  accept=".pdf,.xlsx,.xls,.msg,.eml,.png,.jpg,.jpeg,.docx"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const path = await uploadFile(file, 'additional');
+                      if (path) {
+                        update({ additionalEvidenceFiles: [...(d.additionalEvidenceFiles ?? []), { name: file.name, storagePath: path }] });
+                        toast.success(`Sustento adicional adjuntado: ${file.name}`);
+                      }
+                    }
+                    if (additionalEvidenceRef.current) additionalEvidenceRef.current.value = '';
+                  }}
+                  className="hidden"
+                />
+              </div>
             </div>
           )}
         </div>
