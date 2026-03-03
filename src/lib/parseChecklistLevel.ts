@@ -47,7 +47,13 @@ const defaultCellText = (cell: any): string => {
 
   const fromCellText = toText(cell?.text);
   if (fromCellText) return fromCellText.trim();
-  return toText(cell?.value ?? cell).trim();
+
+  const mergedMaster = cell?.isMerged ? cell?.master : undefined;
+  const fromValue = toText(cell?.value ?? cell).trim();
+  if (fromValue) return fromValue;
+  if (mergedMaster) return toText(mergedMaster?.value ?? mergedMaster).trim();
+
+  return '';
 };
 
 const extractUniqueLevel = (rawText: string): ChecklistLevel | undefined => {
@@ -123,6 +129,49 @@ const readCell = (ws: any, row: number, col: number) => {
   if (row < 1 || col < 1) return undefined;
   const r = ws.getRow?.(row);
   return r?.getCell?.(col);
+};
+
+const detectFromFixedResultCellE22 = (ws: any, cellText: (cell: any) => string): Candidate | undefined => {
+  const cell = readCell(ws, 22, 5); // E22
+  if (!cell) return undefined;
+
+  const candidates = new Set<string>();
+  const add = (val: any) => {
+    if (val == null) return;
+    const txt = String(val).trim();
+    if (txt) candidates.add(txt);
+  };
+
+  add(cellText(cell));
+
+  const mergedMaster = cell?.isMerged ? cell?.master : undefined;
+  if (mergedMaster) add(cellText(mergedMaster));
+
+  const value = cell?.value;
+  if (value && typeof value === 'object') {
+    add((value as any).result);
+    add((value as any).formula);
+  }
+
+  const masterValue = mergedMaster?.value;
+  if (masterValue && typeof masterValue === 'object') {
+    add((masterValue as any).result);
+    add((masterValue as any).formula);
+  }
+
+  for (const raw of candidates) {
+    const level = extractUniqueLevel(raw) ?? extractInlineLevel(raw);
+    if (!level) continue;
+
+    return {
+      level,
+      score: 3000,
+      source: 'fixed_cell_e22',
+      strongSignal: true,
+    };
+  }
+
+  return undefined;
 };
 
 const hasNearbyMarker = (ws: any, row: number, col: number, cellText: (cell: any) => string): boolean => {
@@ -369,7 +418,17 @@ export function detectChecklistOutcome(
 ): ChecklistDetection {
   if (!workbook?.worksheets?.length) return {};
 
-  // 1) Resultado clásico: conforme/no conforme/pendiente
+  // 1) Prioridad absoluta: celda E22 (resultado por fórmula en plantilla)
+  let fixedE22Best: Candidate | undefined;
+  for (const ws of workbook.worksheets) {
+    fixedE22Best = pickBest(fixedE22Best, detectFromFixedResultCellE22(ws, cellText));
+  }
+  if (fixedE22Best) {
+    console.info(`[checklist-parser] nivel=${fixedE22Best.level} source=${fixedE22Best.source}`);
+    return { level: fixedE22Best.level };
+  }
+
+  // 2) Resultado clásico: conforme/no conforme/pendiente
   for (const ws of workbook.worksheets) {
     let found: ChecklistClassicResult | undefined;
     ws.eachRow((row: any) => {
@@ -382,7 +441,7 @@ export function detectChecklistOutcome(
     if (found) return { result: found };
   }
 
-  // 2) Prioridad estricta: columna Resultado mapeada dinámicamente
+  // 3) Prioridad estricta: columna Resultado mapeada dinámicamente
   let mappedBest: Candidate | undefined;
   let hasMappedHeader = false;
   for (const ws of workbook.worksheets) {
@@ -411,7 +470,7 @@ export function detectChecklistOutcome(
     return {};
   }
 
-  // 3) Fallbacks (más conservadores)
+  // 4) Fallbacks (más conservadores)
   let fallbackBest: Candidate | undefined;
   for (const ws of workbook.worksheets) {
     fallbackBest = pickBest(fallbackBest, detectFromBinaryRowSelection(ws, cellText));
