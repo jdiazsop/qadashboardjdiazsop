@@ -104,4 +104,21 @@ describe('detectChecklistOutcome', () => {
     const detected = detectChecklistOutcome(wb);
     expect(detected.level).toBeUndefined();
   });
+
+  it('prioriza E22 cuando trae resultado de fórmula (BAJA)', async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('FormulaE22');
+
+    ws.getCell('E22').value = {
+      formula: 'IF(1=1,"BAJA","ALTA")',
+      result: 'BAJA',
+    };
+
+    // Ruido en otros sectores
+    ws.getCell('B1').value = 'Resultado';
+    ws.getCell('B2').value = 'ALTA';
+
+    const detected = detectChecklistOutcome(wb);
+    expect(detected.level).toBe('baja');
+  });
 });
