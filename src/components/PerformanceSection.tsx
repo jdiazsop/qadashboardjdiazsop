@@ -24,6 +24,7 @@ export function PerformanceSection({ data, onChange }: Props) {
   const excelRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
   const evidenceRef = useRef<HTMLInputElement>(null);
+  const sessionEvidenceRef = useRef<HTMLInputElement>(null);
 
   const update = (partial: Partial<PerformanceData>) => onChange({ ...d, ...partial });
 
@@ -244,58 +245,13 @@ export function PerformanceSection({ data, onChange }: Props) {
           )}
         </div>
 
-        {/* ── Sustento por correo ── */}
-        <div className="bg-surface-0 border border-border rounded-lg p-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
-            <Paperclip className="w-3.5 h-3.5 text-primary" />
-            Sustento por Correo
-          </h4>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => evidenceRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors"
-            >
-              <Upload className="w-3 h-3" />
-              Adjuntar sustento
-            </button>
-            <input
-              ref={evidenceRef}
-              type="file"
-              accept=".pdf,.xlsx,.xls,.msg,.eml,.png,.jpg,.jpeg"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  update({ evidenceFileName: file.name, notApplicableEmailAttached: true });
-                  toast.success(`Sustento adjuntado: ${file.name}`);
-                }
-                if (evidenceRef.current) evidenceRef.current.value = '';
-              }}
-              className="hidden"
-            />
-            {d.evidenceFileName ? (
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
-                <Paperclip className="w-3 h-3 text-muted-foreground" />
-                <span className="text-[10px] text-foreground truncate max-w-[200px]">{d.evidenceFileName}</span>
-                <button
-                  onClick={() => update({ evidenceFileName: undefined, notApplicableEmailAttached: false })}
-                  className="text-muted-foreground hover:text-destructive transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ) : (
-              <span className="text-[10px] text-muted-foreground italic">Sin sustento adjuntado</span>
-            )}
-          </div>
-        </div>
-
         {/* ── 2. Understanding Session ── */}
         <div className="bg-surface-0 border border-border rounded-lg p-3">
           <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5 text-primary" />
             Sesión de Entendimiento de Rendimiento
           </h4>
-          <div className="flex gap-2">
+          <div className="flex gap-2 mb-2">
             <button
               onClick={() => update({ hadUnderstandingSession: true })}
               className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
@@ -326,6 +282,44 @@ export function PerformanceSection({ data, onChange }: Props) {
             >
               Pendiente
             </button>
+          </div>
+          {/* Evidence upload for session */}
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <button
+              onClick={() => sessionEvidenceRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors"
+            >
+              <Paperclip className="w-3 h-3" />
+              Adjuntar evidencia
+            </button>
+            <input
+              ref={sessionEvidenceRef}
+              type="file"
+              accept=".pdf,.xlsx,.xls,.msg,.eml,.png,.jpg,.jpeg,.docx"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  update({ sessionEvidenceFileName: file.name });
+                  toast.success(`Evidencia adjuntada: ${file.name}`);
+                }
+                if (sessionEvidenceRef.current) sessionEvidenceRef.current.value = '';
+              }}
+              className="hidden"
+            />
+            {d.sessionEvidenceFileName ? (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
+                <Paperclip className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] text-foreground truncate max-w-[200px]">{d.sessionEvidenceFileName}</span>
+                <button
+                  onClick={() => update({ sessionEvidenceFileName: undefined })}
+                  className="text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <span className="text-[10px] text-muted-foreground italic">Sin evidencia adjuntada</span>
+            )}
           </div>
         </div>
 
@@ -363,7 +357,7 @@ export function PerformanceSection({ data, onChange }: Props) {
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 text-yellow-400 mt-0.5 shrink-0" />
                 <p className="text-[10px] text-yellow-400">
-                  Todos los campos de rendimiento serán marcados como N/A. Indique el motivo.
+                  Todos los campos de rendimiento serán marcados como N/A. Indique el motivo y adjunte sustento.
                 </p>
               </div>
               <textarea
@@ -373,6 +367,43 @@ export function PerformanceSection({ data, onChange }: Props) {
                 rows={2}
                 className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
               />
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => evidenceRef.current?.click()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 transition-colors"
+                >
+                  <Paperclip className="w-3 h-3" />
+                  Adjuntar sustento
+                </button>
+                <input
+                  ref={evidenceRef}
+                  type="file"
+                  accept=".pdf,.xlsx,.xls,.msg,.eml,.png,.jpg,.jpeg,.docx"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      update({ evidenceFileName: file.name, notApplicableEmailAttached: true });
+                      toast.success(`Sustento adjuntado: ${file.name}`);
+                    }
+                    if (evidenceRef.current) evidenceRef.current.value = '';
+                  }}
+                  className="hidden"
+                />
+                {d.evidenceFileName ? (
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
+                    <Paperclip className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-[10px] text-foreground truncate max-w-[200px]">{d.evidenceFileName}</span>
+                    <button
+                      onClick={() => update({ evidenceFileName: undefined, notApplicableEmailAttached: false })}
+                      className="text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground italic">Sin sustento adjuntado</span>
+                )}
+              </div>
             </div>
           )}
         </div>
