@@ -347,6 +347,60 @@ export interface NoteItem {
   createdAt: string;
 }
 
+/* ── Performance / Rendimiento types ── */
+
+export interface PerformanceAcceptanceCriteria {
+  method?: string;
+  apiName?: string;
+  endpoint?: string;
+  monthlyUsers?: number;
+  avgDailyRequests?: number;
+  peakHourRequests?: number;
+  peakMinuteRequests?: number;
+  impactedApps?: number;
+  impactedAppNames?: string;
+  peakUsageTime?: string;
+  microservices?: number;
+  inputParams?: number;
+  slaMaxResponse?: string;
+  maxErrorRate?: string;
+  minThroughput?: string;
+  dataVolume?: string;
+}
+
+export interface PerformanceTestResult {
+  id: string;
+  type: string;
+  startDate?: string;
+  trx?: number;
+  simulatedUsers?: string;
+  duration?: string;
+  errors?: number;
+  errorRate?: string;
+  responseTimeAvg?: number;
+  responseTimeMin?: number;
+  responseTimeMax?: number;
+  tps?: number;
+  status?: string;
+}
+
+export interface PerformanceData {
+  /** Checklist result: conforme / no_conforme / pendiente */
+  checklistResult?: 'conforme' | 'no_conforme' | 'pendiente';
+  /** Whether an understanding session took place */
+  hadUnderstandingSession?: boolean;
+  /** Whether performance tests apply – null = undecided */
+  appliesPerformanceTests?: boolean | null;
+  /** Reason if not applicable */
+  notApplicableReason?: string;
+  /** Whether email evidence was attached */
+  notApplicableEmailAttached?: boolean;
+  /** Acceptance criteria extracted from Excel matrix */
+  acceptanceCriteria?: PerformanceAcceptanceCriteria;
+  /** Test results extracted from PDF report */
+  testResults?: PerformanceTestResult[];
+}
+
 /** Compute delay for a single cycle: if realEndDate > endDate, delay = realEndDate */
 export function computeCycleDelay(cycle: TestCycle): string | undefined {
   if (cycle.realEndDate && cycle.endDate && cycle.realEndDate > cycle.endDate) {
