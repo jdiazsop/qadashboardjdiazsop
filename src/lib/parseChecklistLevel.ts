@@ -418,18 +418,26 @@ export function detectChecklistOutcome(
 ): ChecklistDetection {
   if (!workbook?.worksheets?.length) return {};
 
+  // Ordenar hojas: priorizar las que contengan "inetum" en el nombre
+  const worksheets: any[] = [...workbook.worksheets];
+  worksheets.sort((a: any, b: any) => {
+    const aInetum = normalizeText(a.name ?? '').includes('inetum') ? 0 : 1;
+    const bInetum = normalizeText(b.name ?? '').includes('inetum') ? 0 : 1;
+    return aInetum - bInetum;
+  });
+
   // 1) Prioridad absoluta: celda E22 (resultado por fórmula en plantilla)
-  let fixedE22Best: Candidate | undefined;
-  for (const ws of workbook.worksheets) {
-    fixedE22Best = pickBest(fixedE22Best, detectFromFixedResultCellE22(ws, cellText));
-  }
-  if (fixedE22Best) {
-    console.info(`[checklist-parser] nivel=${fixedE22Best.level} source=${fixedE22Best.source}`);
-    return { level: fixedE22Best.level };
+  //    Buscar primero en hojas Inetum; si E22 tiene nivel, usarlo directamente
+  for (const ws of worksheets) {
+    const candidate = detectFromFixedResultCellE22(ws, cellText);
+    if (candidate) {
+      console.info(`[checklist-parser] nivel=${candidate.level} source=${candidate.source} sheet=${ws.name}`);
+      return { level: candidate.level };
+    }
   }
 
   // 2) Resultado clásico: conforme/no conforme/pendiente
-  for (const ws of workbook.worksheets) {
+  for (const ws of worksheets) {
     let found: ChecklistClassicResult | undefined;
     ws.eachRow((row: any) => {
       if (found) return;
@@ -444,7 +452,7 @@ export function detectChecklistOutcome(
   // 3) Prioridad estricta: columna Resultado mapeada dinámicamente
   let mappedBest: Candidate | undefined;
   let hasMappedHeader = false;
-  for (const ws of workbook.worksheets) {
+  for (const ws of worksheets) {
     const hasHeaderInSheet = Boolean(buildResultColumnMap(ws, cellText));
     if (hasHeaderInSheet) hasMappedHeader = true;
     mappedBest = pickBest(mappedBest, detectFromMappedResultColumn(ws, cellText));
@@ -458,7 +466,7 @@ export function detectChecklistOutcome(
   // permitir solo fallback binario (marcado visual) y bloquear inferencias débiles.
   if (hasMappedHeader) {
     let binaryBest: Candidate | undefined;
-    for (const ws of workbook.worksheets) {
+    for (const ws of worksheets) {
       binaryBest = pickBest(binaryBest, detectFromBinaryRowSelection(ws, cellText));
     }
 
@@ -472,7 +480,7 @@ export function detectChecklistOutcome(
 
   // 4) Fallbacks (más conservadores)
   let fallbackBest: Candidate | undefined;
-  for (const ws of workbook.worksheets) {
+  for (const ws of worksheets) {
     fallbackBest = pickBest(fallbackBest, detectFromBinaryRowSelection(ws, cellText));
     fallbackBest = pickBest(fallbackBest, detectFromInlineLabels(ws, cellText));
     fallbackBest = pickBest(fallbackBest, detectNearAnchors(ws, cellText));
