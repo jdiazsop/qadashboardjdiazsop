@@ -98,75 +98,102 @@ export function PerformanceSection({ data, onChange }: Props) {
         update({ checklistResult: result as any, checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
         toast.success(`Checklist importado: ${result}`);
       } else {
-        // Check for Alta/Baja – prioritize value tied to "Prioridad" row
+        // Check for Alta/Baja – priorizar el valor explícito de "Resultado"
         let found = false;
         let detectedLevel: 'alta' | 'baja' | undefined;
 
-        const extractLevel = (text: string): 'alta' | 'baja' | undefined => {
-          const normalized = text
+        const normalizeText = (text: string): string =>
+          text
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
             .replace(/\s+/g, ' ')
             .trim()
             .toLowerCase();
+
+        const extractSingleLevel = (text: string): 'alta' | 'baja' | undefined => {
+          const normalized = normalizeText(text);
           if (normalized === 'alta' || normalized === 'baja') return normalized as 'alta' | 'baja';
-          const matches = [...normalized.matchAll(/\b(alta|baja)\b/g)].map(m => m[1] as 'alta' | 'baja');
+          const matches = [...normalized.matchAll(/\b(alta|baja)\b/g)].map((m) => m[1] as 'alta' | 'baja');
           const unique = [...new Set(matches)];
           return unique.length === 1 ? unique[0] : undefined;
         };
 
-        let priorityAnchor: { row: number; col: number } | undefined;
+        const extractInlineResult = (text: string): 'alta' | 'baja' | undefined => {
+          const normalized = normalizeText(text);
+          const patterns = [
+            /\bresultado(?:\s+final)?(?:\s+de\s+rendimiento)?\b[\s:;-]*(alta|baja)\b/,
+            /\bprioridad(?:\s+de\s+rendimiento)?\b[\s:;-]*(alta|baja)\b/,
+            /\b(alta|baja)\b[\s:;-]*\bresultado(?:\s+final)?\b/,
+          ];
+          for (const p of patterns) {
+            const m = normalized.match(p);
+            if (m?.[1] === 'alta' || m?.[1] === 'baja') return m[1] as 'alta' | 'baja';
+          }
+          return undefined;
+        };
+
+        type Anchor = { row: number; col: number; kind: 'resultado' | 'prioridad' };
+        type LevelCell = { row: number; col: number; level: 'alta' | 'baja' };
+
+        const anchors: Anchor[] = [];
+        const levelCells: LevelCell[] = [];
+
         ws.eachRow((row, rowNumber) => {
           row.eachCell((cell, colNumber) => {
-            if (priorityAnchor) return;
-            const txt = cellText(cell.value)
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .replace(/\s+/g, ' ')
-              .trim()
-              .toLowerCase();
-            if (txt.includes('prioridad') && txt.includes('rendimiento')) {
-              priorityAnchor = { row: rowNumber, col: colNumber };
+            if (found) return;
+            const rawText = cellText(cell.value);
+            const normalized = normalizeText(rawText);
+
+            // Caso más confiable: resultado/prioridad y nivel en la misma celda
+            const inline = extractInlineResult(normalized);
+            if (inline) {
+              detectedLevel = inline;
+              found = true;
+              return;
             }
+
+            if (normalized.includes('resultado')) {
+              anchors.push({ row: rowNumber, col: colNumber, kind: 'resultado' });
+            } else if (normalized.includes('prioridad')) {
+              anchors.push({ row: rowNumber, col: colNumber, kind: 'prioridad' });
+            }
+
+            const level = extractSingleLevel(normalized);
+            if (level) levelCells.push({ row: rowNumber, col: colNumber, level });
           });
         });
 
-        if (priorityAnchor) {
-          const row = ws.getRow(priorityAnchor.row);
-          const candidates: Array<{ level: 'alta' | 'baja'; col: number; hasFill: boolean }> = [];
+        // Si no hubo match inline, elegir el nivel más cercano a "resultado" (o "prioridad" como respaldo)
+        if (!found && levelCells.length > 0) {
+          if (anchors.length > 0) {
+            const scored = levelCells
+              .map((lc) => {
+                let bestScore = -Infinity;
+                for (const a of anchors) {
+                  const dist = Math.abs(lc.row - a.row) + Math.abs(lc.col - a.col);
+                  const anchorWeight = a.kind === 'resultado' ? 100 : 60;
+                  const proximity = Math.max(0, 30 - dist);
+                  const score = anchorWeight + proximity;
+                  if (score > bestScore) bestScore = score;
+                }
+                return { ...lc, score: bestScore };
+              })
+              .sort((a, b) => b.score - a.score);
 
-          row.eachCell((cell, colNumber) => {
-            if (colNumber <= priorityAnchor!.col) return;
-            const level = extractLevel(cellText(cell.value));
-            if (!level) return;
-            const hasFill = Boolean(cell.style?.fill);
-            candidates.push({ level, col: colNumber, hasFill });
-          });
-
-          if (candidates.length > 0) {
-            const preferred = candidates.some(c => c.hasFill)
-              ? candidates.filter(c => c.hasFill)
-              : candidates;
-            const chosen = preferred.reduce((acc, cur) => (cur.col > acc.col ? cur : acc));
-            detectedLevel = chosen.level;
-            found = true;
+            if (scored.length > 0) {
+              detectedLevel = scored[0].level;
+              found = true;
+            }
+          } else {
+            // Último fallback: aceptar solo si toda la hoja tiene un único nivel
+            const uniqueLevels = [...new Set(levelCells.map((c) => c.level))];
+            if (uniqueLevels.length === 1) {
+              detectedLevel = uniqueLevels[0];
+              found = true;
+            }
           }
         }
 
-        // Fallback: scan all cells and accept only unambiguous level
-        if (!found) {
-          const levels = new Set<string>();
-          ws.eachRow((row) => {
-            row.eachCell((cell) => {
-              const level = extractLevel(cellText(cell.value));
-              if (level) levels.add(level);
-            });
-          });
-          if (levels.size === 1) {
-            detectedLevel = [...levels][0] as 'alta' | 'baja';
-            found = true;
-          }
-        }
         if (found && detectedLevel) {
           update({ checklistLevel: detectedLevel, checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
           toast.success(`Checklist nivel detectado: ${detectedLevel.charAt(0).toUpperCase() + detectedLevel.slice(1)}`);
