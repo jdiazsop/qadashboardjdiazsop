@@ -229,22 +229,36 @@ export function PerformanceSection({ data, onChange }: Props) {
       <div className="w-1/3 min-w-[280px] space-y-3 shrink-0">
         {/* ── 1. Checklist Result ── */}
         <div className="bg-surface-0 border border-border rounded-lg p-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-            Resultado del Checklist de Rendimiento
-          </h4>
-          <div className="flex flex-wrap items-center gap-2 mb-2">
+          <div className="flex items-center gap-3 mb-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5 shrink-0">
+              <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+              Checklist de Rendimiento
+            </h4>
+            {d.checklistLevel ? (
+              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold rounded-md border shrink-0
+                ${d.checklistLevel === 'alta'
+                  ? 'bg-red-500/20 border-red-500 text-red-400'
+                  : 'bg-blue-500/20 border-blue-500 text-blue-400'
+                }`}
+              >
+                {d.checklistLevel === 'alta' ? '🔴 ALTA' : '🔵 BAJA'}
+              </div>
+            ) : (
+              <span className="text-[10px] text-muted-foreground italic">Sin checklist</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
             <button
               onClick={() => checklistRef.current?.click()}
               disabled={parsingChecklist}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 shrink-0 whitespace-nowrap"
             >
               <Upload className="w-3 h-3" />
-              {parsingChecklist ? 'Procesando...' : 'Importar Checklist Excel'}
+              {parsingChecklist ? 'Procesando...' : 'Importar Checklist'}
             </button>
             <input ref={checklistRef} type="file" accept=".xlsx,.xls" onChange={handleChecklistImport} className="hidden" />
             {d.checklistFileName && (
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
                 <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
                 <span className="text-[10px] text-foreground truncate">{d.checklistFileName}</span>
                 <button
@@ -265,18 +279,6 @@ export function PerformanceSection({ data, onChange }: Props) {
               </div>
             )}
           </div>
-          {d.checklistLevel ? (
-            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold rounded-md border
-              ${d.checklistLevel === 'alta'
-                ? 'bg-red-500/20 border-red-500 text-red-400'
-                : 'bg-blue-500/20 border-blue-500 text-blue-400'
-              }`}
-            >
-              {d.checklistLevel === 'alta' ? '🔴 Nivel: ALTA' : '🔵 Nivel: BAJA'}
-            </div>
-          ) : (
-            <p className="text-[10px] text-muted-foreground italic">Sin checklist importado</p>
-          )}
         </div>
 
         {/* ── 2. Understanding Session ── */}
