@@ -244,14 +244,15 @@ export function PerformanceSection({ data, onChange }: Props) {
             </button>
             <input ref={checklistRef} type="file" accept=".xlsx,.xls" onChange={handleChecklistImport} className="hidden" />
             {d.checklistFileName && (
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0">
                 <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
-                <span className="text-[10px] text-foreground break-all">{d.checklistFileName}</span>
-                {d.checklistStoragePath && (
-                  <button onClick={() => downloadFile(d.checklistStoragePath!, d.checklistFileName!)} className="text-primary hover:text-primary/80 transition-colors shrink-0">
-                    <Download className="w-3 h-3" />
-                  </button>
-                )}
+                <span className="text-[10px] text-foreground truncate">{d.checklistFileName}</span>
+                <button
+                  onClick={() => d.checklistStoragePath ? downloadFile(d.checklistStoragePath, d.checklistFileName!) : toast.info('Reemplace el archivo para habilitar descarga')}
+                  className="text-primary hover:text-primary/80 transition-colors shrink-0" title="Descargar"
+                >
+                  <Download className="w-3 h-3" />
+                </button>
                 <button
                   onClick={async () => {
                     if (d.checklistStoragePath) await deleteFile(d.checklistStoragePath);
@@ -341,14 +342,16 @@ export function PerformanceSection({ data, onChange }: Props) {
               className="hidden"
             />
             {d.sessionEvidenceFileName ? (
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0">
                 <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
-                <span className="text-[10px] text-foreground break-all">{d.sessionEvidenceFileName}</span>
-                {d.sessionEvidenceStoragePath && (
-                  <button onClick={() => downloadFile(d.sessionEvidenceStoragePath!, d.sessionEvidenceFileName!)} className="text-primary hover:text-primary/80 transition-colors shrink-0">
-                    <Download className="w-3 h-3" />
-                  </button>
-                )}
+                <span className="text-[10px] text-foreground truncate">{d.sessionEvidenceFileName}</span>
+                <button
+                  onClick={() => d.sessionEvidenceStoragePath ? downloadFile(d.sessionEvidenceStoragePath, d.sessionEvidenceFileName!) : toast.info('Archivo no disponible para descarga, reemplácelo para habilitar')}
+                  className="text-primary hover:text-primary/80 transition-colors shrink-0"
+                  title="Descargar"
+                >
+                  <Download className="w-3 h-3" />
+                </button>
                 <button
                   onClick={async () => {
                     if (d.sessionEvidenceStoragePath) await deleteFile(d.sessionEvidenceStoragePath);
@@ -411,14 +414,15 @@ export function PerformanceSection({ data, onChange }: Props) {
               />
               <div className="flex flex-wrap items-center gap-2">
                 {d.sessionEvidenceFileName ? (
-                  <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 max-w-full">
                     <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
-                    <span className="text-[10px] text-foreground break-all">Sustento: {d.sessionEvidenceFileName}</span>
-                    {d.sessionEvidenceStoragePath && (
-                      <button onClick={() => downloadFile(d.sessionEvidenceStoragePath!, d.sessionEvidenceFileName!)} className="text-primary hover:text-primary/80 transition-colors shrink-0">
-                        <Download className="w-3 h-3" />
-                      </button>
-                    )}
+                    <span className="text-[10px] text-foreground truncate">{d.sessionEvidenceFileName}</span>
+                    <button
+                      onClick={() => d.sessionEvidenceStoragePath ? downloadFile(d.sessionEvidenceStoragePath, d.sessionEvidenceFileName!) : toast.info('Reemplace el archivo para habilitar descarga')}
+                      className="text-primary hover:text-primary/80 transition-colors shrink-0" title="Descargar"
+                    >
+                      <Download className="w-3 h-3" />
+                    </button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5">
@@ -427,9 +431,9 @@ export function PerformanceSection({ data, onChange }: Props) {
                   </div>
                 )}
                 {(d.additionalEvidenceFiles ?? []).map((f, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
+                  <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0">
                     <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
-                    <span className="text-[10px] text-foreground break-all">Sustento: {f.name}</span>
+                    <span className="text-[10px] text-foreground truncate">{f.name}</span>
                     <button onClick={() => downloadFile(f.storagePath, f.name)} className="text-primary hover:text-primary/80 transition-colors shrink-0">
                       <Download className="w-3 h-3" />
                     </button>
