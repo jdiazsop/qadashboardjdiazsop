@@ -197,339 +197,347 @@ export function PerformanceSection({ data, onChange }: Props) {
   ];
 
   return (
-    <div className="space-y-3">
-      {/* ── 1. Checklist Result ── */}
-      <div className="bg-surface-0 border border-border rounded-lg p-3">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
-          <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-          Resultado del Checklist de Rendimiento
-        </h4>
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          <button
-            onClick={() => checklistRef.current?.click()}
-            disabled={parsingChecklist}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-          >
-            <Upload className="w-3 h-3" />
-            {parsingChecklist ? 'Procesando...' : 'Importar Checklist Excel'}
-          </button>
-          <input ref={checklistRef} type="file" accept=".xlsx,.xls" onChange={handleChecklistImport} className="hidden" />
-          {d.checklistFileName && (
-            <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
-              <Paperclip className="w-3 h-3 text-muted-foreground" />
-              <span className="text-[10px] text-foreground truncate max-w-[200px]">{d.checklistFileName}</span>
-              <button
-                onClick={() => update({ checklistFileName: undefined, checklistLevel: undefined, checklistResult: undefined })}
-                className="text-muted-foreground hover:text-destructive transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
+    <div className="flex gap-3">
+      {/* ── LEFT COLUMN: Config sections ── */}
+      <div className="w-1/3 min-w-[280px] space-y-3 shrink-0">
+        {/* ── 1. Checklist Result ── */}
+        <div className="bg-surface-0 border border-border rounded-lg p-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+            Resultado del Checklist de Rendimiento
+          </h4>
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <button
+              onClick={() => checklistRef.current?.click()}
+              disabled={parsingChecklist}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+            >
+              <Upload className="w-3 h-3" />
+              {parsingChecklist ? 'Procesando...' : 'Importar Checklist Excel'}
+            </button>
+            <input ref={checklistRef} type="file" accept=".xlsx,.xls" onChange={handleChecklistImport} className="hidden" />
+            {d.checklistFileName && (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
+                <Paperclip className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] text-foreground truncate max-w-[200px]">{d.checklistFileName}</span>
+                <button
+                  onClick={() => update({ checklistFileName: undefined, checklistLevel: undefined, checklistResult: undefined })}
+                  className="text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </div>
+          {d.checklistLevel ? (
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold rounded-md border
+              ${d.checklistLevel === 'alta'
+                ? 'bg-red-500/20 border-red-500 text-red-400'
+                : 'bg-blue-500/20 border-blue-500 text-blue-400'
+              }`}
+            >
+              {d.checklistLevel === 'alta' ? '🔴 Nivel: ALTA' : '🔵 Nivel: BAJA'}
+            </div>
+          ) : (
+            <p className="text-[10px] text-muted-foreground italic">Sin checklist importado</p>
+          )}
+        </div>
+
+        {/* ── Sustento por correo ── */}
+        <div className="bg-surface-0 border border-border rounded-lg p-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
+            <Paperclip className="w-3.5 h-3.5 text-primary" />
+            Sustento por Correo
+          </h4>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={d.notApplicableEmailAttached ?? false}
+              onChange={e => update({ notApplicableEmailAttached: e.target.checked })}
+              className="rounded border-border"
+            />
+            <span className="text-[10px] text-muted-foreground">Sustento adjuntado por correo</span>
+          </label>
+        </div>
+
+        {/* ── 2. Understanding Session ── */}
+        <div className="bg-surface-0 border border-border rounded-lg p-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
+            <Users className="w-3.5 h-3.5 text-primary" />
+            Sesión de Entendimiento de Rendimiento
+          </h4>
+          <div className="flex gap-2">
+            <button
+              onClick={() => update({ hadUnderstandingSession: true })}
+              className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
+                ${d.hadUnderstandingSession === true
+                  ? 'bg-green-500/20 border-green-500 text-green-400'
+                  : 'border-border text-muted-foreground hover:border-primary/50'
+                }`}
+            >
+              Sí, se realizó
+            </button>
+            <button
+              onClick={() => update({ hadUnderstandingSession: false })}
+              className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
+                ${d.hadUnderstandingSession === false
+                  ? 'bg-red-500/20 border-red-500 text-red-400'
+                  : 'border-border text-muted-foreground hover:border-primary/50'
+                }`}
+            >
+              No se realizó
+            </button>
+            <button
+              onClick={() => update({ hadUnderstandingSession: 'pending' as any })}
+              className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
+                ${d.hadUnderstandingSession === 'pending'
+                  ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
+                  : 'border-border text-muted-foreground hover:border-primary/50'
+                }`}
+            >
+              Pendiente
+            </button>
+          </div>
+        </div>
+
+        {/* ── 3. Applies Performance Tests? ── */}
+        <div className="bg-surface-0 border border-border rounded-lg p-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
+            <Activity className="w-3.5 h-3.5 text-primary" />
+            ¿Aplica Pruebas de Rendimiento?
+          </h4>
+          <div className="flex gap-2 mb-2">
+            <button
+              onClick={() => update({ appliesPerformanceTests: true })}
+              className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
+                ${applies === true
+                  ? 'bg-green-500/20 border-green-500 text-green-400'
+                  : 'border-border text-muted-foreground hover:border-primary/50'
+                }`}
+            >
+              Sí aplica
+            </button>
+            <button
+              onClick={() => update({ appliesPerformanceTests: false })}
+              className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
+                ${applies === false
+                  ? 'bg-red-500/20 border-red-500 text-red-400'
+                  : 'border-border text-muted-foreground hover:border-primary/50'
+                }`}
+            >
+              No aplica
+            </button>
+          </div>
+
+          {applies === false && (
+            <div className="mt-3 p-3 bg-yellow-500/5 border border-yellow-500/30 rounded-md space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 text-yellow-400 mt-0.5 shrink-0" />
+                <p className="text-[10px] text-yellow-400">
+                  Todos los campos de rendimiento serán marcados como N/A. Indique el motivo.
+                </p>
+              </div>
+              <textarea
+                value={d.notApplicableReason ?? ''}
+                onChange={e => update({ notApplicableReason: e.target.value })}
+                placeholder="Motivo por el cual no aplica pruebas de rendimiento..."
+                rows={2}
+                className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+              />
             </div>
           )}
         </div>
-        {/* Nivel detectado automáticamente del Excel */}
-        {d.checklistLevel ? (
-          <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold rounded-md border
-            ${d.checklistLevel === 'alta'
-              ? 'bg-red-500/20 border-red-500 text-red-400'
-              : 'bg-blue-500/20 border-blue-500 text-blue-400'
-            }`}
-          >
-            {d.checklistLevel === 'alta' ? '🔴 Nivel: ALTA' : '🔵 Nivel: BAJA'}
+      </div>
+
+      {/* ── RIGHT COLUMN: Criteria + Results ── */}
+      <div className="flex-1 space-y-3">
+        {applies === true ? (
+          <>
+            {/* ── 4. Acceptance Criteria ── */}
+            <div className="bg-surface-0 border border-border rounded-lg p-3">
+              <button
+                onClick={() => setExpandedCriteria(!expandedCriteria)}
+                className="w-full flex items-center justify-between mb-2"
+              >
+                <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-primary" />
+                  Criterios de Aceptación
+                </h4>
+                {expandedCriteria ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+              </button>
+
+              {expandedCriteria && (
+                <>
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      onClick={() => excelRef.current?.click()}
+                      disabled={parsingExcel}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                    >
+                      <Upload className="w-3 h-3" />
+                      {parsingExcel ? 'Procesando...' : 'Importar Matriz Excel'}
+                    </button>
+                    <input ref={excelRef} type="file" accept=".xlsx,.xls" onChange={handleExcelImport} className="hidden" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {criteriaFields.map(f => (
+                      <div key={f.key}>
+                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">{f.label}</label>
+                        <input
+                          type={f.type ?? 'text'}
+                          value={d.acceptanceCriteria?.[f.key] ?? ''}
+                          onChange={e => updateCriteria(f.key, e.target.value)}
+                          className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* ── 5. Test Results ── */}
+            <div className="bg-surface-0 border border-border rounded-lg p-3">
+              <button
+                onClick={() => setExpandedResults(!expandedResults)}
+                className="w-full flex items-center justify-between mb-2"
+              >
+                <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-primary" />
+                  Resultados de Pruebas
+                </h4>
+                {expandedResults ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+              </button>
+
+              {expandedResults && (
+                <>
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      onClick={() => pdfRef.current?.click()}
+                      disabled={parsingPdf}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                    >
+                      <Upload className="w-3 h-3" />
+                      {parsingPdf ? 'Procesando PDF...' : 'Importar Informe PDF'}
+                    </button>
+                    <input ref={pdfRef} type="file" accept=".pdf" onChange={handlePdfImport} className="hidden" />
+                    <button
+                      onClick={addEmptyResult}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+                    >
+                      + Agregar manual
+                    </button>
+                  </div>
+
+                  {(d.testResults ?? []).length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[10px]">
+                        <thead>
+                          <tr className="border-b border-border text-muted-foreground">
+                            <th className="text-left py-1 px-1 font-medium">Tipo</th>
+                            <th className="text-left py-1 px-1 font-medium">Fecha</th>
+                            <th className="text-left py-1 px-1 font-medium">Usuarios</th>
+                            <th className="text-left py-1 px-1 font-medium">Duración</th>
+                            <th className="text-right py-1 px-1 font-medium">TRX</th>
+                            <th className="text-right py-1 px-1 font-medium">Error</th>
+                            <th className="text-right py-1 px-1 font-medium">% Error</th>
+                            <th className="text-right py-1 px-1 font-medium">T. Prom</th>
+                            <th className="text-right py-1 px-1 font-medium">T. Min</th>
+                            <th className="text-right py-1 px-1 font-medium">T. Max</th>
+                            <th className="text-right py-1 px-1 font-medium">TPS</th>
+                            <th className="text-center py-1 px-1 font-medium">Estado</th>
+                            <th className="py-1 px-1"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(d.testResults ?? []).map(r => (
+                            <tr key={r.id} className="border-b border-border/50 hover:bg-surface-1/50">
+                              <td className="py-1 px-1">
+                                <input value={r.type ?? ''} onChange={e => updateResult(r.id, 'type', e.target.value)}
+                                  className="w-16 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" placeholder="Carga" />
+                              </td>
+                              <td className="py-1 px-1">
+                                <input type="date" value={r.startDate ?? ''} onChange={e => updateResult(r.id, 'startDate', e.target.value)}
+                                  className="w-24 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
+                              </td>
+                              <td className="py-1 px-1">
+                                <input value={r.simulatedUsers ?? ''} onChange={e => updateResult(r.id, 'simulatedUsers', e.target.value)}
+                                  className="w-20 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
+                              </td>
+                              <td className="py-1 px-1">
+                                <input value={r.duration ?? ''} onChange={e => updateResult(r.id, 'duration', e.target.value)}
+                                  className="w-16 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
+                              </td>
+                              <td className="py-1 px-1 text-right">
+                                <input type="number" value={r.trx ?? ''} onChange={e => updateResult(r.id, 'trx', e.target.value)}
+                                  className="w-14 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
+                              </td>
+                              <td className="py-1 px-1 text-right">
+                                <input type="number" value={r.errors ?? ''} onChange={e => updateResult(r.id, 'errors', e.target.value)}
+                                  className="w-10 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
+                              </td>
+                              <td className="py-1 px-1 text-right">
+                                <input value={r.errorRate ?? ''} onChange={e => updateResult(r.id, 'errorRate', e.target.value)}
+                                  className="w-12 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
+                              </td>
+                              <td className="py-1 px-1 text-right">
+                                <input type="number" step="0.001" value={r.responseTimeAvg ?? ''} onChange={e => updateResult(r.id, 'responseTimeAvg', e.target.value)}
+                                  className="w-14 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
+                              </td>
+                              <td className="py-1 px-1 text-right">
+                                <input type="number" step="0.001" value={r.responseTimeMin ?? ''} onChange={e => updateResult(r.id, 'responseTimeMin', e.target.value)}
+                                  className="w-14 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
+                              </td>
+                              <td className="py-1 px-1 text-right">
+                                <input type="number" step="0.001" value={r.responseTimeMax ?? ''} onChange={e => updateResult(r.id, 'responseTimeMax', e.target.value)}
+                                  className="w-14 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
+                              </td>
+                              <td className="py-1 px-1 text-right">
+                                <input type="number" step="0.01" value={r.tps ?? ''} onChange={e => updateResult(r.id, 'tps', e.target.value)}
+                                  className="w-12 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
+                              </td>
+                              <td className="py-1 px-1 text-center">
+                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold
+                                  ${(r.status ?? '').toUpperCase().includes('CONFORME')
+                                    ? 'bg-green-500/20 text-green-400'
+                                    : r.status ? 'bg-red-500/20 text-red-400' : 'text-muted-foreground'
+                                  }`}>
+                                  {r.status || '—'}
+                                </span>
+                              </td>
+                              <td className="py-1 px-1">
+                                <button onClick={() => removeResult(r.id)}
+                                  className="text-muted-foreground hover:text-destructive transition-colors">
+                                  <XCircle className="w-3 h-3" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-muted-foreground italic">No hay resultados. Importe un informe PDF o agregue manualmente.</p>
+                  )}
+                </>
+              )}
+            </div>
+          </>
+        ) : applies === false ? (
+          <div className="bg-surface-0 border border-border rounded-lg p-3 opacity-50 h-full flex items-center justify-center">
+            <p className="text-[10px] text-muted-foreground text-center">
+              Criterios de Aceptación y Resultados: <span className="font-bold">N/A</span>
+            </p>
           </div>
         ) : (
-          <p className="text-[10px] text-muted-foreground italic">Sin checklist importado</p>
-        )}
-      </div>
-
-      {/* ── Sustento por correo (siempre visible) ── */}
-      <div className="bg-surface-0 border border-border rounded-lg p-3">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
-          <Paperclip className="w-3.5 h-3.5 text-primary" />
-          Sustento por Correo
-        </h4>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={d.notApplicableEmailAttached ?? false}
-            onChange={e => update({ notApplicableEmailAttached: e.target.checked })}
-            className="rounded border-border"
-          />
-          <span className="text-[10px] text-muted-foreground">Sustento adjuntado por correo</span>
-        </label>
-      </div>
-
-      {/* ── 2. Understanding Session ── */}
-      <div className="bg-surface-0 border border-border rounded-lg p-3">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
-          <Users className="w-3.5 h-3.5 text-primary" />
-          Sesión de Entendimiento de Rendimiento
-        </h4>
-        <div className="flex gap-2">
-          <button
-            onClick={() => update({ hadUnderstandingSession: true })}
-            className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
-              ${d.hadUnderstandingSession === true
-                ? 'bg-green-500/20 border-green-500 text-green-400'
-                : 'border-border text-muted-foreground hover:border-primary/50'
-              }`}
-          >
-            Sí, se realizó
-          </button>
-          <button
-            onClick={() => update({ hadUnderstandingSession: false })}
-            className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
-              ${d.hadUnderstandingSession === false
-                ? 'bg-red-500/20 border-red-500 text-red-400'
-                : 'border-border text-muted-foreground hover:border-primary/50'
-              }`}
-          >
-            No se realizó
-          </button>
-        </div>
-      </div>
-
-      {/* ── 3. Applies Performance Tests? ── */}
-      <div className="bg-surface-0 border border-border rounded-lg p-3">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
-          <Activity className="w-3.5 h-3.5 text-primary" />
-          ¿Aplica Pruebas de Rendimiento?
-        </h4>
-        <div className="flex gap-2 mb-2">
-          <button
-            onClick={() => update({ appliesPerformanceTests: true })}
-            className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
-              ${applies === true
-                ? 'bg-green-500/20 border-green-500 text-green-400'
-                : 'border-border text-muted-foreground hover:border-primary/50'
-              }`}
-          >
-            Sí aplica
-          </button>
-          <button
-            onClick={() => update({ appliesPerformanceTests: false })}
-            className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
-              ${applies === false
-                ? 'bg-red-500/20 border-red-500 text-red-400'
-                : 'border-border text-muted-foreground hover:border-primary/50'
-              }`}
-          >
-            No aplica
-          </button>
-        </div>
-
-        {applies === false && (
-          <div className="mt-3 p-3 bg-yellow-500/5 border border-yellow-500/30 rounded-md space-y-2">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 text-yellow-400 mt-0.5 shrink-0" />
-              <p className="text-[10px] text-yellow-400">
-                Todos los campos de rendimiento serán marcados como N/A. Indique el motivo y adjunte sustento por correo.
-              </p>
-            </div>
-            <textarea
-              value={d.notApplicableReason ?? ''}
-              onChange={e => update({ notApplicableReason: e.target.value })}
-              placeholder="Motivo por el cual no aplica pruebas de rendimiento..."
-              rows={2}
-              className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-            />
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={d.notApplicableEmailAttached ?? false}
-                onChange={e => update({ notApplicableEmailAttached: e.target.checked })}
-                className="rounded border-border"
-              />
-              <span className="text-[10px] text-muted-foreground">Sustento adjuntado por correo</span>
-            </label>
+          <div className="bg-surface-0 border border-border rounded-lg p-3 h-full flex items-center justify-center">
+            <p className="text-[10px] text-muted-foreground text-center italic">
+              Seleccione si aplica pruebas de rendimiento para ver criterios y resultados
+            </p>
           </div>
         )}
       </div>
-
-      {/* ── Sections only if applies ── */}
-      {applies === true && (
-        <>
-          {/* ── 4. Acceptance Criteria ── */}
-          <div className="bg-surface-0 border border-border rounded-lg p-3">
-            <button
-              onClick={() => setExpandedCriteria(!expandedCriteria)}
-              className="w-full flex items-center justify-between mb-2"
-            >
-              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                <FileSpreadsheet className="w-3.5 h-3.5 text-primary" />
-                Criterios de Aceptación
-              </h4>
-              {expandedCriteria ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
-            </button>
-
-            {expandedCriteria && (
-              <>
-                <div className="flex gap-2 mb-3">
-                  <button
-                    onClick={() => excelRef.current?.click()}
-                    disabled={parsingExcel}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-                  >
-                    <Upload className="w-3 h-3" />
-                    {parsingExcel ? 'Procesando...' : 'Importar Matriz Excel'}
-                  </button>
-                  <input ref={excelRef} type="file" accept=".xlsx,.xls" onChange={handleExcelImport} className="hidden" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                  {criteriaFields.map(f => (
-                    <div key={f.key}>
-                      <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">{f.label}</label>
-                      <input
-                        type={f.type ?? 'text'}
-                        value={d.acceptanceCriteria?.[f.key] ?? ''}
-                        onChange={e => updateCriteria(f.key, e.target.value)}
-                        className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* ── 5. Test Results ── */}
-          <div className="bg-surface-0 border border-border rounded-lg p-3">
-            <button
-              onClick={() => setExpandedResults(!expandedResults)}
-              className="w-full flex items-center justify-between mb-2"
-            >
-              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-primary" />
-                Resultados de Pruebas
-              </h4>
-              {expandedResults ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
-            </button>
-
-            {expandedResults && (
-              <>
-                <div className="flex gap-2 mb-3">
-                  <button
-                    onClick={() => pdfRef.current?.click()}
-                    disabled={parsingPdf}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-                  >
-                    <Upload className="w-3 h-3" />
-                    {parsingPdf ? 'Procesando PDF...' : 'Importar Informe PDF'}
-                  </button>
-                  <input ref={pdfRef} type="file" accept=".pdf" onChange={handlePdfImport} className="hidden" />
-                  <button
-                    onClick={addEmptyResult}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
-                  >
-                    + Agregar manual
-                  </button>
-                </div>
-
-                {(d.testResults ?? []).length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-[10px]">
-                      <thead>
-                        <tr className="border-b border-border text-muted-foreground">
-                          <th className="text-left py-1 px-1 font-medium">Tipo</th>
-                          <th className="text-left py-1 px-1 font-medium">Fecha</th>
-                          <th className="text-left py-1 px-1 font-medium">Usuarios</th>
-                          <th className="text-left py-1 px-1 font-medium">Duración</th>
-                          <th className="text-right py-1 px-1 font-medium">TRX</th>
-                          <th className="text-right py-1 px-1 font-medium">Error</th>
-                          <th className="text-right py-1 px-1 font-medium">% Error</th>
-                          <th className="text-right py-1 px-1 font-medium">T. Prom</th>
-                          <th className="text-right py-1 px-1 font-medium">T. Min</th>
-                          <th className="text-right py-1 px-1 font-medium">T. Max</th>
-                          <th className="text-right py-1 px-1 font-medium">TPS</th>
-                          <th className="text-center py-1 px-1 font-medium">Estado</th>
-                          <th className="py-1 px-1"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(d.testResults ?? []).map(r => (
-                          <tr key={r.id} className="border-b border-border/50 hover:bg-surface-1/50">
-                            <td className="py-1 px-1">
-                              <input value={r.type ?? ''} onChange={e => updateResult(r.id, 'type', e.target.value)}
-                                className="w-16 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" placeholder="Carga" />
-                            </td>
-                            <td className="py-1 px-1">
-                              <input type="date" value={r.startDate ?? ''} onChange={e => updateResult(r.id, 'startDate', e.target.value)}
-                                className="w-24 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
-                            </td>
-                            <td className="py-1 px-1">
-                              <input value={r.simulatedUsers ?? ''} onChange={e => updateResult(r.id, 'simulatedUsers', e.target.value)}
-                                className="w-20 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
-                            </td>
-                            <td className="py-1 px-1">
-                              <input value={r.duration ?? ''} onChange={e => updateResult(r.id, 'duration', e.target.value)}
-                                className="w-16 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
-                            </td>
-                            <td className="py-1 px-1 text-right">
-                              <input type="number" value={r.trx ?? ''} onChange={e => updateResult(r.id, 'trx', e.target.value)}
-                                className="w-14 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                            </td>
-                            <td className="py-1 px-1 text-right">
-                              <input type="number" value={r.errors ?? ''} onChange={e => updateResult(r.id, 'errors', e.target.value)}
-                                className="w-10 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                            </td>
-                            <td className="py-1 px-1 text-right">
-                              <input value={r.errorRate ?? ''} onChange={e => updateResult(r.id, 'errorRate', e.target.value)}
-                                className="w-12 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                            </td>
-                            <td className="py-1 px-1 text-right">
-                              <input type="number" step="0.001" value={r.responseTimeAvg ?? ''} onChange={e => updateResult(r.id, 'responseTimeAvg', e.target.value)}
-                                className="w-14 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                            </td>
-                            <td className="py-1 px-1 text-right">
-                              <input type="number" step="0.001" value={r.responseTimeMin ?? ''} onChange={e => updateResult(r.id, 'responseTimeMin', e.target.value)}
-                                className="w-14 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                            </td>
-                            <td className="py-1 px-1 text-right">
-                              <input type="number" step="0.001" value={r.responseTimeMax ?? ''} onChange={e => updateResult(r.id, 'responseTimeMax', e.target.value)}
-                                className="w-14 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                            </td>
-                            <td className="py-1 px-1 text-right">
-                              <input type="number" step="0.01" value={r.tps ?? ''} onChange={e => updateResult(r.id, 'tps', e.target.value)}
-                                className="w-12 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                            </td>
-                            <td className="py-1 px-1 text-center">
-                              <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold
-                                ${(r.status ?? '').toUpperCase().includes('CONFORME')
-                                  ? 'bg-green-500/20 text-green-400'
-                                  : r.status ? 'bg-red-500/20 text-red-400' : 'text-muted-foreground'
-                                }`}>
-                                {r.status || '—'}
-                              </span>
-                            </td>
-                            <td className="py-1 px-1">
-                              <button onClick={() => removeResult(r.id)}
-                                className="text-muted-foreground hover:text-destructive transition-colors">
-                                <XCircle className="w-3 h-3" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-[10px] text-muted-foreground italic">No hay resultados. Importe un informe PDF o agregue manualmente.</p>
-                )}
-              </>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* N/A summary when not applicable */}
-      {applies === false && (
-        <div className="bg-surface-0 border border-border rounded-lg p-3 opacity-50">
-          <p className="text-[10px] text-muted-foreground text-center">
-            Criterios de Aceptación y Resultados: <span className="font-bold">N/A</span>
-          </p>
-        </div>
-      )}
     </div>
   );
 }
