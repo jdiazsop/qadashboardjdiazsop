@@ -309,12 +309,22 @@ export function PerformanceSection({ data, onChange }: Props) {
               >
                 Pendiente
               </button>
+              <button
+                onClick={() => update({ hadUnderstandingSession: 'na' as any })}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors
+                  ${(d.hadUnderstandingSession as any) === 'na'
+                    ? 'bg-muted border-muted-foreground text-muted-foreground'
+                    : 'border-border text-muted-foreground hover:border-primary/50'
+                  }`}
+              >
+                No Aplica
+              </button>
             </div>
           </div>
-          {d.hadUnderstandingSession === 'pending' && (
+          {((d.hadUnderstandingSession as any) === 'pending' || (d.hadUnderstandingSession as any) === 'na') && (
             <div className="mt-2">
               <textarea
-                placeholder="Comentarios sobre la sesión pendiente..."
+                placeholder={(d.hadUnderstandingSession as any) === 'pending' ? "Comentarios sobre la sesión pendiente..." : "Comentarios sobre por qué no aplica..."}
                 value={(d as any).understandingSessionComment ?? ''}
                 onChange={(e) => update({ understandingSessionComment: e.target.value } as any)}
                 className="w-full min-h-[60px] rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
