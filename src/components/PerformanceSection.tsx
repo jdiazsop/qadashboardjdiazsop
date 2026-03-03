@@ -25,6 +25,7 @@ export function PerformanceSection({ data, onChange }: Props) {
   const pdfRef = useRef<HTMLInputElement>(null);
   
   const sessionEvidenceRef = useRef<HTMLInputElement>(null);
+  const additionalEvidenceRef = useRef<HTMLInputElement>(null);
 
   const update = (partial: Partial<PerformanceData>) => onChange({ ...d, ...partial });
 
@@ -378,6 +379,40 @@ export function PerformanceSection({ data, onChange }: Props) {
                   <span className="text-[10px] text-yellow-400 italic">Adjunte sustento en la sección de Sesión de Entendimiento</span>
                 </div>
               )}
+              {/* Additional evidence files */}
+              {(d.additionalEvidenceFiles ?? []).map((fname, idx) => (
+                <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
+                  <Paperclip className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-[10px] text-foreground truncate max-w-[200px]">Sustento: {fname}</span>
+                  <button
+                    onClick={() => update({ additionalEvidenceFiles: (d.additionalEvidenceFiles ?? []).filter((_, i) => i !== idx) })}
+                    className="text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() => additionalEvidenceRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 transition-colors"
+              >
+                <Paperclip className="w-3 h-3" />
+                Adjuntar sustento adicional
+              </button>
+              <input
+                ref={additionalEvidenceRef}
+                type="file"
+                accept=".pdf,.xlsx,.xls,.msg,.eml,.png,.jpg,.jpeg,.docx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    update({ additionalEvidenceFiles: [...(d.additionalEvidenceFiles ?? []), file.name] });
+                    toast.success(`Sustento adicional adjuntado: ${file.name}`);
+                  }
+                  if (additionalEvidenceRef.current) additionalEvidenceRef.current.value = '';
+                }}
+                className="hidden"
+              />
             </div>
           )}
         </div>

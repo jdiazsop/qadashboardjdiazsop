@@ -409,6 +409,8 @@ export interface PerformanceData {
   acceptanceCriteria?: PerformanceAcceptanceCriteria;
   /** Test results extracted from PDF report */
   testResults?: PerformanceTestResult[];
+  /** Additional evidence file names for No Aplica */
+  additionalEvidenceFiles?: string[];
 }
 
 /** Compute delay for a single cycle: if realEndDate > endDate, delay = realEndDate */
