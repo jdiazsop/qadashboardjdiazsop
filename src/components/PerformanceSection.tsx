@@ -63,8 +63,8 @@ export function PerformanceSection({ data, onChange }: Props) {
           row.eachCell((cell) => {
             const val = String(cell.value ?? '').toLowerCase().trim();
             if (val === 'alta' || val === 'baja') {
-              update({ checklistResult: 'pendiente' });
-              toast.info(`Checklist nivel detectado: ${val}. Resultado marcado como Pendiente.`);
+              update({ checklistLevel: val as 'alta' | 'baja' });
+              toast.success(`Checklist nivel detectado: ${val.charAt(0).toUpperCase() + val.slice(1)}`);
               found = true;
             }
           });
@@ -215,7 +215,35 @@ export function PerformanceSection({ data, onChange }: Props) {
           </button>
           <input ref={checklistRef} type="file" accept=".xlsx,.xls" onChange={handleChecklistImport} className="hidden" />
         </div>
+        {/* Nivel Alta / Baja */}
+        {d.checklistLevel && (
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold rounded-md border mb-2
+            ${d.checklistLevel === 'alta'
+              ? 'bg-red-500/20 border-red-500 text-red-400'
+              : 'bg-blue-500/20 border-blue-500 text-blue-400'
+            }`}
+          >
+            {d.checklistLevel === 'alta' ? '🔴 Nivel: ALTA' : '🔵 Nivel: BAJA'}
+          </div>
+        )}
         <div className="flex gap-2">
+          <div className="flex gap-2 mr-4">
+            {(['alta', 'baja'] as const).map(lvl => (
+              <button
+                key={lvl}
+                onClick={() => update({ checklistLevel: lvl })}
+                className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
+                  ${d.checklistLevel === lvl
+                    ? lvl === 'alta' ? 'bg-red-500/20 border-red-500 text-red-400'
+                      : 'bg-blue-500/20 border-blue-500 text-blue-400'
+                    : 'border-border text-muted-foreground hover:border-primary/50'
+                  }`}
+              >
+                {lvl === 'alta' ? 'Alta' : 'Baja'}
+              </button>
+            ))}
+          </div>
+          <div className="border-l border-border mx-1" />
           {(['conforme', 'no_conforme', 'pendiente'] as const).map(opt => (
             <button
               key={opt}
