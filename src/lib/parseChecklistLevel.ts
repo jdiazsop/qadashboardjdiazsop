@@ -6,10 +6,20 @@ export interface ChecklistDetection {
   level?: ChecklistLevel;
 }
 
-type Candidate = { level: ChecklistLevel; score: number };
+type Candidate = { level: ChecklistLevel; score: number; source: string };
+type HeaderMap = { row: number; resultCol: number; confidence: number };
 
-const LEVEL_REGEX = /\b(alta|baja)\b/g;
 const MARKER_REGEX = /^(x|✓|✔|si|sí|s|1|true|ok|v)$/i;
+const RESULT_COLUMN_ALIASES = [
+  'resultado',
+  'resultado final',
+  'resultado checklist',
+  'prioridad',
+  'prioridad rendimiento',
+  'nivel',
+  'nivel rendimiento',
+];
+const SUPPORTING_HEADER_ALIASES = ['pregunta', 'control', 'item', 'descripcion', 'criterio', 'estado'];
 
 const normalizeText = (text: string): string =>
   text
@@ -45,7 +55,7 @@ const extractUniqueLevel = (rawText: string): ChecklistLevel | undefined => {
   if (!normalized) return undefined;
   if (normalized === 'alta' || normalized === 'baja') return normalized;
 
-  const matches = [...normalized.matchAll(LEVEL_REGEX)].map((m) => m[1] as ChecklistLevel);
+  const matches = (normalized.match(/\b(alta|baja)\b/g) ?? []) as ChecklistLevel[];
   const unique = [...new Set(matches)];
   return unique.length === 1 ? unique[0] : undefined;
 };
@@ -54,7 +64,7 @@ const extractInlineLevel = (rawText: string): ChecklistLevel | undefined => {
   const normalized = normalizeText(rawText);
   if (!normalized) return undefined;
 
-  const levels = [...new Set([...normalized.matchAll(LEVEL_REGEX)].map((m) => m[1] as ChecklistLevel))];
+  const levels = [...new Set((normalized.match(/\b(alta|baja)\b/g) ?? []) as ChecklistLevel[])];
   if (levels.length !== 1) return undefined;
 
   const patterns = [
@@ -83,19 +93,16 @@ const parseClassicResult = (rawText: string): ChecklistClassicResult | undefined
 const findColumnIndex = (headers: string[], aliases: string[]): number => {
   const normalizedAliases = aliases.map(normalizeText);
 
-  // 1) Exact match
   for (const alias of normalizedAliases) {
     const idx = headers.findIndex((h) => h === alias);
     if (idx !== -1) return idx;
   }
 
-  // 2) Starts with
   for (const alias of normalizedAliases) {
     const idx = headers.findIndex((h) => h.startsWith(alias));
     if (idx !== -1) return idx;
   }
 
-  // 3) Contains
   for (const alias of normalizedAliases) {
     const idx = headers.findIndex((h) => h.includes(alias));
     if (idx !== -1) return idx;
@@ -136,63 +143,93 @@ const pickBest = (best: Candidate | undefined, candidate: Candidate | undefined)
   return candidate.score > best.score ? candidate : best;
 };
 
-const detectFromResultColumn = (ws: any, cellText: (cell: any) => string): Candidate | undefined => {
-  let best: Candidate | undefined;
+const buildResultColumnMap = (ws: any, cellText: (cell: any) => string): HeaderMap | undefined => {
+  let best: HeaderMap | undefined;
+  const scanRows = Math.max(1, Math.min(ws.rowCount ?? 1, 15));
 
-  ws.eachRow((row: any, rowNumber: number) => {
+  for (let rowNumber = 1; rowNumber <= scanRows; rowNumber++) {
+    const row = ws.getRow?.(rowNumber);
+    if (!row) continue;
+
     const headers: string[] = [];
+    let maxCol = 0;
     row.eachCell({ includeEmpty: true }, (cell: any, colNumber: number) => {
       headers[colNumber - 1] = normalizeText(cellText(cell));
+      if (colNumber > maxCol) maxCol = colNumber;
     });
 
-    if (headers.length === 0) return;
-    const resultCol = findColumnIndex(headers, [
-      'resultado',
-      'resultado final',
-      'resultado checklist',
-      'prioridad',
-      'prioridad rendimiento',
-      'nivel',
-      'nivel rendimiento',
-    ]);
-    if (resultCol === -1) return;
+    if (maxCol === 0) continue;
 
-    const targetCol = resultCol + 1;
-    let emptyStreak = 0;
+    const nonEmpty = headers.filter(Boolean);
+    if (nonEmpty.length < 2) continue;
 
-    for (let r = rowNumber + 1; r <= Math.min((ws.rowCount ?? rowNumber) + 1, rowNumber + 80); r++) {
-      const resultCell = readCell(ws, r, targetCol);
-      if (!resultCell) continue;
+    const resultIdx = findColumnIndex(headers, RESULT_COLUMN_ALIASES);
+    if (resultIdx === -1) continue;
 
-      const value = normalizeText(cellText(resultCell));
-      if (!value) {
-        emptyStreak += 1;
-        if (emptyStreak >= 8) break;
-        continue;
-      }
-      emptyStreak = 0;
+    const resultHeader = headers[resultIdx] ?? '';
+    let confidence = 600;
 
-      const level = extractUniqueLevel(value);
-      if (!level) continue;
+    if (resultHeader === 'resultado' || resultHeader === 'resultado final') confidence += 140;
+    else if (resultHeader.startsWith('resultado')) confidence += 110;
+    else if (resultHeader.includes('resultado')) confidence += 90;
+    else confidence += 45;
 
-      let score = 480;
-      if (value === level) score += 100;
-      if (value.includes('alta') && value.includes('baja')) score -= 260;
+    const supportHits = SUPPORTING_HEADER_ALIASES.filter((alias) => headers.some((h) => h.includes(alias))).length;
+    confidence += supportHits * 30;
+    if (nonEmpty.length >= 4) confidence += 30;
 
-      let context = '';
-      for (let c = Math.max(1, targetCol - 2); c <= targetCol + 1; c++) {
-        context += ` ${normalizeText(cellText(readCell(ws, r, c)))}`;
-      }
+    const candidate: HeaderMap = { row: rowNumber, resultCol: resultIdx + 1, confidence };
+    if (!best || candidate.confidence > best.confidence) best = candidate;
+  }
 
-      if (context.includes('rendimiento')) score += 40;
-      if (context.includes('resultado') || context.includes('prioridad')) score += 30;
+  return best;
+};
 
-      score += hasVisualSignal(resultCell);
-      if (hasNearbyMarker(ws, r, targetCol, cellText)) score += 170;
+const detectFromMappedResultColumn = (ws: any, cellText: (cell: any) => string): Candidate | undefined => {
+  const headerMap = buildResultColumnMap(ws, cellText);
+  if (!headerMap) return undefined;
 
-      best = pickBest(best, { level, score });
+  let best: Candidate | undefined;
+  let emptyStreak = 0;
+  const maxRow = Math.min(ws.rowCount ?? headerMap.row, headerMap.row + 250);
+
+  for (let rowNumber = headerMap.row + 1; rowNumber <= maxRow; rowNumber++) {
+    const resultCell = readCell(ws, rowNumber, headerMap.resultCol);
+    if (!resultCell) continue;
+
+    const raw = cellText(resultCell);
+    const value = normalizeText(raw);
+    if (!value) {
+      emptyStreak += 1;
+      if (emptyStreak >= 15) break;
+      continue;
     }
-  });
+    emptyStreak = 0;
+
+    // Ignorar texto ambiguo tipo "Alta o Baja"
+    if (value.includes('alta') && value.includes('baja')) continue;
+
+    const level = extractUniqueLevel(value);
+    if (!level) continue;
+
+    let score = headerMap.confidence + 320;
+    if (value === level) score += 100;
+    else score += 40;
+
+    score += hasVisualSignal(resultCell);
+    if (hasNearbyMarker(ws, rowNumber, headerMap.resultCol, cellText)) score += 200;
+
+    let rowContext = '';
+    for (let c = Math.max(1, headerMap.resultCol - 3); c <= headerMap.resultCol + 2; c++) {
+      rowContext += ` ${normalizeText(cellText(readCell(ws, rowNumber, c)))}`;
+    }
+
+    if (rowContext.includes('resultado final')) score += 90;
+    else if (rowContext.includes('resultado') || rowContext.includes('prioridad')) score += 50;
+    if (rowContext.includes('checklist') && rowContext.includes('rendimiento')) score += 25;
+
+    best = pickBest(best, { level, score, source: 'mapped_result_column' });
+  }
 
   return best;
 };
@@ -201,14 +238,11 @@ const detectFromBinaryRowSelection = (ws: any, cellText: (cell: any) => string):
   let best: Candidate | undefined;
 
   ws.eachRow((row: any, rowNumber: number) => {
-    const rowLevels: Array<{ level: ChecklistLevel; col: number; cell: any; text: string }> = [];
+    const rowLevels: Array<{ level: ChecklistLevel; col: number; cell: any }> = [];
 
     row.eachCell({ includeEmpty: true }, (cell: any, colNumber: number) => {
-      const raw = cellText(cell);
-      const normalized = normalizeText(raw);
-      if (normalized === 'alta' || normalized === 'baja') {
-        rowLevels.push({ level: normalized, col: colNumber, cell, text: normalized });
-      }
+      const normalized = normalizeText(cellText(cell));
+      if (normalized === 'alta' || normalized === 'baja') rowLevels.push({ level: normalized, col: colNumber, cell });
     });
 
     const hasAlta = rowLevels.some((l) => l.level === 'alta');
@@ -216,15 +250,21 @@ const detectFromBinaryRowSelection = (ws: any, cellText: (cell: any) => string):
     if (!hasAlta || !hasBaja) return;
 
     for (const entry of rowLevels) {
-      let score = 560;
-      score += hasVisualSignal(entry.cell);
-      if (hasNearbyMarker(ws, rowNumber, entry.col, cellText)) score += 170;
+      const nearMarker = hasNearbyMarker(ws, rowNumber, entry.col, cellText);
+      const visual = hasVisualSignal(entry.cell);
+      if (!nearMarker && visual === 0) continue;
 
-      const labelCell = readCell(ws, rowNumber, Math.max(1, entry.col - 2));
-      const labelText = normalizeText(cellText(labelCell));
-      if (labelText.includes('resultado') || labelText.includes('prioridad')) score += 40;
+      let score = 220 + visual;
+      if (nearMarker) score += 140;
 
-      best = pickBest(best, { level: entry.level, score });
+      const leftText = normalizeText(cellText(readCell(ws, rowNumber, Math.max(1, entry.col - 1))));
+      const farLeftText = normalizeText(cellText(readCell(ws, rowNumber, Math.max(1, entry.col - 2))));
+      const context = `${leftText} ${farLeftText}`;
+
+      if (context.includes('resultado') || context.includes('prioridad')) score += 50;
+      if (context.includes('checklist') && context.includes('rendimiento')) score += 20;
+
+      best = pickBest(best, { level: entry.level, score, source: 'binary_row_selection' });
     }
   });
 
@@ -239,11 +279,11 @@ const detectFromInlineLabels = (ws: any, cellText: (cell: any) => string): Candi
       const inlineLevel = extractInlineLevel(cellText(cell));
       if (!inlineLevel) return;
 
-      let score = 360;
+      let score = 180;
       score += hasVisualSignal(cell);
-      if (hasNearbyMarker(ws, rowNumber, colNumber, cellText)) score += 90;
+      if (hasNearbyMarker(ws, rowNumber, colNumber, cellText)) score += 70;
 
-      best = pickBest(best, { level: inlineLevel, score });
+      best = pickBest(best, { level: inlineLevel, score, source: 'inline_label' });
     });
   });
 
@@ -259,10 +299,9 @@ const detectNearAnchors = (ws: any, cellText: (cell: any) => string): Candidate 
       const text = normalizeText(cellText(cell));
       if (!text) return;
 
-      if (text.includes('resultado final')) anchors.push({ row: rowNumber, col: colNumber, weight: 320 });
-      else if (text.includes('resultado')) anchors.push({ row: rowNumber, col: colNumber, weight: 280 });
-      else if (text.includes('prioridad')) anchors.push({ row: rowNumber, col: colNumber, weight: 230 });
-      else if (text.includes('checklist') && text.includes('rendimiento')) anchors.push({ row: rowNumber, col: colNumber, weight: 180 });
+      if (text.includes('resultado final')) anchors.push({ row: rowNumber, col: colNumber, weight: 220 });
+      else if (text.includes('resultado')) anchors.push({ row: rowNumber, col: colNumber, weight: 190 });
+      else if (text.includes('prioridad')) anchors.push({ row: rowNumber, col: colNumber, weight: 160 });
 
       const level = extractUniqueLevel(text);
       if (!level) return;
@@ -277,17 +316,17 @@ const detectNearAnchors = (ws: any, cellText: (cell: any) => string): Candidate 
     let anchorScore = -Infinity;
     for (const anchor of anchors) {
       const dist = Math.abs(lvl.row - anchor.row) + Math.abs(lvl.col - anchor.col);
-      if (dist > 14) continue;
-      anchorScore = Math.max(anchorScore, anchor.weight + Math.max(0, 32 - dist));
+      if (dist > 8) continue;
+      anchorScore = Math.max(anchorScore, anchor.weight + Math.max(0, 24 - dist));
     }
 
     if (anchorScore === -Infinity) continue;
 
     let score = anchorScore;
     score += hasVisualSignal(lvl.cell);
-    if (hasNearbyMarker(ws, lvl.row, lvl.col, cellText)) score += 120;
+    if (hasNearbyMarker(ws, lvl.row, lvl.col, cellText)) score += 90;
 
-    best = pickBest(best, { level: lvl.level, score });
+    best = pickBest(best, { level: lvl.level, score, source: 'anchor_proximity' });
   }
 
   return best;
@@ -299,7 +338,7 @@ export function detectChecklistOutcome(
 ): ChecklistDetection {
   if (!workbook?.worksheets?.length) return {};
 
-  // 1) Classic checklist values
+  // 1) Resultado clásico: conforme/no conforme/pendiente
   for (const ws of workbook.worksheets) {
     let found: ChecklistClassicResult | undefined;
     ws.eachRow((row: any) => {
@@ -312,14 +351,28 @@ export function detectChecklistOutcome(
     if (found) return { result: found };
   }
 
-  // 2) Alta/Baja with prioritized strategies
-  let best: Candidate | undefined;
+  // 2) Prioridad estricta: columna Resultado mapeada dinámicamente
+  let mappedBest: Candidate | undefined;
   for (const ws of workbook.worksheets) {
-    best = pickBest(best, detectFromResultColumn(ws, cellText));
-    best = pickBest(best, detectFromBinaryRowSelection(ws, cellText));
-    best = pickBest(best, detectFromInlineLabels(ws, cellText));
-    best = pickBest(best, detectNearAnchors(ws, cellText));
+    mappedBest = pickBest(mappedBest, detectFromMappedResultColumn(ws, cellText));
+  }
+  if (mappedBest) {
+    console.info(`[checklist-parser] nivel=${mappedBest.level} source=${mappedBest.source}`);
+    return { level: mappedBest.level };
   }
 
-  return best ? { level: best.level } : {};
+  // 3) Fallbacks (más conservadores)
+  let fallbackBest: Candidate | undefined;
+  for (const ws of workbook.worksheets) {
+    fallbackBest = pickBest(fallbackBest, detectFromBinaryRowSelection(ws, cellText));
+    fallbackBest = pickBest(fallbackBest, detectFromInlineLabels(ws, cellText));
+    fallbackBest = pickBest(fallbackBest, detectNearAnchors(ws, cellText));
+  }
+
+  if (fallbackBest) {
+    console.info(`[checklist-parser] nivel=${fallbackBest.level} source=${fallbackBest.source}`);
+    return { level: fallbackBest.level };
+  }
+
+  return {};
 }

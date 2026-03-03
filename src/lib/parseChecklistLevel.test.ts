@@ -61,4 +61,30 @@ describe('detectChecklistOutcome', () => {
     expect(detected.result).toBe('no_conforme');
     expect(detected.level).toBeUndefined();
   });
+
+  it('si hay columna Resultado explícita, gana sobre opciones ALTA/BAJA en otra zona', async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Real');
+
+    ws.getCell('A3').value = 'Item';
+    ws.getCell('B3').value = 'Resultado';
+    ws.getCell('C3').value = 'Marca';
+
+    ws.getCell('A4').value = 'Checklist de rendimiento';
+    ws.getCell('B4').value = 'BAJA';
+    ws.getCell('C4').value = 'X';
+
+    // Zona de opciones visuales que no debe dominar
+    ws.getCell('H10').value = 'Resultado final';
+    ws.getCell('I10').value = 'ALTA';
+    ws.getCell('J10').value = 'BAJA';
+    ws.getCell('I10').fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF00AA00' },
+    };
+
+    const detected = detectChecklistOutcome(wb);
+    expect(detected.level).toBe('baja');
+  });
 });
