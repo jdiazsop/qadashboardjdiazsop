@@ -23,6 +23,7 @@ export function PerformanceSection({ data, onChange }: Props) {
   const checklistRef = useRef<HTMLInputElement>(null);
   const excelRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
+  const evidenceRef = useRef<HTMLInputElement>(null);
 
   const update = (partial: Partial<PerformanceData>) => onChange({ ...d, ...partial });
 
@@ -249,15 +250,43 @@ export function PerformanceSection({ data, onChange }: Props) {
             <Paperclip className="w-3.5 h-3.5 text-primary" />
             Sustento por Correo
           </h4>
-          <label className="flex items-center gap-2 cursor-pointer">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => evidenceRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors"
+            >
+              <Upload className="w-3 h-3" />
+              Adjuntar sustento
+            </button>
             <input
-              type="checkbox"
-              checked={d.notApplicableEmailAttached ?? false}
-              onChange={e => update({ notApplicableEmailAttached: e.target.checked })}
-              className="rounded border-border"
+              ref={evidenceRef}
+              type="file"
+              accept=".pdf,.xlsx,.xls,.msg,.eml,.png,.jpg,.jpeg"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  update({ evidenceFileName: file.name, notApplicableEmailAttached: true });
+                  toast.success(`Sustento adjuntado: ${file.name}`);
+                }
+                if (evidenceRef.current) evidenceRef.current.value = '';
+              }}
+              className="hidden"
             />
-            <span className="text-[10px] text-muted-foreground">Sustento adjuntado por correo</span>
-          </label>
+            {d.evidenceFileName ? (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
+                <Paperclip className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] text-foreground truncate max-w-[200px]">{d.evidenceFileName}</span>
+                <button
+                  onClick={() => update({ evidenceFileName: undefined, notApplicableEmailAttached: false })}
+                  className="text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <span className="text-[10px] text-muted-foreground italic">Sin sustento adjuntado</span>
+            )}
+          </div>
         </div>
 
         {/* ── 2. Understanding Session ── */}
