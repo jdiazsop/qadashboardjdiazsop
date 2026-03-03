@@ -401,7 +401,11 @@ export interface PerformanceData {
   notApplicableReason?: string;
   notApplicableEmailAttached?: boolean;
   acceptanceCriteria?: PerformanceAcceptanceCriteria;
+  matrizFileName?: string;
+  matrizStoragePath?: string;
   testResults?: PerformanceTestResult[];
+  pdfFileName?: string;
+  pdfStoragePath?: string;
   additionalEvidenceFiles?: { name: string; storagePath: string }[];
 }
 

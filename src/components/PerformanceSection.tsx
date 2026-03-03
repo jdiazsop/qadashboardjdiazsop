@@ -133,7 +133,8 @@ export function PerformanceSection({ data, onChange }: Props) {
     setParsingExcel(true);
     try {
       const criteria = await parsePerformanceExcel(file);
-      update({ acceptanceCriteria: criteria });
+      const storagePath = await uploadFile(file, 'matriz');
+      update({ acceptanceCriteria: criteria, matrizFileName: file.name, matrizStoragePath: storagePath ?? undefined });
       toast.success('Matriz de relevamiento importada');
     } catch (err) {
       console.error(err);
@@ -179,7 +180,8 @@ export function PerformanceSection({ data, onChange }: Props) {
         })
       );
 
-      update({ testResults: results });
+      const storagePath = await uploadFile(file, 'pdf-informe');
+      update({ testResults: results, pdfFileName: file.name, pdfStoragePath: storagePath ?? undefined });
       toast.success(`${results.length} resultado(s) extraído(s) del informe`);
     } catch (err) {
       console.error(err);
@@ -527,16 +529,37 @@ export function PerformanceSection({ data, onChange }: Props) {
 
               {expandedCriteria && (
                 <>
-                  <div className="flex gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
                     <button
                       onClick={() => excelRef.current?.click()}
                       disabled={parsingExcel}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 shrink-0"
                     >
                       <Upload className="w-3 h-3" />
                       {parsingExcel ? 'Procesando...' : 'Importar Matriz de Relevamiento'}
                     </button>
                     <input ref={excelRef} type="file" accept=".xlsx,.xls" onChange={handleExcelImport} className="hidden" />
+                    {d.matrizFileName ? (
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
+                        <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
+                        <span className="text-[10px] text-foreground truncate">{d.matrizFileName}</span>
+                        <button
+                          onClick={() => d.matrizStoragePath ? downloadFile(d.matrizStoragePath, d.matrizFileName!) : toast.info('Reemplace el archivo para habilitar descarga')}
+                          className="text-primary hover:text-primary/80 transition-colors shrink-0" title="Descargar"
+                        >
+                          <Download className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (d.matrizStoragePath) await deleteFile(d.matrizStoragePath);
+                            update({ matrizFileName: undefined, matrizStoragePath: undefined });
+                          }}
+                          className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
@@ -571,11 +594,11 @@ export function PerformanceSection({ data, onChange }: Props) {
 
               {expandedResults && (
                 <>
-                  <div className="flex gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
                     <button
                       onClick={() => pdfRef.current?.click()}
                       disabled={parsingPdf}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 shrink-0"
                     >
                       <Upload className="w-3 h-3" />
                       {parsingPdf ? 'Procesando PDF...' : 'Importar Informe PDF'}
@@ -583,10 +606,31 @@ export function PerformanceSection({ data, onChange }: Props) {
                     <input ref={pdfRef} type="file" accept=".pdf" onChange={handlePdfImport} className="hidden" />
                     <button
                       onClick={addEmptyResult}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors shrink-0"
                     >
                       + Agregar manual
                     </button>
+                    {d.pdfFileName ? (
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
+                        <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
+                        <span className="text-[10px] text-foreground truncate">{d.pdfFileName}</span>
+                        <button
+                          onClick={() => d.pdfStoragePath ? downloadFile(d.pdfStoragePath, d.pdfFileName!) : toast.info('Reemplace el archivo para habilitar descarga')}
+                          className="text-primary hover:text-primary/80 transition-colors shrink-0" title="Descargar"
+                        >
+                          <Download className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (d.pdfStoragePath) await deleteFile(d.pdfStoragePath);
+                            update({ pdfFileName: undefined, pdfStoragePath: undefined });
+                          }}
+                          className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
 
                   {(d.testResults ?? []).length > 0 ? (
