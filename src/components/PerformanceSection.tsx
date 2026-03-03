@@ -215,9 +215,9 @@ export function PerformanceSection({ data, onChange }: Props) {
           </button>
           <input ref={checklistRef} type="file" accept=".xlsx,.xls" onChange={handleChecklistImport} className="hidden" />
         </div>
-        {/* Nivel Alta / Baja */}
-        {d.checklistLevel && (
-          <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold rounded-md border mb-2
+        {/* Nivel detectado automáticamente del Excel */}
+        {d.checklistLevel ? (
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold rounded-md border
             ${d.checklistLevel === 'alta'
               ? 'bg-red-500/20 border-red-500 text-red-400'
               : 'bg-blue-500/20 border-blue-500 text-blue-400'
@@ -225,41 +225,9 @@ export function PerformanceSection({ data, onChange }: Props) {
           >
             {d.checklistLevel === 'alta' ? '🔴 Nivel: ALTA' : '🔵 Nivel: BAJA'}
           </div>
+        ) : (
+          <p className="text-[10px] text-muted-foreground italic">Sin checklist importado</p>
         )}
-        <div className="flex gap-2">
-          <div className="flex gap-2 mr-4">
-            {(['alta', 'baja'] as const).map(lvl => (
-              <button
-                key={lvl}
-                onClick={() => update({ checklistLevel: lvl })}
-                className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
-                  ${d.checklistLevel === lvl
-                    ? lvl === 'alta' ? 'bg-red-500/20 border-red-500 text-red-400'
-                      : 'bg-blue-500/20 border-blue-500 text-blue-400'
-                    : 'border-border text-muted-foreground hover:border-primary/50'
-                  }`}
-              >
-                {lvl === 'alta' ? 'Alta' : 'Baja'}
-              </button>
-            ))}
-          </div>
-          <div className="border-l border-border mx-1" />
-          {(['conforme', 'no_conforme', 'pendiente'] as const).map(opt => (
-            <button
-              key={opt}
-              onClick={() => update({ checklistResult: opt })}
-              className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
-                ${d.checklistResult === opt
-                  ? opt === 'conforme' ? 'bg-green-500/20 border-green-500 text-green-400'
-                    : opt === 'no_conforme' ? 'bg-red-500/20 border-red-500 text-red-400'
-                    : 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
-                  : 'border-border text-muted-foreground hover:border-primary/50'
-                }`}
-            >
-              {opt === 'conforme' ? '✓ Conforme' : opt === 'no_conforme' ? '✗ No Conforme' : '⏳ Pendiente'}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* ── 2. Understanding Session ── */}
