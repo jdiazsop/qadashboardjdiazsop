@@ -389,6 +389,8 @@ export interface PerformanceTestResult {
 export interface PerformanceData {
   /** Checklist result: conforme / no_conforme / pendiente */
   checklistResult?: 'conforme' | 'no_conforme' | 'pendiente';
+  /** Checklist level detected from Excel: alta / baja */
+  checklistLevel?: 'alta' | 'baja';
   /** Whether an understanding session took place */
   hadUnderstandingSession?: boolean;
   /** Whether performance tests apply – null = undecided */
