@@ -604,12 +604,6 @@ export function PerformanceSection({ data, onChange }: Props) {
                       {parsingPdf ? 'Procesando PDF...' : 'Importar Informe PDF'}
                     </button>
                     <input ref={pdfRef} type="file" accept=".pdf" onChange={handlePdfImport} className="hidden" />
-                    <button
-                      onClick={addEmptyResult}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors shrink-0"
-                    >
-                      + Agregar manual
-                    </button>
                     {d.pdfFileName ? (
                       <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
                         <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
@@ -658,19 +652,19 @@ export function PerformanceSection({ data, onChange }: Props) {
                             <tr key={r.id} className="border-b border-border/50 hover:bg-surface-1/50">
                               <td className="py-1 px-1">
                                 <input value={r.type ?? ''} onChange={e => updateResult(r.id, 'type', e.target.value)}
-                                  className="w-16 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" placeholder="Carga" />
+                                  className="w-28 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" placeholder="Carga" />
                               </td>
                               <td className="py-1 px-1">
                                 <input type="date" value={r.startDate ?? ''} onChange={e => updateResult(r.id, 'startDate', e.target.value)}
-                                  className="w-24 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
+                                  className="w-28 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
                               </td>
                               <td className="py-1 px-1">
                                 <input value={r.simulatedUsers ?? ''} onChange={e => updateResult(r.id, 'simulatedUsers', e.target.value)}
-                                  className="w-20 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
+                                  className="w-28 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
                               </td>
                               <td className="py-1 px-1">
                                 <input value={r.duration ?? ''} onChange={e => updateResult(r.id, 'duration', e.target.value)}
-                                  className="w-16 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
+                                  className="w-20 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
                               </td>
                               <td className="py-1 px-1 text-right">
                                 <input type="number" value={r.trx ?? ''} onChange={e => updateResult(r.id, 'trx', e.target.value)}
@@ -725,7 +719,7 @@ export function PerformanceSection({ data, onChange }: Props) {
                       </table>
                     </div>
                   ) : (
-                    <p className="text-[10px] text-muted-foreground italic">No hay resultados. Importe un informe PDF o agregue manualmente.</p>
+                    <p className="text-[10px] text-muted-foreground italic">No hay resultados. Importe un informe PDF.</p>
                   )}
                 </>
               )}
