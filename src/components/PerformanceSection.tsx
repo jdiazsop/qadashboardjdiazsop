@@ -281,41 +281,43 @@ export function PerformanceSection({ data, onChange }: Props) {
 
         {/* ── 2. Understanding Session ── */}
         <div className="bg-surface-0 border border-border rounded-lg p-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5 text-primary" />
-            Sesión de Entendimiento de Rendimiento
-          </h4>
-          <div className="flex gap-2 mb-2">
-            <button
-              onClick={() => update({ hadUnderstandingSession: true })}
-              className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
-                ${d.hadUnderstandingSession === true
-                  ? 'bg-green-500/20 border-green-500 text-green-400'
-                  : 'border-border text-muted-foreground hover:border-primary/50'
-                }`}
-            >
-              Sí, se realizó
-            </button>
-            <button
-              onClick={() => update({ hadUnderstandingSession: false })}
-              className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
-                ${d.hadUnderstandingSession === false
-                  ? 'bg-red-500/20 border-red-500 text-red-400'
-                  : 'border-border text-muted-foreground hover:border-primary/50'
-                }`}
-            >
-              No se realizó
-            </button>
-            <button
-              onClick={() => update({ hadUnderstandingSession: 'pending' as any })}
-              className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
-                ${d.hadUnderstandingSession === 'pending'
-                  ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
-                  : 'border-border text-muted-foreground hover:border-primary/50'
-                }`}
-            >
-              Pendiente
-            </button>
+          <div className="flex items-center gap-3 mb-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5 shrink-0">
+              <Users className="w-3.5 h-3.5 text-primary" />
+              Sesión de Entendimiento
+            </h4>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => update({ hadUnderstandingSession: true })}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors
+                  ${d.hadUnderstandingSession === true
+                    ? 'bg-green-500/20 border-green-500 text-green-400'
+                    : 'border-border text-muted-foreground hover:border-primary/50'
+                  }`}
+              >
+                Sí
+              </button>
+              <button
+                onClick={() => update({ hadUnderstandingSession: false })}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors
+                  ${d.hadUnderstandingSession === false
+                    ? 'bg-red-500/20 border-red-500 text-red-400'
+                    : 'border-border text-muted-foreground hover:border-primary/50'
+                  }`}
+              >
+                No
+              </button>
+              <button
+                onClick={() => update({ hadUnderstandingSession: 'pending' as any })}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors
+                  ${d.hadUnderstandingSession === 'pending'
+                    ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
+                    : 'border-border text-muted-foreground hover:border-primary/50'
+                  }`}
+              >
+                Pendiente
+              </button>
+            </div>
           </div>
           {/* Evidence upload for session */}
           <div className="flex items-center gap-2 mt-2">
@@ -370,31 +372,33 @@ export function PerformanceSection({ data, onChange }: Props) {
 
         {/* ── 3. Applies Performance Tests? ── */}
         <div className="bg-surface-0 border border-border rounded-lg p-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
-            <Activity className="w-3.5 h-3.5 text-primary" />
-            ¿Aplica Pruebas de Rendimiento?
-          </h4>
-          <div className="flex gap-2 mb-2">
-            <button
-              onClick={() => update({ appliesPerformanceTests: true })}
-              className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
-                ${applies === true
-                  ? 'bg-green-500/20 border-green-500 text-green-400'
-                  : 'border-border text-muted-foreground hover:border-primary/50'
-                }`}
-            >
-              Sí aplica
-            </button>
-            <button
-              onClick={() => update({ appliesPerformanceTests: false })}
-              className={`px-3 py-1.5 text-[10px] font-medium rounded-md border transition-colors
-                ${applies === false
-                  ? 'bg-red-500/20 border-red-500 text-red-400'
-                  : 'border-border text-muted-foreground hover:border-primary/50'
-                }`}
-            >
-              No aplica
-            </button>
+          <div className="flex items-center gap-3 mb-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5 shrink-0">
+              <Activity className="w-3.5 h-3.5 text-primary" />
+              ¿Aplica Pruebas de Rendimiento?
+            </h4>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => update({ appliesPerformanceTests: true })}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors
+                  ${applies === true
+                    ? 'bg-green-500/20 border-green-500 text-green-400'
+                    : 'border-border text-muted-foreground hover:border-primary/50'
+                  }`}
+              >
+                Sí
+              </button>
+              <button
+                onClick={() => update({ appliesPerformanceTests: false })}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors
+                  ${applies === false
+                    ? 'bg-red-500/20 border-red-500 text-red-400'
+                    : 'border-border text-muted-foreground hover:border-primary/50'
+                  }`}
+              >
+                No
+              </button>
+            </div>
           </div>
 
           {applies === false && (
