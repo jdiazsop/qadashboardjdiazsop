@@ -510,7 +510,7 @@ export function PerformanceSection({ data, onChange }: Props) {
                       className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
                     >
                       <Upload className="w-3 h-3" />
-                      {parsingExcel ? 'Procesando...' : 'Importar Matriz Excel'}
+                      {parsingExcel ? 'Procesando...' : 'Importar Matriz de Relevamiento'}
                     </button>
                     <input ref={excelRef} type="file" accept=".xlsx,.xls" onChange={handleExcelImport} className="hidden" />
                   </div>
