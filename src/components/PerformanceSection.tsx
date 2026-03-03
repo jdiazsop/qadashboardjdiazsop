@@ -237,11 +237,11 @@ export function PerformanceSection({ data, onChange }: Props) {
             {d.checklistLevel ? (
               <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold rounded-md border shrink-0
                 ${d.checklistLevel === 'alta'
-                  ? 'bg-red-500/20 border-red-500 text-red-400'
-                  : 'bg-blue-500/20 border-blue-500 text-blue-400'
+                  ? 'bg-green-500/20 border-green-500 text-green-400'
+                  : 'bg-orange-500/20 border-orange-500 text-orange-400'
                 }`}
               >
-                {d.checklistLevel === 'alta' ? '🔴 ALTA' : '🔵 BAJA'}
+                {d.checklistLevel === 'alta' ? '🟢 ALTA' : '🟠 BAJA'}
               </div>
             ) : (
               <span className="text-[10px] text-muted-foreground italic">Sin checklist</span>
