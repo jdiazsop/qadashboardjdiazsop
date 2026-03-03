@@ -98,31 +98,68 @@ export function PerformanceSection({ data, onChange }: Props) {
         update({ checklistResult: result as any, checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
         toast.success(`Checklist importado: ${result}`);
       } else {
-        // Check for Alta/Baja – look for the "Prioridad" row first
+        // Check for Alta/Baja – prioritize value tied to "Prioridad" row
         let found = false;
         let detectedLevel: 'alta' | 'baja' | undefined;
-        ws.eachRow((row) => {
-          if (found) return;
-          const cells: string[] = [];
-          row.eachCell((cell) => {
-            cells.push(cellText(cell.value));
-          });
-          const hasPrioridad = cells.some(c => c.includes('prioridad'));
-          if (hasPrioridad) {
-            const level = cells.find(c => c === 'alta' || c === 'baja');
-            if (level) {
-              detectedLevel = level as 'alta' | 'baja';
-              found = true;
+
+        const extractLevel = (text: string): 'alta' | 'baja' | undefined => {
+          const normalized = text
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+          if (normalized === 'alta' || normalized === 'baja') return normalized as 'alta' | 'baja';
+          const matches = [...normalized.matchAll(/\b(alta|baja)\b/g)].map(m => m[1] as 'alta' | 'baja');
+          const unique = [...new Set(matches)];
+          return unique.length === 1 ? unique[0] : undefined;
+        };
+
+        let priorityAnchor: { row: number; col: number } | undefined;
+        ws.eachRow((row, rowNumber) => {
+          row.eachCell((cell, colNumber) => {
+            if (priorityAnchor) return;
+            const txt = cellText(cell.value)
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .toLowerCase();
+            if (txt.includes('prioridad') && txt.includes('rendimiento')) {
+              priorityAnchor = { row: rowNumber, col: colNumber };
             }
-          }
+          });
         });
-        // Fallback: scan all cells for exact "alta"/"baja"
+
+        if (priorityAnchor) {
+          const row = ws.getRow(priorityAnchor.row);
+          const candidates: Array<{ level: 'alta' | 'baja'; col: number; hasFill: boolean }> = [];
+
+          row.eachCell((cell, colNumber) => {
+            if (colNumber <= priorityAnchor!.col) return;
+            const level = extractLevel(cellText(cell.value));
+            if (!level) return;
+            const hasFill = Boolean(cell.style?.fill);
+            candidates.push({ level, col: colNumber, hasFill });
+          });
+
+          if (candidates.length > 0) {
+            const preferred = candidates.some(c => c.hasFill)
+              ? candidates.filter(c => c.hasFill)
+              : candidates;
+            const chosen = preferred.reduce((acc, cur) => (cur.col > acc.col ? cur : acc));
+            detectedLevel = chosen.level;
+            found = true;
+          }
+        }
+
+        // Fallback: scan all cells and accept only unambiguous level
         if (!found) {
           const levels = new Set<string>();
           ws.eachRow((row) => {
             row.eachCell((cell) => {
-              const val = cellText(cell.value);
-              if (val === 'alta' || val === 'baja') levels.add(val);
+              const level = extractLevel(cellText(cell.value));
+              if (level) levels.add(level);
             });
           });
           if (levels.size === 1) {
