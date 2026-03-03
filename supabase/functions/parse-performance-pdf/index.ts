@@ -29,10 +29,20 @@ serve(async (req) => {
       });
     }
 
-    const prompt = `Analiza este informe de pruebas de rendimiento (performance) y extrae los resultados de cada tipo de prueba encontrado (puede ser: Prueba de carga, Prueba de estrés, u otros tipos).
+    const prompt = `Analiza este informe de pruebas de rendimiento (performance) y extrae los resultados de CADA tipo de prueba encontrado.
+
+Los tipos de prueba pueden incluir (pero no limitarse a):
+- Prueba de Carga (síncrona)
+- Prueba de Carga (asíncrona)
+- Prueba de Estrés (síncrona)
+- Prueba de Estrés (asíncrona)
+- Prueba de Carga
+- Prueba de Estrés
+
+IMPORTANTE: Si hay pruebas síncronas y asíncronas separadas, extráelas como resultados INDEPENDIENTES con tipos como "Carga (Síncrona)", "Carga (Asíncrona)", "Estrés (Síncrona)", "Estrés (Asíncrona)", etc.
 
 Para CADA tipo de prueba encontrado, extrae:
-- type: tipo de prueba (ej: "Carga", "Estrés")
+- type: tipo de prueba (ej: "Carga", "Carga (Síncrona)", "Carga (Asíncrona)", "Estrés", "Estrés (Síncrona)", "Estrés (Asíncrona)")
 - startDate: fecha de inicio (formato YYYY-MM-DD si es posible)
 - trx: número de transacciones (TRX)
 - simulatedUsers: usuarios simulados (ej: "hasta 10 usuarios")
@@ -43,7 +53,10 @@ Para CADA tipo de prueba encontrado, extrae:
 - responseTimeMin: tiempo de respuesta mínimo en segundos
 - responseTimeMax: tiempo de respuesta máximo en segundos
 - tps: transacciones por segundo
-- status: estado final (ej: "CONFORME", "NO CONFORME")
+- status: estado final. REGLAS para determinar el estado:
+  * Si el informe dice explícitamente "CONFORME" o "NO CONFORME" para esa prueba, usa ese valor.
+  * Para pruebas de Estrés: revisa la sección de análisis/conclusiones del informe. Si el análisis indica que la aplicación se comportó correctamente bajo estrés, pon "CONFORME". Si indica degradación significativa, errores o problemas, pon "NO CONFORME".
+  * Si no hay suficiente información para determinar el estado, déjalo como null (se mostrará como guión "—").
 
 Responde SOLO con un JSON válido con esta estructura exacta:
 {

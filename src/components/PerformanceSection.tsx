@@ -702,9 +702,13 @@ export function PerformanceSection({ data, onChange }: Props) {
                               </td>
                               <td className="py-1 px-1 text-center">
                                 <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold
-                                  ${(r.status ?? '').toUpperCase().includes('CONFORME')
-                                    ? 'bg-green-500/20 text-green-400'
-                                    : r.status ? 'bg-red-500/20 text-red-400' : 'text-muted-foreground'
+                                  ${r.status
+                                    ? (r.status.toUpperCase().includes('NO CONFORME') || r.status.toUpperCase().includes('NO_CONFORME'))
+                                      ? 'bg-red-500/20 text-red-400'
+                                      : r.status.toUpperCase().includes('CONFORME')
+                                        ? 'bg-green-500/20 text-green-400'
+                                        : 'text-muted-foreground'
+                                    : 'text-muted-foreground'
                                   }`}>
                                   {r.status || '—'}
                                 </span>
