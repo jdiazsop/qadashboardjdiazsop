@@ -465,10 +465,7 @@ export function PerformanceSection({ data, onChange }: Props) {
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1.5">
-                    <AlertTriangle className="w-3 h-3 text-yellow-400" />
-                    <span className="text-[10px] text-yellow-400 italic">Adjunte sustento en Sesión de Entendimiento</span>
-                  </div>
+                  <span className="text-[10px] text-muted-foreground italic">Sin sustento adjuntado</span>
                 )}
                 {(d.additionalEvidenceFiles ?? []).map((f, idx) => (
                   <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
