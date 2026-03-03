@@ -397,6 +397,8 @@ export interface PerformanceData {
   evidenceFileName?: string;
   /** Whether an understanding session took place: true / false / 'pending' */
   hadUnderstandingSession?: boolean | 'pending';
+  /** Evidence file name for understanding session */
+  sessionEvidenceFileName?: string;
   /** Whether performance tests apply – null = undecided */
   appliesPerformanceTests?: boolean | null;
   /** Reason if not applicable */
