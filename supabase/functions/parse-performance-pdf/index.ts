@@ -55,9 +55,10 @@ Para CADA tipo de prueba encontrado, extrae:
 - tps: transacciones por segundo
 - status: estado final. REGLAS para determinar el estado:
   * Si el informe dice explícitamente "CONFORME" o "NO CONFORME" para esa prueba, usa ese valor.
-  * Para pruebas de Estrés: revisa la sección de análisis/conclusiones/observaciones del informe. Si NO hay observaciones negativas, o si el análisis indica que la aplicación se comportó correctamente bajo estrés, pon "CONFORME". Solo pon "NO CONFORME" si hay evidencia explícita de degradación significativa, errores críticos o problemas graves.
-  * Para pruebas de Carga: aplica la misma lógica. Si no hay observaciones negativas o problemas reportados, pon "CONFORME".
+  * Para pruebas de Estrés: SOLO usa "NO CONFORME" si existe evidencia textual explícita en observaciones/análisis/conclusiones (cita breve).
+  * Si no hay evidencia negativa explícita, usa "CONFORME".
   * Si no hay suficiente información para determinar el estado, déjalo como null (se mostrará como guión "—").
+- statusEvidence: cita corta textual (máx 180 chars) que justifica el estado. Si no hay evidencia explícita, devolver null.
 
 Responde SOLO con un JSON válido con esta estructura exacta:
 {
@@ -74,8 +75,8 @@ Responde SOLO con un JSON válido con esta estructura exacta:
       "responseTimeMin": number_or_null,
       "responseTimeMax": number_or_null,
       "tps": number_or_null,
-      "status": "string or null"
-    }
+      "status": "string or null",
+      "statusEvidence": "string or null"
   ]
 }
 
