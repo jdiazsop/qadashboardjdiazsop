@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Upload, FileSpreadsheet, FileText, CheckCircle2, XCircle,
-  AlertTriangle, Users, Clock, Activity, ChevronDown, ChevronUp,
+  AlertTriangle, Users, Clock, Activity, ChevronDown, ChevronUp, Paperclip, X,
 } from 'lucide-react';
 
 interface Props {
@@ -54,7 +54,7 @@ export function PerformanceSection({ data, onChange }: Props) {
       });
 
       if (result) {
-        update({ checklistResult: result as any });
+        update({ checklistResult: result as any, checklistFileName: file.name });
         toast.success(`Checklist importado: ${result}`);
       } else {
         // Check for Alta/Baja pattern
@@ -63,7 +63,7 @@ export function PerformanceSection({ data, onChange }: Props) {
           row.eachCell((cell) => {
             const val = String(cell.value ?? '').toLowerCase().trim();
             if (val === 'alta' || val === 'baja') {
-              update({ checklistLevel: val as 'alta' | 'baja' });
+              update({ checklistLevel: val as 'alta' | 'baja', checklistFileName: file.name });
               toast.success(`Checklist nivel detectado: ${val.charAt(0).toUpperCase() + val.slice(1)}`);
               found = true;
             }
@@ -204,7 +204,7 @@ export function PerformanceSection({ data, onChange }: Props) {
           <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
           Resultado del Checklist de Rendimiento
         </h4>
-        <div className="flex flex-wrap gap-2 mb-2">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
           <button
             onClick={() => checklistRef.current?.click()}
             disabled={parsingChecklist}
@@ -214,6 +214,18 @@ export function PerformanceSection({ data, onChange }: Props) {
             {parsingChecklist ? 'Procesando...' : 'Importar Checklist Excel'}
           </button>
           <input ref={checklistRef} type="file" accept=".xlsx,.xls" onChange={handleChecklistImport} className="hidden" />
+          {d.checklistFileName && (
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md">
+              <Paperclip className="w-3 h-3 text-muted-foreground" />
+              <span className="text-[10px] text-foreground truncate max-w-[200px]">{d.checklistFileName}</span>
+              <button
+                onClick={() => update({ checklistFileName: undefined, checklistLevel: undefined, checklistResult: undefined })}
+                className="text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
         </div>
         {/* Nivel detectado automáticamente del Excel */}
         {d.checklistLevel ? (
@@ -228,6 +240,23 @@ export function PerformanceSection({ data, onChange }: Props) {
         ) : (
           <p className="text-[10px] text-muted-foreground italic">Sin checklist importado</p>
         )}
+      </div>
+
+      {/* ── Sustento por correo (siempre visible) ── */}
+      <div className="bg-surface-0 border border-border rounded-lg p-3">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-2 flex items-center gap-1.5">
+          <Paperclip className="w-3.5 h-3.5 text-primary" />
+          Sustento por Correo
+        </h4>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={d.notApplicableEmailAttached ?? false}
+            onChange={e => update({ notApplicableEmailAttached: e.target.checked })}
+            className="rounded border-border"
+          />
+          <span className="text-[10px] text-muted-foreground">Sustento adjuntado por correo</span>
+        </label>
       </div>
 
       {/* ── 2. Understanding Session ── */}

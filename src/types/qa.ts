@@ -391,6 +391,10 @@ export interface PerformanceData {
   checklistResult?: 'conforme' | 'no_conforme' | 'pendiente';
   /** Checklist level detected from Excel: alta / baja */
   checklistLevel?: 'alta' | 'baja';
+  /** Name of the imported checklist file */
+  checklistFileName?: string;
+  /** Email evidence file name */
+  evidenceFileName?: string;
   /** Whether an understanding session took place */
   hadUnderstandingSession?: boolean;
   /** Whether performance tests apply – null = undecided */
