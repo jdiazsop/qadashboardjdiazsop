@@ -405,7 +405,7 @@ export function ExportPerformance({ atenciones }: Props) {
             }
 
             // Summary/Total row
-            const summary = svc?.stressSummary;
+            const summary = stressEnabledForService ? svc?.stressSummary : undefined;
             if (summary) {
               const sumRowNum = ws.rowCount + 1;
               const sumRow = ws.addRow([]);
