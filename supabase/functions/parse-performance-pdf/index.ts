@@ -399,7 +399,7 @@ No incluyas explicaciones, solo el JSON.`;
     for (const svc of (parsed.services ?? [])) {
       const stressSteps = Array.isArray(svc.stressSteps) ? svc.stressSteps : [];
       svc.stressSteps = stressSteps;
-      svc.stressSummary = deriveStressSummary(stressSteps);
+      svc.stressSummary = normalizeStressSummary(svc.stressSummary);
 
       const stressDeclared = svc.hasStressSection === true;
       const stressExplicitlyMissing = svc.hasStressSection === false;
