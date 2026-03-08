@@ -282,8 +282,8 @@ export function ExportPerformance({ atenciones }: Props) {
       );
       const hasStressStepCols = has('stressSteps');
 
-      const centerAlign: Partial<ExcelJS.Alignment> = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      const leftAlign: Partial<ExcelJS.Alignment> = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      const centerAlign: Partial<{ vertical: string; horizontal: string; wrapText: boolean }> = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      const leftAlign: Partial<{ vertical: string; horizontal: string; wrapText: boolean }> = { vertical: 'middle', horizontal: 'left', wrapText: true };
 
       for (const a of chosen) {
         const services = a.performanceData?.services ?? [];
