@@ -325,6 +325,24 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
     <div className="flex gap-3">
       {/* ── LEFT COLUMN: Config sections ── */}
       <div className="w-1/3 min-w-[280px] space-y-3 shrink-0">
+        {/* ── 0. Detalle Funcional + Tipo de Atención ── */}
+        {atencion && (
+          <div className="bg-surface-0 border border-border rounded-lg p-3 space-y-2">
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Detalle Funcional</h4>
+              <p className="text-xs text-foreground bg-surface-1 border border-border rounded px-2 py-1.5 min-h-[28px]">
+                {atencion.detalleFuncional || <span className="text-muted-foreground italic">Sin detalle funcional</span>}
+              </p>
+            </div>
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Tipo de Atención</h4>
+              <p className="text-xs text-foreground bg-surface-1 border border-border rounded px-2 py-1.5 min-h-[28px]">
+                {atencion.tipoAtencion === 'mejora' ? 'Mejora' : atencion.tipoAtencion === 'nueva_funcionalidad' ? 'Nueva Funcionalidad' : <span className="text-muted-foreground italic">Sin tipo definido</span>}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ── 1. Checklist Result ── */}
         <div className="bg-surface-0 border border-border rounded-lg p-3">
           <div className="flex items-center gap-3 mb-2">

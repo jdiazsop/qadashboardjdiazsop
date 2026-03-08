@@ -354,6 +354,7 @@ const Index = () => {
                   <PerformanceSection
                     data={selected.performanceData}
                     onChange={(performanceData) => updateAtencion({ ...selected, performanceData })}
+                    atencion={selected}
                   />
                 );
               })()}
