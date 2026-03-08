@@ -274,11 +274,15 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
           </thead>
           <tbody>
             <tr>
-              {cols.map(c => (
-                <td key={c.key} className={`${cellClass} ${c.align === 'right' ? 'text-right' : ''}`}>
-                  {r[c.key] ?? '—'}
-                </td>
-              ))}
+              {cols.map(c => {
+                const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
+                const value = r[c.key];
+                return (
+                  <td key={c.key} className={`${cellClass} ${c.align === 'right' ? 'text-right' : ''}`}>
+                    {isResponseMetric ? formatResponseMetric(value) : (value ?? '—')}
+                  </td>
+                );
+              })}
             </tr>
           </tbody>
         </table>
