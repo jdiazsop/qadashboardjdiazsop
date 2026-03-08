@@ -68,33 +68,33 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - tMin: tiempo respuesta mínimo en minutos
    - tMax: tiempo respuesta máximo en minutos
 
-4. **Análisis y Comentarios**:
-   Para el ANÁLISIS de CARGA, genera un texto técnico con esta estructura y tono exacto:
-   "Para la validación asíncrona, el proceso inicia con la invocación del servicio de [nombre del servicio], el cual genera un ID de trabajo utilizado posteriormente para consultar el estado de procesamiento hasta alcanzar el estado [estado final]."
-   
-   Para los COMENTARIOS ADICIONALES de CARGA, genera un texto con esta estructura y tono:
+4. **Análisis y Comentarios** (SEPARA CORRECTAMENTE cada campo):
+
+   "loadAnalysis" - SOLO el análisis descriptivo del proceso de carga. Estructura exacta:
+   "Para la validación asíncrona, el proceso inicia con la invocación del servicio de [nombre del servicio], el cual genera un ID de trabajo utilizado posteriormente para consultar el estado de procesamiento hasta alcanzar el estado [estado final] (\"Terminado\")."
+   Nada más en este campo. NO incluyas evaluaciones ni métricas aquí.
+
+   "loadComments" - Los comentarios adicionales con evaluación detallada. Estructura exacta:
    "El proceso asíncrono, evaluado bajo un escenario de [X] asegurados y [Y] usuarios concurrentes, registró un tiempo de respuesta promedio de [tProm] minutos y un tiempo máximo de [tMax] minutos. Estos valores se mantienen dentro de los criterios de aceptación establecidos para el proceso ([rango de tiempo] en condiciones promedio).
    Asimismo, se observa una tendencia de incremento proporcional de los tiempos de respuesta en función del aumento de la concurrencia y del volumen de procesamiento.
-   [Si aplica: Se procesaron X transacciones en el escenario con Y asegurados y Z usuarios concurrentes, manteniendo un comportamiento estable.]"
-   
-   Luego añade evaluación con el formato:
-   "Tiempo Rpta Esperado: [valor] min max
-   Tiempo Rpta Obtenido: [tProm obtenido] min
-   ☑ Conforme - [justificación basada en si el tiempo obtenido está dentro del rango aceptable, mencionar el rango y los asegurados probados vs el SLA]
-   % Error esperado: [valor]% max
-   % Error obtenido: [valor]%
-   ☑ Conforme : No se presentan errores en la ejecución."
-   
-   Para los COMENTARIOS ADICIONALES de CARGA, añadir también:
-   "Duración: [duración]
-   Throughput real: [cálculo de throughput] trx / [duración] = [resultado] trx/hr
+   Se procesaron [trx] transacciones en el escenario con [asegurados] asegurados y [uvc] usuarios concurrentes, manteniendo un comportamiento estable.
+   Tiempo Rpta Esperado: [responseTimeMaxMin] min max
+   Tiempo Rpta Obtenido: [tProm] min.
+   ☑ Conforme - El tiempo de respuesta obtenido de [tProm] minutos está dentro del rango aceptable de [rango] minutos con [asegurados] asegurados, cumple el SLA del proceso.
+   % Error esperado: [maxErrorRate]% max
+   % Error obtenido: [errorRate]%
+   ☑ Conforme : No se presentan errores en la ejecución.
+   Duración: [duration]
+   Throughput real: [trx] trx / [duration] = [cálculo] trx/hr
    No alcanza al pico ([trxHrPrdPico] trx/hr) debido a la variabilidad en los tiempos de respuesta observados ([tMin] min - [tMax] min), lo que reduce el throughput efectivo durante la ejecución.
    Considerar que el throughput de producción es referencial y el throughput medido ha sido en entorno pre productivo.
-   Se entiende que si bien no son [asegurados del SLA] asegurados con los que se prueba, igual [asegurados probados] esta dentro del rango aceptable. Y también las pruebas de carga se realizan entre [rango de duración aceptable]."
-   
-   Para el ANÁLISIS de ESTRÉS, genera texto describiendo el comportamiento por tramos:
+   Se entiende que si bien no son [asegurados SLA] asegurados con los que se prueba, igual [asegurados probados] está dentro del rango aceptable. Y también las pruebas de carga se realizan entre [rango de duración aceptable]."
+
+   "stressAnalysis" - SOLO el análisis de estrés, sin comentarios adicionales:
    "El servicio mantiene tiempos dentro del SLA hasta [X] usuarios concurrentes, mientras que a partir de [Y] se observa un aumento considerable en los tiempos de respuesta.
    Evidenciando que el punto de inicio de degradación se observa alrededor de [Z] usuarios concurrentes."
+
+   "stressComments" - Dejar como cadena VACÍA "". NO generes comentarios adicionales para estrés.
 
 IMPORTANTE: Adapta los valores reales del informe en cada campo. Los análisis y comentarios deben reflejar exactamente los datos numéricos extraídos.
 

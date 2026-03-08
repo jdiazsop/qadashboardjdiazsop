@@ -558,18 +558,12 @@ export function PerformanceSection({ data, onChange }: Props) {
                     {expandedStress && (
                       <>
                         {renderStressTable(svc)}
-                        <div className="mt-3 space-y-2">
+                        <div className="mt-3">
                           <div>
                             <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Análisis</label>
                             <textarea value={svc.stressAnalysis ?? ''} onChange={e => updateService(svcIdx, { stressAnalysis: e.target.value })}
                               rows={6} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
                               placeholder="Análisis de las pruebas de estrés..." />
-                          </div>
-                          <div>
-                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Comentarios Adicionales</label>
-                            <textarea value={svc.stressComments ?? ''} onChange={e => updateService(svcIdx, { stressComments: e.target.value })}
-                              rows={6} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
-                              placeholder="Comentarios adicionales..." />
                           </div>
                         </div>
                       </>
