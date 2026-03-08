@@ -529,19 +529,11 @@ export function PerformanceSection({ data, onChange }: Props) {
                     {expandedLoad && (
                       <>
                         {renderLoadTable(svc)}
-                        <div className="mt-3 space-y-2">
-                          <div>
-                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Análisis</label>
-                            <textarea value={svc.loadAnalysis ?? ''} onChange={e => updateService(svcIdx, { loadAnalysis: e.target.value })}
-                              rows={6} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
-                              placeholder="Análisis de las pruebas de carga..." />
-                          </div>
-                          <div>
-                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Comentarios Adicionales</label>
-                            <textarea value={svc.loadComments ?? ''} onChange={e => updateService(svcIdx, { loadComments: e.target.value })}
-                              rows={6} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
-                              placeholder="Comentarios adicionales..." />
-                          </div>
+                        <div className="mt-3">
+                          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Análisis</label>
+                          <textarea value={svc.loadAnalysis ?? ''} onChange={e => updateService(svcIdx, { loadAnalysis: e.target.value })}
+                            rows={10} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                            placeholder="Análisis de las pruebas de carga..." />
                         </div>
                       </>
                     )}
