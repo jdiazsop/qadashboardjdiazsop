@@ -501,12 +501,27 @@ export function PerformanceSection({ data, onChange }: Props) {
             </div>
           </div>
           {d.dependentRq === 'si' && (
-            <textarea
-              placeholder="Indique la atención dependiente y el motivo..."
-              value={d.dependentRqComment ?? ''}
-              onChange={e => update({ dependentRqComment: e.target.value })}
-              className="w-full min-h-[60px] mt-1 rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
-            />
+            <div className="mt-2 space-y-2">
+              <div>
+                <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Atención</label>
+                <input
+                  type="text"
+                  placeholder="Ej: RQ2025-310, GP2025-220..."
+                  value={d.dependentRqName ?? ''}
+                  onChange={e => update({ dependentRqName: e.target.value })}
+                  className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Motivo</label>
+                <textarea
+                  placeholder="Indique el motivo de la dependencia..."
+                  value={d.dependentRqComment ?? ''}
+                  onChange={e => update({ dependentRqComment: e.target.value })}
+                  className="w-full min-h-[60px] rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+                />
+              </div>
+            </div>
           )}
         </div>
       </div>
