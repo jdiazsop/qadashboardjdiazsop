@@ -644,7 +644,8 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
                     )}
                   </div>
 
-                  {/* Stress Results (read-only table + editable analysis/comments) */}
+                  {/* Stress Results — only show if there are stress steps */}
+                  {(svc.stressSteps ?? []).length > 0 && (
                   <div className="bg-surface-0 border border-border rounded-lg p-3">
                     <button onClick={() => setExpandedStress(!expandedStress)} className="w-full flex items-center justify-between mb-2">
                       <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
@@ -666,6 +667,7 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
                       </>
                     )}
                   </div>
+                  )}
                 </div>
               ))
             ) : (
