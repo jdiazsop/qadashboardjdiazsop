@@ -68,14 +68,11 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - tMin: tiempo respuesta mínimo en minutos
    - tMax: tiempo respuesta máximo en minutos
 
-4. **Análisis y Comentarios** (SEPARA CORRECTAMENTE cada campo):
+4. **Análisis** (TODO va en un solo campo por sección):
 
-   "loadAnalysis" - SOLO el análisis descriptivo del proceso de carga. Estructura exacta:
-   "Para la validación asíncrona, el proceso inicia con la invocación del servicio de [nombre del servicio], el cual genera un ID de trabajo utilizado posteriormente para consultar el estado de procesamiento hasta alcanzar el estado [estado final] (\"Terminado\")."
-   Nada más en este campo. NO incluyas evaluaciones ni métricas aquí.
-
-   "loadComments" - Los comentarios adicionales con evaluación detallada. Estructura exacta:
-   "El proceso asíncrono, evaluado bajo un escenario de [X] asegurados y [Y] usuarios concurrentes, registró un tiempo de respuesta promedio de [tProm] minutos y un tiempo máximo de [tMax] minutos. Estos valores se mantienen dentro de los criterios de aceptación establecidos para el proceso ([rango de tiempo] en condiciones promedio).
+   "loadAnalysis" - Genera TODO el análisis de carga en este único campo, con esta estructura y tono exacto (reemplaza los valores con los datos reales del informe):
+   "Para la validación asíncrona, el proceso inicia con la invocación del servicio de [nombre del servicio], el cual genera un ID de trabajo utilizado posteriormente para consultar el estado de procesamiento hasta alcanzar el estado [estado final] (\"Terminado\").
+   El proceso asíncrono, evaluado bajo un escenario de [X] asegurados y [Y] usuarios concurrentes, registró un tiempo de respuesta promedio de [tProm] minutos y un tiempo máximo de [tMax] minutos. Estos valores se mantienen dentro de los criterios de aceptación establecidos para el proceso ([rango de tiempo] en condiciones promedio).
    Asimismo, se observa una tendencia de incremento proporcional de los tiempos de respuesta en función del aumento de la concurrencia y del volumen de procesamiento.
    Se procesaron [trx] transacciones en el escenario con [asegurados] asegurados y [uvc] usuarios concurrentes, manteniendo un comportamiento estable.
    Tiempo Rpta Esperado: [responseTimeMaxMin] min max
@@ -90,11 +87,16 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    Considerar que el throughput de producción es referencial y el throughput medido ha sido en entorno pre productivo.
    Se entiende que si bien no son [asegurados SLA] asegurados con los que se prueba, igual [asegurados probados] está dentro del rango aceptable. Y también las pruebas de carga se realizan entre [rango de duración aceptable]."
 
-   "stressAnalysis" - SOLO el análisis de estrés, sin comentarios adicionales:
-   "El servicio mantiene tiempos dentro del SLA hasta [X] usuarios concurrentes, mientras que a partir de [Y] se observa un aumento considerable en los tiempos de respuesta.
-   Evidenciando que el punto de inicio de degradación se observa alrededor de [Z] usuarios concurrentes."
+   "loadComments" - Dejar como cadena VACÍA "". NO generes nada aquí.
 
-   "stressComments" - Dejar como cadena VACÍA "". NO generes comentarios adicionales para estrés.
+   "stressAnalysis" - Todo el análisis de estrés en este campo:
+   "El servicio mantiene tiempos dentro del SLA hasta [X] usuarios concurrentes, mientras que a partir de [Y] se observa un aumento considerable en los tiempos de respuesta.
+   Evidenciando que el punto de inicio de degradación se observa alrededor de [Z] usuarios concurrentes.
+   Se evidenció un aumento progresivo en los tiempos de respuesta conforme incrementó la cantidad de usuarios concurrentes, lo que demuestra el impacto directo de la carga en la latencia del sistema.
+   En las pruebas con [asegurados] asegurados, el tiempo promedio pasó de [tProm menor] minutos con [uvc menor] usuarios un máximo de [tMax mayor] minutos, lo que confirma que el servicio presenta degradación progresiva bajo condiciones de mayor carga.
+   En el escenario con [asegurados] asegurados y [uvc mayor] usuarios, se registraron [trx] transacciones completadas, evidenciando que a medida que aumenta la cantidad de usuarios y el volumen de datos procesados, el número de transacciones exitosas disminuye, lo que sugiere una limitación en la capacidad del sistema para sostener altos niveles de concurrencia."
+
+   "stressComments" - Dejar como cadena VACÍA "". NO generes nada aquí.
 
 IMPORTANTE: Adapta los valores reales del informe en cada campo. Los análisis y comentarios deben reflejar exactamente los datos numéricos extraídos.
 
