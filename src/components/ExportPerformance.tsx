@@ -356,9 +356,8 @@ export function ExportPerformance({ atenciones }: Props) {
         const svcsToExport = hasSvcFields && services.length > 0 ? services : [undefined];
 
         for (const svc of svcsToExport) {
-          // Determine how many rows this entry needs (max of 1 data row + stress steps)
-          const steps = svc?.stressSteps ?? [];
-          const maxStressRows = hasStressStepCols ? Math.max(steps.length + 1, 1) : 1; // +1 for summary
+          const stressEnabledForService = hasRealStressData(svc);
+          const steps = stressEnabledForService ? (svc?.stressSteps ?? []) : [];
 
           // First row: general + status + criteria + load + first stress step
           const baseRowNum = ws.rowCount + 1;
