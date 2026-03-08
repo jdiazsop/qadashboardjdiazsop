@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { PerformanceData, PerfServiceData, PerfServiceCriteria, PerfLoadResult, PerfStressStep } from '@/types/qa';
+import { PerformanceData, PerfServiceData, PerfServiceCriteria, PerfLoadResult, PerfStressStep, Atencion } from '@/types/qa';
 import { detectChecklistOutcome } from '@/lib/parseChecklistLevel';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
