@@ -79,6 +79,33 @@ const deriveStressSummary = (stressSteps: any[]): any | undefined => {
   };
 };
 
+const sameMetric = (a: unknown, b: unknown): boolean | null => {
+  const na = toNumber(a);
+  const nb = toNumber(b);
+  if (na === undefined || nb === undefined) return null;
+  return Math.abs(na - nb) <= 0.01;
+};
+
+const looksLikeLoadPhasesInsteadOfStress = (svc: any): boolean => {
+  const steps = Array.isArray(svc?.stressSteps) ? svc.stressSteps : [];
+  if (steps.length === 0) return false;
+
+  const summary = svc?.stressSummary ?? deriveStressSummary(steps) ?? steps[steps.length - 1];
+  const load = svc?.loadResult;
+  if (!summary || !load) return false;
+
+  const checks = [
+    sameMetric(summary.uvc, load.uvc),
+    sameMetric(summary.trx, load.trx),
+    sameMetric(summary.asegurados, load.asegurados),
+    sameMetric(summary.tProm, load.tProm),
+    sameMetric(summary.tMin, load.tMin),
+    sameMetric(summary.tMax, load.tMax),
+  ].filter((v): v is boolean => v !== null);
+
+  return checks.length >= 4 && checks.every(Boolean);
+};
+
 const buildLoadAnalysis = (svc: any): string => {
   const c = svc?.criteria ?? {};
   const r = svc?.loadResult ?? {};
