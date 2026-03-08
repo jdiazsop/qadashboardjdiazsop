@@ -460,7 +460,9 @@ export interface PerformanceData {
   understandingSessionComment?: string;
   /** RQ dependiente: 'si' | 'na' (no aplica) | undefined */
   dependentRq?: 'si' | 'na';
-  /** Comentario del RQ dependiente */
+  /** Nombre/código de la atención dependiente */
+  dependentRqName?: string;
+  /** Comentario del motivo de dependencia */
   dependentRqComment?: string;
 }
 
