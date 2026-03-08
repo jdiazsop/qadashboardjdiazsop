@@ -503,11 +503,20 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
               </div>
             </div>
 
-            {checklistPhases.map(phase => (
+            {checklistPhases.map(phase => {
+              const isCollapsed = collapsedPhases[phase.id] ?? false;
+              return (
               <div key={phase.id} className="mb-4">
-                <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">
-                  {phase.name}
-                </h3>
+                <button
+                  onClick={() => setCollapsedPhases(prev => ({ ...prev, [phase.id]: !isCollapsed }))}
+                  className="flex items-center gap-1.5 w-full text-left mb-2"
+                >
+                  {isCollapsed ? <ChevronRight className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                    {phase.name}
+                  </h3>
+                </button>
+                {!isCollapsed && (
                 <div className="space-y-1.5">
                   {phase.items.map(item => {
                     const val = checkMap[item.id];
