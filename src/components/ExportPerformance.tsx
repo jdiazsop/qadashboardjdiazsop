@@ -525,6 +525,49 @@ export function ExportPerformance({ atenciones }: Props) {
             })}
           </div>
 
+          {/* Templates */}
+          <div className="space-y-2 mt-3 border-t border-border pt-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Plantillas</h3>
+            {templates.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {templates.map(tpl => (
+                  <div key={tpl.name} className="flex items-center gap-1 bg-muted/50 rounded-md px-2 py-1 border border-border">
+                    <button onClick={() => loadTemplate(tpl)} className="text-[10px] text-foreground hover:text-primary transition-colors flex items-center gap-1">
+                      <FolderOpen className="w-3 h-3" />
+                      {tpl.name}
+                    </button>
+                    <button onClick={() => deleteTemplate(tpl.name)} className="text-muted-foreground hover:text-destructive transition-colors">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {showSaveInput ? (
+              <div className="flex items-center gap-2">
+                <input
+                  value={newTemplateName}
+                  onChange={e => setNewTemplateName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveTemplate()}
+                  placeholder="Nombre de plantilla..."
+                  className="flex-1 text-xs px-2 py-1.5 rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  autoFocus
+                />
+                <button onClick={saveTemplate} className="text-[10px] px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90">
+                  Guardar
+                </button>
+                <button onClick={() => { setShowSaveInput(false); setNewTemplateName(''); }} className="text-[10px] px-2 py-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground">
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setShowSaveInput(true)} className="flex items-center gap-1.5 text-[10px] text-primary hover:underline">
+                <Save className="w-3 h-3" />
+                Guardar selección como plantilla
+              </button>
+            )}
+          </div>
+
           {/* Export button */}
           <div className="flex justify-end mt-3">
             <button
