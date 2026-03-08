@@ -424,7 +424,7 @@ export function ExportPerformance({ atenciones }: Props) {
             if (stressAnalysisIncluded) {
               const analCol = stressStartCol + (has('stressSteps') ? 7 : 0) + 1;
               const cell = ws.getCell(baseRowNum, analCol);
-              cell.value = svc?.stressAnalysis ?? '—';
+              cell.value = stressEnabledForService ? (svc?.stressAnalysis ?? '—') : '—';
               cell.alignment = leftAlign;
               cell.font = { name: 'Calibri', size: 9 };
               // Merge analysis cell across stress rows
