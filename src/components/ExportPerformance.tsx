@@ -68,6 +68,7 @@ type FieldKey = (typeof FIELD_GROUPS)[number]['fields'][number]['key'];
 
 const STORAGE_KEY = 'perf-export-fields';
 const ALL_FIELD_KEYS = FIELD_GROUPS.flatMap(g => g.fields.map(f => f.key));
+const ATENCIONES_STORAGE_KEY = 'perf-export-atenciones';
 
 function loadSavedFields(): Set<string> {
   try {
@@ -80,15 +81,30 @@ function loadSavedFields(): Set<string> {
   return new Set(ALL_FIELD_KEYS);
 }
 
+function loadSavedAtenciones(): Set<string> {
+  try {
+    const saved = localStorage.getItem(ATENCIONES_STORAGE_KEY);
+    if (saved) {
+      const arr = JSON.parse(saved) as string[];
+      if (Array.isArray(arr)) return new Set(arr);
+    }
+  } catch {}
+  return new Set();
+}
+
 export function ExportPerformance({ atenciones }: Props) {
   const [open, setOpen] = useState(false);
-  const [selectedAtenciones, setSelectedAtenciones] = useState<Set<string>>(new Set());
+  const [selectedAtenciones, setSelectedAtenciones] = useState<Set<string>>(loadSavedAtenciones);
   const [selectedFields, setSelectedFields] = useState<Set<string>>(loadSavedFields);
 
-  // Persist field selection whenever it changes
+  // Persist selections
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...selectedFields]));
   }, [selectedFields]);
+
+  useEffect(() => {
+    localStorage.setItem(ATENCIONES_STORAGE_KEY, JSON.stringify([...selectedAtenciones]));
+  }, [selectedAtenciones]);
 
   const toggleAtencion = (id: string) => {
     setSelectedAtenciones(prev => {
