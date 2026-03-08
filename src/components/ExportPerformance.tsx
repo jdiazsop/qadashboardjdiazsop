@@ -175,6 +175,33 @@ export function ExportPerformance({ atenciones }: Props) {
     return String(val);
   };
 
+  const hasRealStressData = (svc?: PerfServiceData): boolean => {
+    if (!svc) return false;
+    const steps = svc.stressSteps ?? [];
+    if (steps.length === 0) return false;
+
+    const summary = svc.stressSummary ?? steps[steps.length - 1];
+    const load = svc.loadResult;
+    if (!summary || !load) return true;
+
+    const toNum = (v: unknown) => {
+      if (typeof v === 'number') return v;
+      const n = Number(String(v ?? '').replace(',', '.'));
+      return Number.isFinite(n) ? n : NaN;
+    };
+
+    const fields: Array<keyof NonNullable<PerfServiceData['stressSummary']>> = ['uvc', 'trx', 'asegurados', 'tProm', 'tMin', 'tMax'];
+    const comparable = fields
+      .map((field) => {
+        const s = toNum(summary[field]);
+        const l = toNum((load as any)[field]);
+        return Number.isFinite(s) && Number.isFinite(l) ? Math.abs(s - l) <= 0.01 : null;
+      })
+      .filter((v): v is boolean => v !== null);
+
+    return !(comparable.length >= 4 && comparable.every(Boolean));
+  };
+
   const handleExport = async () => {
     const chosen = atenciones.filter(a => selectedAtenciones.has(a.id));
     if (chosen.length === 0) { toast.error('Selecciona al menos una atención'); return; }
