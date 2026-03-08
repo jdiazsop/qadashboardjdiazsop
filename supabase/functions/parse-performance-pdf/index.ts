@@ -83,7 +83,7 @@ const looksLikeLoadPhasesInsteadOfStress = (svc: any): boolean => {
   const steps = Array.isArray(svc?.stressSteps) ? svc.stressSteps : [];
   if (steps.length === 0) return false;
 
-  const summary = svc?.stressSummary ?? deriveStressSummary(steps) ?? steps[steps.length - 1];
+  const summary = svc?.stressSummary ?? steps[steps.length - 1];
   const load = svc?.loadResult;
   if (!summary || !load) return false;
 
