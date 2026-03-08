@@ -150,7 +150,7 @@ const buildStressAnalysis = (svc: any): string => {
   return [
     `El servicio mantiene tiempos dentro del SLA hasta ${formatNumber(untilUvc, 0)} usuarios concurrentes, mientras que a partir de ${formatNumber(fromUvc, 0)} se observa un aumento considerable en los tiempos de respuesta.`,
     "",
-    `Evidenciando que el punto de inicio de degradación se observa alrededor de ${formatNumber(fromUvc, 0)} usuarios concurrentes.",
+    `Evidenciando que el punto de inicio de degradación se observa alrededor de ${formatNumber(fromUvc, 0)} usuarios concurrentes.`,
   ].join("\n");
 };
 
