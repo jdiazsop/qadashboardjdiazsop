@@ -407,9 +407,18 @@ No incluyas explicaciones, solo el JSON.`;
       svc.stressSteps = stressSteps;
       svc.stressSummary = deriveStressSummary(stressSteps);
 
+      const stressDeclared = svc.hasStressSection === true;
+      const stressExplicitlyMissing = svc.hasStressSection === false;
+      const inferredFalsePositive = looksLikeLoadPhasesInsteadOfStress(svc);
+
+      if (stressExplicitlyMissing || (!stressDeclared && inferredFalsePositive)) {
+        svc.stressSteps = [];
+        svc.stressSummary = undefined;
+      }
+
       svc.loadAnalysis = buildLoadAnalysis(svc);
       svc.loadComments = "";
-      svc.stressAnalysis = buildStressAnalysis(svc);
+      svc.stressAnalysis = (svc.stressSteps?.length ?? 0) > 0 ? buildStressAnalysis(svc) : "";
       svc.stressComments = "";
 
       console.log(`[PDF] service path="${svc.criteria?.path}" process="${svc.criteria?.process}"`);
