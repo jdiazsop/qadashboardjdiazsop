@@ -220,6 +220,7 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - tProm: tiempo de respuesta promedio en minutos (convertir si está en segundos)
    - tMin: tiempo de respuesta mínimo en minutos
    - tMax: tiempo de respuesta máximo en minutos
+   - IMPORTANTE: mantener precisión (al menos 3 decimales cuando corresponda). Ej: 6.18 segundos = 0.103 minutos.
    - errorRate: tasa de error (ej: "0.0%")
    - errors: número de errores
    - tps: transacciones por segundo (throughput)
@@ -237,11 +238,11 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - uvc: usuarios virtuales concurrentes de ese tramo
    - trx: transacciones
    - asegurados: registros
-   - tProm: tiempo respuesta promedio en minutos
-   - tMin: tiempo respuesta mínimo en minutos
-   - tMax: tiempo respuesta máximo en minutos
+   - tProm: tiempo respuesta promedio en minutos (misma precisión del punto anterior)
+   - tMin: tiempo respuesta mínimo en minutos (misma precisión del punto anterior)
+   - tMax: tiempo respuesta máximo en minutos (misma precisión del punto anterior)
 
-   Además, extrae por separado la fila de **Total/Resumen** del informe como "stressSummary" con los mismos campos (uvc, trx, asegurados, tProm, tMin, tMax). Esta fila tiene valores agregados/totales que pueden ser DIFERENTES a la última fila de tramos individuales. Extraerla exactamente como aparece en el informe.
+   Además, extrae por separado la fila de **Total/Resumen** del informe como "stressSummary" con los mismos campos (uvc, trx, asegurados, tProm, tMin, tMax) SOLO si existe explícitamente una fila total/resumen. Si no existe, devuelve stressSummary: null.
 
 4. **Análisis** (TODO va en un solo campo por sección):
 
