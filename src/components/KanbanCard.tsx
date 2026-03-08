@@ -213,6 +213,18 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                 />
               </div>
               <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Tipo de Atención</label>
+                <select
+                  value={atencion.tipoAtencion || ''}
+                  onChange={e => onUpdate({ ...atencion, tipoAtencion: (e.target.value || undefined) as Atencion['tipoAtencion'] })}
+                  className="w-full bg-surface-1 border border-border rounded-lg p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="mejora">Mejora</option>
+                  <option value="nueva_funcionalidad">Nueva Funcionalidad</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Aplicativo</label>
                 <input
                   value={atencion.aplicativo || ''}

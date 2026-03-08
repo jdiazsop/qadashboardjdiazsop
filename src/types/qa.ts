@@ -288,6 +288,8 @@ export interface Atencion {
   description?: string;
   /** Detalle funcional */
   detalleFuncional?: string;
+  /** Tipo de atención */
+  tipoAtencion?: 'mejora' | 'nueva_funcionalidad';
   /** Application name */
   aplicativo?: string;
   /** Jira status */
