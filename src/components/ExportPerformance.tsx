@@ -269,10 +269,10 @@ export function ExportPerformance({ atenciones }: Props) {
       if (has('loadAnalysis')) loadCols.push({ header: 'Análisis Carga', width: 50, getter: (_, s) => s?.loadAnalysis ?? '—' });
       if (loadCols.length > 0) sections.push({ name: 'PRUEBAS DE CARGA', color: 'FF1E4D5F', textColor: 'FFFFFFFF', cols: loadCols });
 
-      // Stress columns — only include if at least one chosen atencion has stress data
+      // Stress columns — only include if at least one chosen atencion has stress data real
       const chosenForCheck = atenciones.filter(a => selectedAtenciones.has(a.id));
       const anyHasStress = chosenForCheck.some(a =>
-        (a.performanceData?.services ?? []).some(s => (s.stressSteps ?? []).length > 0)
+        (a.performanceData?.services ?? []).some(s => hasRealStressData(s))
       );
 
       const stressCols: ColDef[] = [];
