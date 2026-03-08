@@ -1,12 +1,11 @@
 import { useState, useRef } from 'react';
-import { PerformanceData, PerformanceTestResult, PerformanceAcceptanceCriteria } from '@/types/qa';
-import { parsePerformanceExcel } from '@/lib/parsePerformanceExcel';
+import { PerformanceData, PerfServiceData, PerfServiceCriteria, PerfLoadResult, PerfStressStep } from '@/types/qa';
 import { detectChecklistOutcome } from '@/lib/parseChecklistLevel';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import {
-  Upload, FileSpreadsheet, FileText, CheckCircle2, XCircle,
+  Upload, FileText, CheckCircle2, XCircle,
   AlertTriangle, Users, Clock, Activity, ChevronDown, ChevronUp, Paperclip, X, Download,
 } from 'lucide-react';
 
@@ -19,18 +18,16 @@ export function PerformanceSection({ data, onChange }: Props) {
   const { user } = useAuth();
   const d = data ?? {};
   const [parsingChecklist, setParsingChecklist] = useState(false);
-  const [parsingExcel, setParsingExcel] = useState(false);
   const [parsingPdf, setParsingPdf] = useState(false);
   const [expandedCriteria, setExpandedCriteria] = useState(true);
-  const [expandedResults, setExpandedResults] = useState(true);
+  const [expandedLoad, setExpandedLoad] = useState(true);
+  const [expandedStress, setExpandedStress] = useState(true);
   const checklistRef = useRef<HTMLInputElement>(null);
-  const excelRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
   const sessionEvidenceRef = useRef<HTMLInputElement>(null);
   const additionalEvidenceRef = useRef<HTMLInputElement>(null);
 
   const update = (partial: Partial<PerformanceData>) => onChange({ ...d, ...partial });
-
   const applies = d.appliesPerformanceTests;
 
   const uploadFile = async (file: File, prefix: string): Promise<string | null> => {
@@ -54,8 +51,6 @@ export function PerformanceSection({ data, onChange }: Props) {
     await supabase.storage.from('performance-evidence').remove([storagePath]);
   };
 
-
-  /* ── Helper robusto para extraer texto de celdas ExcelJS ── */
   const cellText = (cell: any): string => {
     const toText = (val: any): string => {
       if (val == null) return '';
@@ -65,14 +60,11 @@ export function PerformanceSection({ data, onChange }: Props) {
       if (Array.isArray(val)) return val.map(toText).join(' ');
       if (typeof val === 'object') {
         if (typeof val.text === 'string') return val.text;
-        if (Array.isArray(val.richText)) {
-          return val.richText.map((r: any) => String(r?.text ?? '')).join('');
-        }
+        if (Array.isArray(val.richText)) return val.richText.map((r: any) => String(r?.text ?? '')).join('');
         if (val.result != null) return toText(val.result);
       }
       return String(val);
     };
-
     const fromCellText = toText(cell?.text);
     if (fromCellText) return fromCellText.trim();
     return toText(cell?.value ?? cell).trim();
@@ -88,34 +80,17 @@ export function PerformanceSection({ data, onChange }: Props) {
       const wb = new ExcelJS.Workbook();
       await wb.xlsx.load(await file.arrayBuffer());
       if (wb.worksheets.length === 0) throw new Error('No worksheet found');
-
       const { result, level } = detectChecklistOutcome(wb, cellText);
-
       const storagePath = await uploadFile(file, 'checklist');
       if (result) {
-        update({
-          checklistResult: result,
-          checklistLevel: undefined,
-          checklistFileName: file.name,
-          checklistStoragePath: storagePath ?? undefined,
-        });
+        update({ checklistResult: result, checklistLevel: undefined, checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
         toast.success(`Checklist importado: ${result}`);
       } else if (level) {
-        update({
-          checklistLevel: level,
-          checklistResult: undefined,
-          checklistFileName: file.name,
-          checklistStoragePath: storagePath ?? undefined,
-        });
+        update({ checklistLevel: level, checklistResult: undefined, checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
         toast.success(`Checklist nivel detectado: ${level.charAt(0).toUpperCase() + level.slice(1)}`);
       } else {
-        update({
-          checklistLevel: undefined,
-          checklistResult: undefined,
-          checklistFileName: file.name,
-          checklistStoragePath: storagePath ?? undefined,
-        });
-        toast.warning('No se encontró un resultado claro en el checklist. Se limpió el valor anterior; selecciónelo manualmente.');
+        update({ checklistLevel: undefined, checklistResult: undefined, checklistFileName: file.name, checklistStoragePath: storagePath ?? undefined });
+        toast.warning('No se encontró un resultado claro en el checklist.');
       }
     } catch (err) {
       console.error(err);
@@ -126,35 +101,14 @@ export function PerformanceSection({ data, onChange }: Props) {
     }
   };
 
-  /* ── Matriz Excel import ── */
-  const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setParsingExcel(true);
-    try {
-      const criteria = await parsePerformanceExcel(file);
-      const storagePath = await uploadFile(file, 'matriz');
-      update({ acceptanceCriteria: criteria, matrizFileName: file.name, matrizStoragePath: storagePath ?? undefined });
-      toast.success('Matriz de relevamiento importada');
-    } catch (err) {
-      console.error(err);
-      toast.error('Error al parsear el Excel');
-    } finally {
-      setParsingExcel(false);
-      if (excelRef.current) excelRef.current.value = '';
-    }
-  };
-
-  /* ── PDF import ── */
+  /* ── PDF import (new structured extraction) ── */
   const handlePdfImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setParsingPdf(true);
     try {
       const buffer = await file.arrayBuffer();
-      const base64 = btoa(
-        new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), '')
-      );
+      const base64 = btoa(new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), ''));
 
       const { data: fnData, error } = await supabase.functions.invoke('parse-performance-pdf', {
         body: { pdfBase64: base64 },
@@ -162,40 +116,26 @@ export function PerformanceSection({ data, onChange }: Props) {
 
       if (error) throw error;
 
-      console.log('[PDF RAW RESULTS]', JSON.stringify(fnData?.results));
-      const results: PerformanceTestResult[] = (fnData?.results ?? []).map(
-        (r: any, i: number) => {
-          // Post-process status for stress tests:
-          // rule: default to CONFORME unless evidence explicitly says "NO CONFORME"
-          let status = r.status ?? undefined;
-          const typeUpper = (r.type ?? '').toUpperCase();
-          const isStress = typeUpper.includes('ESTR') || typeUpper.includes('STRESS');
-          if (isStress) {
-            const evidence = String(r.statusEvidence ?? '').trim();
-            const explicitNoConformeInEvidence = /\bNO[\s_]*CONFORME\b/i.test(evidence);
-            status = explicitNoConformeInEvidence ? 'NO CONFORME' : 'CONFORME';
-          }
-          return {
-            id: `perf-${Date.now()}-${i}`,
-            type: r.type ?? '',
-            startDate: r.startDate ?? undefined,
-            trx: r.trx ?? undefined,
-            simulatedUsers: r.simulatedUsers ?? undefined,
-            duration: r.duration ?? undefined,
-            errors: r.errors ?? undefined,
-            errorRate: r.errorRate ?? undefined,
-            responseTimeAvg: r.responseTimeAvg ?? undefined,
-            responseTimeMin: r.responseTimeMin ?? undefined,
-            responseTimeMax: r.responseTimeMax ?? undefined,
-            tps: r.tps ?? undefined,
-            status,
-          };
-        }
-      );
+      console.log('[PDF RAW]', JSON.stringify(fnData));
+
+      const services: PerfServiceData[] = (fnData?.services ?? []).map((svc: any) => {
+        const criteria: PerfServiceCriteria = svc.criteria ?? {};
+        const loadResult: PerfLoadResult | undefined = svc.loadResult ?? undefined;
+        const stressSteps: PerfStressStep[] = svc.stressSteps ?? [];
+        return {
+          criteria,
+          loadResult,
+          loadAnalysis: svc.loadAnalysis ?? '',
+          loadComments: svc.loadComments ?? '',
+          stressSteps,
+          stressAnalysis: svc.stressAnalysis ?? '',
+          stressComments: svc.stressComments ?? '',
+        };
+      });
 
       const storagePath = await uploadFile(file, 'pdf-informe');
-      update({ testResults: results, pdfFileName: file.name, pdfStoragePath: storagePath ?? undefined });
-      toast.success(`${results.length} resultado(s) extraído(s) del informe`);
+      update({ services, pdfFileName: file.name, pdfStoragePath: storagePath ?? undefined });
+      toast.success(`${services.length} servicio(s) extraído(s) del informe`);
     } catch (err) {
       console.error(err);
       toast.error('Error al procesar el PDF');
@@ -205,55 +145,207 @@ export function PerformanceSection({ data, onChange }: Props) {
     }
   };
 
-  /* ── Criteria field updater ── */
-  const updateCriteria = (field: keyof PerformanceAcceptanceCriteria, value: string) => {
-    const prev = d.acceptanceCriteria ?? {};
-    const numFields = ['monthlyUsers', 'avgDailyRequests', 'peakHourRequests', 'peakMinuteRequests', 'impactedApps', 'microservices', 'inputParams'];
-    const parsed = numFields.includes(field) ? (value ? Number(value) : undefined) : (value || undefined);
-    update({ acceptanceCriteria: { ...prev, [field]: parsed } });
+  /* ── Service data updater ── */
+  const updateService = (idx: number, partial: Partial<PerfServiceData>) => {
+    const services = [...(d.services ?? [])];
+    services[idx] = { ...services[idx], ...partial };
+    update({ services });
   };
 
-  /* ── Test result updater ── */
-  const updateResult = (id: string, field: keyof PerformanceTestResult, value: string) => {
-    const results = (d.testResults ?? []).map(r => {
-      if (r.id !== id) return r;
-      const numFields = ['trx', 'errors', 'responseTimeAvg', 'responseTimeMin', 'responseTimeMax', 'tps'];
-      const parsed = numFields.includes(field) ? (value ? Number(value) : undefined) : (value || undefined);
-      return { ...r, [field]: parsed };
-    });
-    update({ testResults: results });
+  const updateServiceCriteria = (idx: number, field: keyof PerfServiceCriteria, value: string) => {
+    const services = [...(d.services ?? [])];
+    const criteria = { ...services[idx].criteria };
+    const numFields: (keyof PerfServiceCriteria)[] = ['responseTimeMaxMin', 'userHrPrdNormal', 'trxDayPrdNormal', 'trxHrPrdPico', 'maxErrorRate'];
+    (criteria as any)[field] = numFields.includes(field) ? (value ? Number(value) : undefined) : (value || undefined);
+    services[idx] = { ...services[idx], criteria };
+    update({ services });
   };
 
-  const addEmptyResult = () => {
-    const results = [...(d.testResults ?? []), {
-      id: `perf-${Date.now()}`,
-      type: '',
-    }];
-    update({ testResults: results });
+  const updateServiceLoadResult = (idx: number, field: keyof PerfLoadResult, value: string) => {
+    const services = [...(d.services ?? [])];
+    const loadResult = { ...(services[idx].loadResult ?? {}) };
+    const numFields: (keyof PerfLoadResult)[] = ['uvc', 'trx', 'asegurados', 'tProm', 'tMin', 'tMax', 'errors', 'tps'];
+    (loadResult as any)[field] = numFields.includes(field) ? (value ? Number(value) : undefined) : (value || undefined);
+    services[idx] = { ...services[idx], loadResult };
+    update({ services });
   };
 
-  const removeResult = (id: string) => {
-    update({ testResults: (d.testResults ?? []).filter(r => r.id !== id) });
+  const updateStressStep = (svcIdx: number, stepIdx: number, field: keyof PerfStressStep, value: string) => {
+    const services = [...(d.services ?? [])];
+    const steps = [...services[svcIdx].stressSteps];
+    steps[stepIdx] = { ...steps[stepIdx], [field]: value ? Number(value) : undefined };
+    services[svcIdx] = { ...services[svcIdx], stressSteps: steps };
+    update({ services });
   };
 
-  const criteriaFields: { key: keyof PerformanceAcceptanceCriteria; label: string; type?: string }[] = [
-    { key: 'method', label: 'Método HTTP' },
-    { key: 'apiName', label: 'Nombre del API' },
-    { key: 'endpoint', label: 'Endpoint / URL' },
-    { key: 'monthlyUsers', label: 'N° usuarios únicos mensuales', type: 'number' },
-    { key: 'avgDailyRequests', label: 'Solicitudes promedio por día', type: 'number' },
-    { key: 'peakHourRequests', label: 'Solicitudes pico por hora', type: 'number' },
-    { key: 'peakMinuteRequests', label: 'Solicitudes pico por minuto', type: 'number' },
-    { key: 'impactedApps', label: 'N° de aplicaciones impactadas', type: 'number' },
-    { key: 'impactedAppNames', label: 'Nombres de aplicaciones impactadas' },
-    { key: 'peakUsageTime', label: 'Horario pico de uso' },
-    { key: 'microservices', label: 'N° de microservicios involucrados', type: 'number' },
-    { key: 'inputParams', label: 'N° de parámetros de entrada', type: 'number' },
-    { key: 'slaMaxResponse', label: 'SLA - Tiempo máximo de respuesta' },
-    { key: 'maxErrorRate', label: 'Tasa máxima de error aceptada' },
-    { key: 'minThroughput', label: 'Throughput mínimo aceptable' },
-    { key: 'dataVolume', label: 'Volumen de datos' },
-  ];
+  /* ── Compute UVC Esperado ── */
+  const computeUvc = (criteria: PerfServiceCriteria): number | undefined => {
+    if (criteria.trxHrPrdPico && criteria.responseTimeMaxMin) {
+      return Math.round((criteria.trxHrPrdPico * criteria.responseTimeMaxMin / 60) * 100) / 100;
+    }
+    return undefined;
+  };
+
+  /* ── Render helpers ── */
+  const renderFileAttachment = (fileName: string | undefined, storagePath: string | undefined, onDelete: () => void) => {
+    if (!fileName) return null;
+    return (
+      <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
+        <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
+        <span className="text-[10px] text-foreground truncate">{fileName}</span>
+        <button onClick={() => storagePath ? downloadFile(storagePath, fileName) : toast.info('Reemplace para habilitar descarga')}
+          className="text-primary hover:text-primary/80 transition-colors shrink-0" title="Descargar">
+          <Download className="w-3 h-3" />
+        </button>
+        <button onClick={onDelete} className="text-muted-foreground hover:text-destructive transition-colors shrink-0">
+          <X className="w-3 h-3" />
+        </button>
+      </div>
+    );
+  };
+
+  const inputClass = "w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary";
+  const numInputClass = "w-16 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5 text-[10px]";
+
+  const renderCriteriaTable = (svc: PerfServiceData, svcIdx: number) => {
+    const c = svc.criteria;
+    const uvc = computeUvc(c);
+    const fields: { label: string; key: keyof PerfServiceCriteria; type?: string }[] = [
+      { label: 'Proceso', key: 'process' },
+      { label: 'Path', key: 'path' },
+      { label: 'Tiempo Respuesta', key: 'responseTimeDesc' },
+      { label: 'Tiempo Rpta Max (min)', key: 'responseTimeMaxMin', type: 'number' },
+      { label: 'User x hr PRD - Carga normal', key: 'userHrPrdNormal', type: 'number' },
+      { label: 'Trx x día PRD - Carga normal', key: 'trxDayPrdNormal', type: 'number' },
+      { label: 'Trx x hr PRD - Pico', key: 'trxHrPrdPico', type: 'number' },
+      { label: '% Error', key: 'maxErrorRate', type: 'number' },
+    ];
+    return (
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+        {fields.map(f => (
+          <div key={f.key}>
+            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">{f.label}</label>
+            <input
+              type={f.type ?? 'text'}
+              value={c[f.key] ?? ''}
+              onChange={e => updateServiceCriteria(svcIdx, f.key, e.target.value)}
+              className={inputClass}
+            />
+          </div>
+        ))}
+        <div>
+          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">UVC Esperado</label>
+          <div className={`${inputClass} bg-muted/20 cursor-default`}>{uvc ?? '—'}</div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderLoadTable = (svc: PerfServiceData, svcIdx: number) => {
+    const r = svc.loadResult;
+    if (!r) return <p className="text-[10px] text-muted-foreground italic">Sin resultados de carga</p>;
+    const cols: { label: string; key: keyof PerfLoadResult; type?: string }[] = [
+      { label: 'Proceso', key: 'process' },
+      { label: 'Fecha', key: 'date' },
+      { label: 'Duración', key: 'duration' },
+      { label: 'UVC', key: 'uvc', type: 'number' },
+      { label: 'TRX', key: 'trx', type: 'number' },
+      { label: 'Asegurados', key: 'asegurados', type: 'number' },
+      { label: 'T. Prom', key: 'tProm', type: 'number' },
+      { label: 'T. Min', key: 'tMin', type: 'number' },
+      { label: 'T. Max', key: 'tMax', type: 'number' },
+      { label: '% Error', key: 'errorRate' },
+      { label: 'Errores', key: 'errors', type: 'number' },
+      { label: 'TPS', key: 'tps', type: 'number' },
+    ];
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full text-[10px]">
+          <thead>
+            <tr className="border-b border-border text-muted-foreground">
+              {cols.map(c => <th key={c.key} className="text-left py-1 px-1 font-medium whitespace-nowrap">{c.label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-border/50">
+              {cols.map(c => (
+                <td key={c.key} className="py-1 px-1">
+                  <input
+                    type={c.type ?? 'text'}
+                    step={c.type === 'number' ? '0.001' : undefined}
+                    value={r[c.key] ?? ''}
+                    onChange={e => updateServiceLoadResult(svcIdx, c.key, e.target.value)}
+                    className={c.type === 'number' ? numInputClass : 'w-24 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5 text-[10px]'}
+                  />
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderStressTable = (svc: PerfServiceData, svcIdx: number) => {
+    const steps = svc.stressSteps ?? [];
+    if (steps.length === 0) return <p className="text-[10px] text-muted-foreground italic">Sin resultados de estrés</p>;
+    const stressCols: { label: string; key: keyof PerfStressStep }[] = [
+      { label: 'UVC', key: 'uvc' },
+      { label: 'TRX', key: 'trx' },
+      { label: 'Asegurados', key: 'asegurados' },
+      { label: 'T. Prom', key: 'tProm' },
+      { label: 'T. Min', key: 'tMin' },
+      { label: 'T. Max', key: 'tMax' },
+    ];
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full text-[10px]">
+          <thead>
+            <tr className="border-b border-border text-muted-foreground">
+              {stressCols.map(c => <th key={c.key} className="text-right py-1 px-1 font-medium">{c.label}</th>)}
+              <th className="py-1 px-1"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {steps.map((step, stepIdx) => (
+              <tr key={stepIdx} className="border-b border-border/50 hover:bg-surface-1/50">
+                {stressCols.map(c => (
+                  <td key={c.key} className="py-1 px-1 text-right">
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={step[c.key] ?? ''}
+                      onChange={e => updateStressStep(svcIdx, stepIdx, c.key, e.target.value)}
+                      className={numInputClass}
+                    />
+                  </td>
+                ))}
+                <td className="py-1 px-1">
+                  <button onClick={() => {
+                    const services = [...(d.services ?? [])];
+                    services[svcIdx] = { ...services[svcIdx], stressSteps: steps.filter((_, i) => i !== stepIdx) };
+                    update({ services });
+                  }} className="text-muted-foreground hover:text-destructive transition-colors">
+                    <XCircle className="w-3 h-3" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {/* Summary row */}
+            <tr className="border-t-2 border-primary/30 font-semibold bg-muted/10">
+              <td className="py-1 px-1 text-right text-[10px]">{steps[steps.length - 1]?.uvc ?? '—'}</td>
+              <td className="py-1 px-1 text-right text-[10px]">{steps[steps.length - 1]?.trx ?? '—'}</td>
+              <td className="py-1 px-1 text-right text-[10px]">{steps[steps.length - 1]?.asegurados ?? '—'}</td>
+              <td className="py-1 px-1 text-right text-[10px]">{steps[steps.length - 1]?.tProm ?? '—'}</td>
+              <td className="py-1 px-1 text-right text-[10px]">{steps[steps.length - 1]?.tMin ?? '—'}</td>
+              <td className="py-1 px-1 text-right text-[10px]">{steps[steps.length - 1]?.tMax ?? '—'}</td>
+              <td className="py-1 px-1 text-[9px] text-muted-foreground">Total</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   return (
     <div className="flex gap-3">
@@ -271,8 +363,7 @@ export function PerformanceSection({ data, onChange }: Props) {
                 ${d.checklistLevel === 'alta'
                   ? 'bg-green-500/20 border-green-500 text-green-400'
                   : 'bg-orange-500/20 border-orange-500 text-orange-400'
-                }`}
-              >
+                }`}>
                 {d.checklistLevel === 'alta' ? '🟢 ALTA' : '🟠 BAJA'}
               </div>
             ) : (
@@ -289,27 +380,10 @@ export function PerformanceSection({ data, onChange }: Props) {
               {parsingChecklist ? 'Procesando...' : 'Importar Checklist'}
             </button>
             <input ref={checklistRef} type="file" accept=".xlsx,.xls" onChange={handleChecklistImport} className="hidden" />
-            {d.checklistFileName && (
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
-                <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
-                <span className="text-[10px] text-foreground truncate">{d.checklistFileName}</span>
-                <button
-                  onClick={() => d.checklistStoragePath ? downloadFile(d.checklistStoragePath, d.checklistFileName!) : toast.info('Reemplace el archivo para habilitar descarga')}
-                  className="text-primary hover:text-primary/80 transition-colors shrink-0" title="Descargar"
-                >
-                  <Download className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={async () => {
-                    if (d.checklistStoragePath) await deleteFile(d.checklistStoragePath);
-                    update({ checklistFileName: undefined, checklistStoragePath: undefined, checklistLevel: undefined, checklistResult: undefined });
-                  }}
-                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            )}
+            {renderFileAttachment(d.checklistFileName, d.checklistStoragePath, async () => {
+              if (d.checklistStoragePath) await deleteFile(d.checklistStoragePath);
+              update({ checklistFileName: undefined, checklistStoragePath: undefined, checklistLevel: undefined, checklistResult: undefined });
+            })}
           </div>
         </div>
 
@@ -321,61 +395,40 @@ export function PerformanceSection({ data, onChange }: Props) {
               Sesión de Entendimiento
             </h4>
             <div className="flex gap-1.5">
-              <button
-                onClick={() => update({ hadUnderstandingSession: true })}
-                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors
-                  ${d.hadUnderstandingSession === true
-                    ? 'bg-green-500/20 border-green-500 text-green-400'
-                    : 'border-border text-muted-foreground hover:border-primary/50'
-                  }`}
-              >
-                Sí
-              </button>
-              <button
-                onClick={() => update({ hadUnderstandingSession: 'pending' as any })}
-                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors
-                  ${d.hadUnderstandingSession === 'pending'
-                    ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400'
-                    : 'border-border text-muted-foreground hover:border-primary/50'
-                  }`}
-              >
-                Pendiente
-              </button>
-              <button
-                onClick={() => update({ hadUnderstandingSession: 'na' as any })}
-                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors
-                  ${(d.hadUnderstandingSession as any) === 'na'
-                    ? 'bg-muted border-muted-foreground text-muted-foreground'
-                    : 'border-border text-muted-foreground hover:border-primary/50'
-                  }`}
-              >
-                No Aplica
-              </button>
+              {(['true', 'pending', 'na'] as const).map(val => {
+                const isActive = val === 'true' ? d.hadUnderstandingSession === true
+                  : val === 'pending' ? d.hadUnderstandingSession === 'pending'
+                  : (d.hadUnderstandingSession as any) === 'na';
+                const labels = { true: 'Sí', pending: 'Pendiente', na: 'No Aplica' };
+                const colors = {
+                  true: isActive ? 'bg-green-500/20 border-green-500 text-green-400' : 'border-border text-muted-foreground hover:border-primary/50',
+                  pending: isActive ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400' : 'border-border text-muted-foreground hover:border-primary/50',
+                  na: isActive ? 'bg-muted border-muted-foreground text-muted-foreground' : 'border-border text-muted-foreground hover:border-primary/50',
+                };
+                return (
+                  <button key={val}
+                    onClick={() => update({ hadUnderstandingSession: val === 'true' ? true : val as any })}
+                    className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors ${colors[val]}`}>
+                    {labels[val]}
+                  </button>
+                );
+              })}
             </div>
           </div>
           {((d.hadUnderstandingSession as any) === 'pending' || (d.hadUnderstandingSession as any) === 'na') && (
-            <div className="mt-2">
-              <textarea
-                placeholder={(d.hadUnderstandingSession as any) === 'pending' ? "Comentarios sobre la sesión pendiente..." : "Comentarios sobre por qué no aplica..."}
-                value={(d as any).understandingSessionComment ?? ''}
-                onChange={(e) => update({ understandingSessionComment: e.target.value } as any)}
-                className="w-full min-h-[60px] rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
-              />
-            </div>
+            <textarea
+              placeholder={(d.hadUnderstandingSession as any) === 'pending' ? "Comentarios sobre la sesión pendiente..." : "Comentarios sobre por qué no aplica..."}
+              value={(d as any).understandingSessionComment ?? ''}
+              onChange={e => update({ understandingSessionComment: e.target.value } as any)}
+              className="w-full min-h-[60px] mt-2 rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+            />
           )}
-          {/* Evidence upload for session */}
           <div className="flex items-center gap-2 mt-2">
-            <button
-              onClick={() => sessionEvidenceRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors shrink-0 whitespace-nowrap"
-            >
-              <Paperclip className="w-3 h-3" />
-              Adjuntar sustento
+            <button onClick={() => sessionEvidenceRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors shrink-0 whitespace-nowrap">
+              <Paperclip className="w-3 h-3" /> Adjuntar sustento
             </button>
-            <input
-              ref={sessionEvidenceRef}
-              type="file"
-              accept=".pdf,.xlsx,.xls,.msg,.eml,.png,.jpg,.jpeg,.docx"
+            <input ref={sessionEvidenceRef} type="file" accept=".pdf,.xlsx,.xls,.msg,.eml,.png,.jpg,.jpeg,.docx"
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (file) {
@@ -387,30 +440,10 @@ export function PerformanceSection({ data, onChange }: Props) {
               }}
               className="hidden"
             />
-            {d.sessionEvidenceFileName ? (
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
-                <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
-                <span className="text-[10px] text-foreground truncate">{d.sessionEvidenceFileName}</span>
-                <button
-                  onClick={() => d.sessionEvidenceStoragePath ? downloadFile(d.sessionEvidenceStoragePath, d.sessionEvidenceFileName!) : toast.info('Archivo no disponible para descarga, reemplácelo para habilitar')}
-                  className="text-primary hover:text-primary/80 transition-colors shrink-0"
-                  title="Descargar"
-                >
-                  <Download className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={async () => {
-                    if (d.sessionEvidenceStoragePath) await deleteFile(d.sessionEvidenceStoragePath);
-                    update({ sessionEvidenceFileName: undefined, sessionEvidenceStoragePath: undefined, evidenceFileName: undefined, notApplicableEmailAttached: false });
-                  }}
-                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ) : (
-              <span className="text-[10px] text-muted-foreground italic">Sin sustento adjuntado</span>
-            )}
+            {d.sessionEvidenceFileName ? renderFileAttachment(d.sessionEvidenceFileName, d.sessionEvidenceStoragePath, async () => {
+              if (d.sessionEvidenceStoragePath) await deleteFile(d.sessionEvidenceStoragePath);
+              update({ sessionEvidenceFileName: undefined, sessionEvidenceStoragePath: undefined, evidenceFileName: undefined, notApplicableEmailAttached: false });
+            }) : <span className="text-[10px] text-muted-foreground italic">Sin sustento adjuntado</span>}
           </div>
         </div>
 
@@ -422,326 +455,166 @@ export function PerformanceSection({ data, onChange }: Props) {
               ¿Aplica Pruebas de Rendimiento?
             </h4>
             <div className="flex gap-1.5">
-              <button
-                onClick={() => update({ appliesPerformanceTests: true })}
-                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors
-                  ${applies === true
-                    ? 'bg-green-500/20 border-green-500 text-green-400'
-                    : 'border-border text-muted-foreground hover:border-primary/50'
-                  }`}
-              >
+              <button onClick={() => update({ appliesPerformanceTests: true })}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors ${applies === true ? 'bg-green-500/20 border-green-500 text-green-400' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
                 Sí
               </button>
-              <button
-                onClick={() => update({ appliesPerformanceTests: false })}
-                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors
-                  ${applies === false
-                    ? 'bg-red-500/20 border-red-500 text-red-400'
-                    : 'border-border text-muted-foreground hover:border-primary/50'
-                  }`}
-              >
+              <button onClick={() => update({ appliesPerformanceTests: false })}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors ${applies === false ? 'bg-red-500/20 border-red-500 text-red-400' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
                 No
               </button>
             </div>
           </div>
-
           {applies === false && (
             <div className="mt-3 p-3 bg-yellow-500/5 border border-yellow-500/30 rounded-md space-y-2">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 text-yellow-400 mt-0.5 shrink-0" />
-                <p className="text-[10px] text-yellow-400">
-                  Todos los campos de rendimiento serán marcados como N/A. Indique el motivo y adjunte sustento.
-                </p>
+                <p className="text-[10px] text-yellow-400">Todos los campos de rendimiento serán marcados como N/A.</p>
               </div>
-              <textarea
-                value={d.notApplicableReason ?? ''}
-                onChange={e => update({ notApplicableReason: e.target.value })}
-                placeholder="Motivo por el cual no aplica pruebas de rendimiento..."
-                rows={2}
-                className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => additionalEvidenceRef.current?.click()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 transition-colors shrink-0 whitespace-nowrap"
-                >
-                  <Paperclip className="w-3 h-3" />
-                  + Sustento adicional
+              <textarea value={d.notApplicableReason ?? ''} onChange={e => update({ notApplicableReason: e.target.value })}
+                placeholder="Motivo por el cual no aplica..." rows={2}
+                className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none" />
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => additionalEvidenceRef.current?.click()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10 transition-colors shrink-0 whitespace-nowrap">
+                  <Paperclip className="w-3 h-3" /> + Sustento adicional
                 </button>
-                {d.sessionEvidenceFileName ? (
-                  <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
-                    <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
-                    <span className="text-[10px] text-foreground truncate">{d.sessionEvidenceFileName}</span>
-                    <button
-                      onClick={() => d.sessionEvidenceStoragePath ? downloadFile(d.sessionEvidenceStoragePath, d.sessionEvidenceFileName!) : toast.info('Reemplace el archivo para habilitar descarga')}
-                      className="text-primary hover:text-primary/80 transition-colors shrink-0" title="Descargar"
-                    >
-                      <Download className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <span className="text-[10px] text-muted-foreground italic">Sin sustento adjuntado</span>
-                )}
                 {(d.additionalEvidenceFiles ?? []).map((f, idx) => (
                   <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
                     <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
                     <span className="text-[10px] text-foreground truncate">{f.name}</span>
-                    <button onClick={() => downloadFile(f.storagePath, f.name)} className="text-primary hover:text-primary/80 transition-colors shrink-0">
-                      <Download className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={async () => {
-                        await deleteFile(f.storagePath);
-                        update({ additionalEvidenceFiles: (d.additionalEvidenceFiles ?? []).filter((_, i) => i !== idx) });
-                      }}
-                      className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+                    <button onClick={() => downloadFile(f.storagePath, f.name)} className="text-primary hover:text-primary/80 transition-colors shrink-0"><Download className="w-3 h-3" /></button>
+                    <button onClick={async () => { await deleteFile(f.storagePath); update({ additionalEvidenceFiles: (d.additionalEvidenceFiles ?? []).filter((_, i) => i !== idx) }); }}
+                      className="text-muted-foreground hover:text-destructive transition-colors shrink-0"><X className="w-3 h-3" /></button>
                   </div>
                 ))}
-                <input
-                  ref={additionalEvidenceRef}
-                  type="file"
-                  accept=".pdf,.xlsx,.xls,.msg,.eml,.png,.jpg,.jpeg,.docx"
+                <input ref={additionalEvidenceRef} type="file" accept=".pdf,.xlsx,.xls,.msg,.eml,.png,.jpg,.jpeg,.docx"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) {
                       const path = await uploadFile(file, 'additional');
-                      if (path) {
-                        update({ additionalEvidenceFiles: [...(d.additionalEvidenceFiles ?? []), { name: file.name, storagePath: path }] });
-                        toast.success(`Sustento adicional adjuntado: ${file.name}`);
-                      }
+                      if (path) { update({ additionalEvidenceFiles: [...(d.additionalEvidenceFiles ?? []), { name: file.name, storagePath: path }] }); toast.success(`Sustento adicional adjuntado: ${file.name}`); }
                     }
                     if (additionalEvidenceRef.current) additionalEvidenceRef.current.value = '';
-                  }}
-                  className="hidden"
-                />
+                  }} className="hidden" />
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── RIGHT COLUMN: Criteria + Results ── */}
+      {/* ── RIGHT COLUMN: PDF data ── */}
       <div className="flex-1 space-y-3">
         {applies === true ? (
           <>
-            {/* ── 4. Acceptance Criteria ── */}
+            {/* Import PDF button */}
             <div className="bg-surface-0 border border-border rounded-lg p-3">
-              <button
-                onClick={() => setExpandedCriteria(!expandedCriteria)}
-                className="w-full flex items-center justify-between mb-2"
-              >
-                <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-primary" />
-                  Criterios de Aceptación
-                </h4>
-                {expandedCriteria ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
-              </button>
-
-              {expandedCriteria && (
-                <>
-                  <div className="flex items-center gap-2 mb-3 flex-wrap">
-                    <button
-                      onClick={() => excelRef.current?.click()}
-                      disabled={parsingExcel}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 shrink-0"
-                    >
-                      <Upload className="w-3 h-3" />
-                      {parsingExcel ? 'Procesando...' : 'Importar Matriz de Relevamiento'}
-                    </button>
-                    <input ref={excelRef} type="file" accept=".xlsx,.xls" onChange={handleExcelImport} className="hidden" />
-                    {d.matrizFileName ? (
-                      <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
-                        <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
-                        <span className="text-[10px] text-foreground truncate">{d.matrizFileName}</span>
-                        <button
-                          onClick={() => d.matrizStoragePath ? downloadFile(d.matrizStoragePath, d.matrizFileName!) : toast.info('Reemplace el archivo para habilitar descarga')}
-                          className="text-primary hover:text-primary/80 transition-colors shrink-0" title="Descargar"
-                        >
-                          <Download className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (d.matrizStoragePath) await deleteFile(d.matrizStoragePath);
-                            update({ matrizFileName: undefined, matrizStoragePath: undefined });
-                          }}
-                          className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                    {criteriaFields.map(f => (
-                      <div key={f.key}>
-                        <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">{f.label}</label>
-                        <input
-                          type={f.type ?? 'text'}
-                          value={d.acceptanceCriteria?.[f.key] ?? ''}
-                          onChange={e => updateCriteria(f.key, e.target.value)}
-                          className="w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => pdfRef.current?.click()} disabled={parsingPdf}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 shrink-0">
+                  <Upload className="w-3 h-3" />
+                  {parsingPdf ? 'Procesando PDF...' : 'Importar Informe PDF'}
+                </button>
+                <input ref={pdfRef} type="file" accept=".pdf" onChange={handlePdfImport} className="hidden" />
+                {renderFileAttachment(d.pdfFileName, d.pdfStoragePath, async () => {
+                  if (d.pdfStoragePath) await deleteFile(d.pdfStoragePath);
+                  update({ pdfFileName: undefined, pdfStoragePath: undefined, services: undefined });
+                })}
+              </div>
             </div>
 
-            {/* ── 5. Test Results ── */}
-            <div className="bg-surface-0 border border-border rounded-lg p-3">
-              <button
-                onClick={() => setExpandedResults(!expandedResults)}
-                className="w-full flex items-center justify-between mb-2"
-              >
-                <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-primary" />
-                  Resultados de Pruebas
-                </h4>
-                {expandedResults ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
-              </button>
-
-              {expandedResults && (
-                <>
-                  <div className="flex items-center gap-2 mb-3 flex-wrap">
-                    <button
-                      onClick={() => pdfRef.current?.click()}
-                      disabled={parsingPdf}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 shrink-0"
-                    >
-                      <Upload className="w-3 h-3" />
-                      {parsingPdf ? 'Procesando PDF...' : 'Importar Informe PDF'}
-                    </button>
-                    <input ref={pdfRef} type="file" accept=".pdf" onChange={handlePdfImport} className="hidden" />
-                    {d.pdfFileName ? (
-                      <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 border border-border rounded-md min-w-0 overflow-hidden">
-                        <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" />
-                        <span className="text-[10px] text-foreground truncate">{d.pdfFileName}</span>
-                        <button
-                          onClick={() => d.pdfStoragePath ? downloadFile(d.pdfStoragePath, d.pdfFileName!) : toast.info('Reemplace el archivo para habilitar descarga')}
-                          className="text-primary hover:text-primary/80 transition-colors shrink-0" title="Descargar"
-                        >
-                          <Download className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (d.pdfStoragePath) await deleteFile(d.pdfStoragePath);
-                            update({ pdfFileName: undefined, pdfStoragePath: undefined });
-                          }}
-                          className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {(d.testResults ?? []).length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-[10px]">
-                        <thead>
-                          <tr className="border-b border-border text-muted-foreground">
-                            <th className="text-left py-1 px-1 font-medium">Tipo</th>
-                            <th className="text-left py-1 px-1 font-medium">Fecha</th>
-                            <th className="text-left py-1 px-1 font-medium">Usuarios</th>
-                            <th className="text-left py-1 px-1 font-medium">Duración</th>
-                            <th className="text-right py-1 px-1 font-medium">TRX</th>
-                            <th className="text-right py-1 px-1 font-medium">Error</th>
-                            <th className="text-right py-1 px-1 font-medium">% Error</th>
-                            <th className="text-right py-1 px-1 font-medium">T. Prom</th>
-                            <th className="text-right py-1 px-1 font-medium">T. Min</th>
-                            <th className="text-right py-1 px-1 font-medium">T. Max</th>
-                            <th className="text-right py-1 px-1 font-medium">TPS</th>
-                            <th className="text-center py-1 px-1 font-medium">Estado</th>
-                            <th className="py-1 px-1"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(d.testResults ?? []).map(r => (
-                            <tr key={r.id} className="border-b border-border/50 hover:bg-surface-1/50">
-                              <td className="py-1 px-1">
-                                <input value={r.type ?? ''} onChange={e => updateResult(r.id, 'type', e.target.value)}
-                                  className="w-28 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" placeholder="Carga" />
-                              </td>
-                              <td className="py-1 px-1">
-                                <input type="date" value={r.startDate ?? ''} onChange={e => updateResult(r.id, 'startDate', e.target.value)}
-                                  className="w-28 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
-                              </td>
-                              <td className="py-1 px-1">
-                                <input value={r.simulatedUsers ?? ''} onChange={e => updateResult(r.id, 'simulatedUsers', e.target.value)}
-                                  className="w-28 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
-                              </td>
-                              <td className="py-1 px-1">
-                                <input value={r.duration ?? ''} onChange={e => updateResult(r.id, 'duration', e.target.value)}
-                                  className="w-20 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5" />
-                              </td>
-                              <td className="py-1 px-1 text-right">
-                                <input type="number" value={r.trx ?? ''} onChange={e => updateResult(r.id, 'trx', e.target.value)}
-                                  className="w-14 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                              </td>
-                              <td className="py-1 px-1 text-right">
-                                <input type="number" value={r.errors ?? ''} onChange={e => updateResult(r.id, 'errors', e.target.value)}
-                                  className="w-10 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                              </td>
-                              <td className="py-1 px-1 text-right">
-                                <input value={r.errorRate ?? ''} onChange={e => updateResult(r.id, 'errorRate', e.target.value)}
-                                  className="w-12 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                              </td>
-                              <td className="py-1 px-1 text-right">
-                                <input type="number" step="0.001" value={r.responseTimeAvg ?? ''} onChange={e => updateResult(r.id, 'responseTimeAvg', e.target.value)}
-                                  className="w-14 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                              </td>
-                              <td className="py-1 px-1 text-right">
-                                <input type="number" step="0.001" value={r.responseTimeMin ?? ''} onChange={e => updateResult(r.id, 'responseTimeMin', e.target.value)}
-                                  className="w-14 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                              </td>
-                              <td className="py-1 px-1 text-right">
-                                <input type="number" step="0.001" value={r.responseTimeMax ?? ''} onChange={e => updateResult(r.id, 'responseTimeMax', e.target.value)}
-                                  className="w-14 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                              </td>
-                              <td className="py-1 px-1 text-right">
-                                <input type="number" step="0.01" value={r.tps ?? ''} onChange={e => updateResult(r.id, 'tps', e.target.value)}
-                                  className="w-12 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5" />
-                              </td>
-                              <td className="py-1 px-1 text-center">
-                                <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold
-                                  ${r.status
-                                    ? (r.status.toUpperCase().includes('NO CONFORME') || r.status.toUpperCase().includes('NO_CONFORME'))
-                                      ? 'bg-red-500/20 text-red-400'
-                                      : r.status.toUpperCase().includes('CONFORME')
-                                        ? 'bg-green-500/20 text-green-400'
-                                        : 'text-muted-foreground'
-                                    : 'text-muted-foreground'
-                                  }`}>
-                                  {r.status || '—'}
-                                </span>
-                              </td>
-                              <td className="py-1 px-1">
-                                <button onClick={() => removeResult(r.id)}
-                                  className="text-muted-foreground hover:text-destructive transition-colors">
-                                  <XCircle className="w-3 h-3" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+            {(d.services ?? []).length > 0 ? (
+              (d.services ?? []).map((svc, svcIdx) => (
+                <div key={svcIdx} className="space-y-3">
+                  {/* Service header */}
+                  {(d.services ?? []).length > 1 && (
+                    <div className="bg-primary/10 border border-primary/30 rounded-lg px-3 py-1.5">
+                      <span className="text-[10px] font-bold text-primary uppercase">
+                        Servicio {svcIdx + 1}: {svc.criteria.process} — {svc.criteria.path ?? 'Sin path'}
+                      </span>
                     </div>
-                  ) : (
-                    <p className="text-[10px] text-muted-foreground italic">No hay resultados. Importe un informe PDF.</p>
                   )}
-                </>
-              )}
-            </div>
+
+                  {/* Criteria */}
+                  <div className="bg-surface-0 border border-border rounded-lg p-3">
+                    <button onClick={() => setExpandedCriteria(!expandedCriteria)} className="w-full flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-primary" /> Criterios de Aceptación
+                      </h4>
+                      {expandedCriteria ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+                    </button>
+                    {expandedCriteria && renderCriteriaTable(svc, svcIdx)}
+                  </div>
+
+                  {/* Load Results */}
+                  <div className="bg-surface-0 border border-border rounded-lg p-3">
+                    <button onClick={() => setExpandedLoad(!expandedLoad)} className="w-full flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                        <Activity className="w-3.5 h-3.5 text-green-400" /> Pruebas de Carga
+                      </h4>
+                      {expandedLoad ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+                    </button>
+                    {expandedLoad && (
+                      <>
+                        {renderLoadTable(svc, svcIdx)}
+                        <div className="mt-3 space-y-2">
+                          <div>
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Análisis</label>
+                            <textarea value={svc.loadAnalysis ?? ''} onChange={e => updateService(svcIdx, { loadAnalysis: e.target.value })}
+                              rows={4} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                              placeholder="Análisis de las pruebas de carga..." />
+                          </div>
+                          <div>
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Comentarios Adicionales</label>
+                            <textarea value={svc.loadComments ?? ''} onChange={e => updateService(svcIdx, { loadComments: e.target.value })}
+                              rows={3} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                              placeholder="Comentarios adicionales..." />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Stress Results */}
+                  <div className="bg-surface-0 border border-border rounded-lg p-3">
+                    <button onClick={() => setExpandedStress(!expandedStress)} className="w-full flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-orange-400" /> Pruebas de Estrés
+                      </h4>
+                      {expandedStress ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+                    </button>
+                    {expandedStress && (
+                      <>
+                        {renderStressTable(svc, svcIdx)}
+                        <div className="mt-3 space-y-2">
+                          <div>
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Análisis</label>
+                            <textarea value={svc.stressAnalysis ?? ''} onChange={e => updateService(svcIdx, { stressAnalysis: e.target.value })}
+                              rows={4} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                              placeholder="Análisis de las pruebas de estrés..." />
+                          </div>
+                          <div>
+                            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Comentarios Adicionales</label>
+                            <textarea value={svc.stressComments ?? ''} onChange={e => updateService(svcIdx, { stressComments: e.target.value })}
+                              rows={3} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                              placeholder="Comentarios adicionales..." />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="bg-surface-0 border border-border rounded-lg p-3 flex items-center justify-center h-32">
+                <p className="text-[10px] text-muted-foreground italic">Importe un informe PDF para ver criterios y resultados</p>
+              </div>
+            )}
           </>
         ) : applies === false ? (
           <div className="bg-surface-0 border border-border rounded-lg p-3 opacity-50 h-full flex items-center justify-center">
             <p className="text-[10px] text-muted-foreground text-center">
-              Criterios de Aceptación y Resultados: <span className="font-bold">N/A</span>
+              Criterios y Resultados: <span className="font-bold">N/A</span>
             </p>
           </div>
         ) : (
