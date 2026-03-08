@@ -282,8 +282,8 @@ export function ExportPerformance({ atenciones }: Props) {
       );
       const hasStressStepCols = has('stressSteps');
 
-      const centerAlign: Partial<{ vertical: string; horizontal: string; wrapText: boolean }> = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      const leftAlign: Partial<{ vertical: string; horizontal: string; wrapText: boolean }> = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      const centerAlign = { vertical: 'middle' as const, horizontal: 'center' as const, wrapText: true };
+      const leftAlign = { vertical: 'middle' as const, horizontal: 'left' as const, wrapText: true };
 
       for (const a of chosen) {
         const services = a.performanceData?.services ?? [];
