@@ -421,7 +421,9 @@ export function ExportPerformance({ atenciones }: Props) {
     <>
       <button
         onClick={() => {
-          setSelectedAtenciones(new Set(atenciones.map(a => a.id)));
+          if (selectedAtenciones.size === 0) {
+            setSelectedAtenciones(new Set(atenciones.map(a => a.id)));
+          }
           setOpen(true);
         }}
         className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors"
