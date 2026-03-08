@@ -551,8 +551,10 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                     );
                   })}
                 </div>
+                )}
               </div>
-            ))}
+            );
+            })}
 
             {/* Status Summary (read-only, from cycles) */}
             <div className="mb-4">
