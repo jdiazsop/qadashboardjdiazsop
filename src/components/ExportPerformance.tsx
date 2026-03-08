@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Atencion, PerformanceData, PerfServiceData } from '@/types/qa';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Download, FileSpreadsheet, Check } from 'lucide-react';
+import { Download, FileSpreadsheet, Check, Save, Trash2, FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -66,45 +66,37 @@ const FIELD_GROUPS = [
 
 type FieldKey = (typeof FIELD_GROUPS)[number]['fields'][number]['key'];
 
-const STORAGE_KEY = 'perf-export-fields';
 const ALL_FIELD_KEYS = FIELD_GROUPS.flatMap(g => g.fields.map(f => f.key));
-const ATENCIONES_STORAGE_KEY = 'perf-export-atenciones';
+const TEMPLATES_KEY = 'perf-export-templates';
 
-function loadSavedFields(): Set<string> {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const arr = JSON.parse(saved) as string[];
-      if (Array.isArray(arr) && arr.length > 0) return new Set(arr);
-    }
-  } catch {}
-  return new Set(ALL_FIELD_KEYS);
+interface ExportTemplate {
+  name: string;
+  fields: string[];
+  atencionIds: string[];
 }
 
-function loadSavedAtenciones(): Set<string> {
+function loadTemplates(): ExportTemplate[] {
   try {
-    const saved = localStorage.getItem(ATENCIONES_STORAGE_KEY);
+    const saved = localStorage.getItem(TEMPLATES_KEY);
     if (saved) {
-      const arr = JSON.parse(saved) as string[];
-      if (Array.isArray(arr)) return new Set(arr);
+      const arr = JSON.parse(saved) as ExportTemplate[];
+      if (Array.isArray(arr)) return arr;
     }
   } catch {}
-  return new Set();
+  return [];
+}
+
+function saveTemplates(templates: ExportTemplate[]) {
+  localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates));
 }
 
 export function ExportPerformance({ atenciones }: Props) {
   const [open, setOpen] = useState(false);
-  const [selectedAtenciones, setSelectedAtenciones] = useState<Set<string>>(loadSavedAtenciones);
-  const [selectedFields, setSelectedFields] = useState<Set<string>>(loadSavedFields);
-
-  // Persist selections
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...selectedFields]));
-  }, [selectedFields]);
-
-  useEffect(() => {
-    localStorage.setItem(ATENCIONES_STORAGE_KEY, JSON.stringify([...selectedAtenciones]));
-  }, [selectedAtenciones]);
+  const [selectedAtenciones, setSelectedAtenciones] = useState<Set<string>>(new Set());
+  const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set(ALL_FIELD_KEYS));
+  const [templates, setTemplates] = useState<ExportTemplate[]>(loadTemplates);
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [showSaveInput, setShowSaveInput] = useState(false);
 
   const toggleAtencion = (id: string) => {
     setSelectedAtenciones(prev => {
@@ -138,6 +130,32 @@ export function ExportPerformance({ atenciones }: Props) {
       keys.forEach(k => allSelected ? next.delete(k) : next.add(k));
       return next;
     });
+  };
+
+  const saveTemplate = () => {
+    const name = newTemplateName.trim();
+    if (!name) { toast.error('Escribe un nombre para la plantilla'); return; }
+    const tpl: ExportTemplate = { name, fields: [...selectedFields], atencionIds: [...selectedAtenciones] };
+    const updated = [...templates.filter(t => t.name !== name), tpl];
+    setTemplates(updated);
+    saveTemplates(updated);
+    setNewTemplateName('');
+    setShowSaveInput(false);
+    toast.success(`Plantilla "${name}" guardada`);
+  };
+
+  const loadTemplate = (tpl: ExportTemplate) => {
+    setSelectedFields(new Set(tpl.fields));
+    // Only restore atenciones that still exist
+    setSelectedAtenciones(new Set(tpl.atencionIds.filter(id => atenciones.some(a => a.id === id))));
+    toast.success(`Plantilla "${tpl.name}" cargada`);
+  };
+
+  const deleteTemplate = (name: string) => {
+    const updated = templates.filter(t => t.name !== name);
+    setTemplates(updated);
+    saveTemplates(updated);
+    toast.success(`Plantilla "${name}" eliminada`);
   };
 
   const has = (key: string) => selectedFields.has(key);
@@ -505,6 +523,49 @@ export function ExportPerformance({ atenciones }: Props) {
                 </div>
               );
             })}
+          </div>
+
+          {/* Templates */}
+          <div className="space-y-2 mt-3 border-t border-border pt-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Plantillas</h3>
+            {templates.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {templates.map(tpl => (
+                  <div key={tpl.name} className="flex items-center gap-1 bg-muted/50 rounded-md px-2 py-1 border border-border">
+                    <button onClick={() => loadTemplate(tpl)} className="text-[10px] text-foreground hover:text-primary transition-colors flex items-center gap-1">
+                      <FolderOpen className="w-3 h-3" />
+                      {tpl.name}
+                    </button>
+                    <button onClick={() => deleteTemplate(tpl.name)} className="text-muted-foreground hover:text-destructive transition-colors">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {showSaveInput ? (
+              <div className="flex items-center gap-2">
+                <input
+                  value={newTemplateName}
+                  onChange={e => setNewTemplateName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveTemplate()}
+                  placeholder="Nombre de plantilla..."
+                  className="flex-1 text-xs px-2 py-1.5 rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  autoFocus
+                />
+                <button onClick={saveTemplate} className="text-[10px] px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90">
+                  Guardar
+                </button>
+                <button onClick={() => { setShowSaveInput(false); setNewTemplateName(''); }} className="text-[10px] px-2 py-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground">
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setShowSaveInput(true)} className="flex items-center gap-1.5 text-[10px] text-primary hover:underline">
+                <Save className="w-3 h-3" />
+                Guardar selección como plantilla
+              </button>
+            )}
           </div>
 
           {/* Export button */}
