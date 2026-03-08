@@ -524,6 +524,20 @@ export function PerformanceSection({ data, onChange }: Props) {
             </div>
           )}
         </div>
+
+        {/* ── 5. Servicios Relacionados ── */}
+        <div className="bg-surface-0 border border-border rounded-lg p-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5 mb-2">
+            <FileText className="w-3.5 h-3.5 text-primary" />
+            Servicios Relacionados
+          </h4>
+          <textarea
+            placeholder="Indique los servicios relacionados..."
+            value={d.serviciosRelacionados ?? ''}
+            onChange={e => update({ serviciosRelacionados: e.target.value })}
+            className="w-full min-h-[60px] rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+          />
+        </div>
       </div>
 
       {/* ── RIGHT COLUMN: PDF data ── */}
