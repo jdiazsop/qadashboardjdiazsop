@@ -7,6 +7,153 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return undefined;
+  const cleaned = value.replace(/[^\d,.-]/g, "").replace(",", ".").trim();
+  if (!cleaned) return undefined;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+const formatNumber = (value: number | undefined, decimals = 2): string => {
+  if (value === undefined || Number.isNaN(value)) return "N/D";
+  const fixed = value.toFixed(decimals);
+  return fixed.replace(/\.00$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
+};
+
+const parseDurationMinutes = (value: unknown): number | undefined => {
+  const text = String(value ?? "").toLowerCase().trim();
+  if (!text) return undefined;
+
+  const hhmmss = text.match(/(\d{1,2})\s*:\s*(\d{1,2})(?:\s*:\s*(\d{1,2}))?/);
+  if (hhmmss) {
+    if (hhmmss[3] !== undefined) {
+      const h = Number(hhmmss[1]);
+      const m = Number(hhmmss[2]);
+      const s = Number(hhmmss[3]);
+      return h * 60 + m + s / 60;
+    }
+    const m = Number(hhmmss[1]);
+    const s = Number(hhmmss[2]);
+    return m + s / 60;
+  }
+
+  const hr = text.match(/(\d+(?:[.,]\d+)?)\s*(h|hr|hrs|hora|horas)/);
+  if (hr) return Number(hr[1].replace(",", ".")) * 60;
+
+  const min = text.match(/(\d+(?:[.,]\d+)?)\s*(m|min|mins|minuto|minutos)\b/);
+  if (min) return Number(min[1].replace(",", "."));
+
+  const raw = text.match(/(\d+(?:[.,]\d+)?)/);
+  return raw ? Number(raw[1].replace(",", ".")) : undefined;
+};
+
+const extractMaxAsegurados = (responseTimeDesc: unknown): number | undefined => {
+  const text = String(responseTimeDesc ?? "").toLowerCase();
+  const match = text.match(/de\s*\d+\s*a\s*(\d+)\s*asegur/);
+  return match ? Number(match[1]) : undefined;
+};
+
+const deriveStressSummary = (stressSteps: any[]): any | undefined => {
+  if (!Array.isArray(stressSteps) || stressSteps.length === 0) return undefined;
+
+  const toNums = (key: string) => stressSteps
+    .map((s) => toNumber(s?.[key]))
+    .filter((v): v is number => v !== undefined);
+
+  const uvcVals = toNums("uvc");
+  const trxVals = toNums("trx");
+  const aseguradosVals = toNums("asegurados");
+  const tPromVals = toNums("tProm");
+  const tMinVals = toNums("tMin");
+  const tMaxVals = toNums("tMax");
+
+  return {
+    uvc: uvcVals.length ? Math.max(...uvcVals) : undefined,
+    trx: trxVals.length ? Math.max(...trxVals) : undefined,
+    asegurados: aseguradosVals.length ? aseguradosVals[0] : undefined,
+    tProm: tPromVals.length ? Number((tPromVals.reduce((a, b) => a + b, 0) / tPromVals.length).toFixed(2)) : undefined,
+    tMin: tMinVals.length ? Math.min(...tMinVals) : undefined,
+    tMax: tMaxVals.length ? Math.max(...tMaxVals) : undefined,
+  };
+};
+
+const buildLoadAnalysis = (svc: any): string => {
+  const c = svc?.criteria ?? {};
+  const r = svc?.loadResult ?? {};
+
+  const responseTimeMaxMin = toNumber(c.responseTimeMaxMin);
+  const tProm = toNumber(r.tProm);
+  const tMin = toNumber(r.tMin);
+  const tMax = toNumber(r.tMax);
+  const trx = toNumber(r.trx);
+  const uvc = toNumber(r.uvc);
+  const asegurados = toNumber(r.asegurados);
+  const maxErrorRate = toNumber(c.maxErrorRate);
+  const trxHrPrdPico = toNumber(c.trxHrPrdPico);
+
+  const durationText = String(r.duration ?? "").trim() || "N/D";
+  const durationMin = parseDurationMinutes(durationText);
+  const throughputReal = trx !== undefined && durationMin && durationMin > 0 ? (trx / durationMin) * 60 : undefined;
+
+  const uvcEsperado = trxHrPrdPico !== undefined && responseTimeMaxMin !== undefined
+    ? Math.round((trxHrPrdPico * responseTimeMaxMin) / 60)
+    : undefined;
+  const aseguradosSla = extractMaxAsegurados(c.responseTimeDesc);
+
+  const errorRateText = String(r.errorRate ?? "0").trim() || "0";
+  const errorRateNum = toNumber(errorRateText.replace("%", "")) ?? 0;
+
+  const tiempoConforme = (tProm !== undefined && responseTimeMaxMin !== undefined && tProm > responseTimeMaxMin)
+    ? `☑ Conforme : Si bien es ligeramente superior al máximo del SLA productivo, se considera conforme porque se ejecutó en entorno pre productivo, considerando una ejecución con ${formatNumber(uvc, 0)} usuarios concurrentes${uvcEsperado !== undefined ? ` que es mayor a los ${formatNumber(uvcEsperado, 0)} esperados` : ""}.`
+    : `☑ Conforme : El tiempo de respuesta obtenido de ${formatNumber(tProm)} min está dentro del máximo del SLA productivo.`;
+
+  const errorConforme = (maxErrorRate !== undefined && errorRateNum > maxErrorRate)
+    ? "☒ No Conforme : Se superó el máximo de error permitido."
+    : "☑ Conforme : No se presentaron errores en la ejecución.";
+
+  return [
+    `Tiempo Rpta Esperado: ${formatNumber(responseTimeMaxMin)} min max`,
+    `Tiempo Rpta Obtenido: ${formatNumber(tProm)} min`,
+    tiempoConforme,
+    `% Error esperado: ${formatNumber(maxErrorRate)}% max`,
+    `% Error obtenido: ${errorRateText}`,
+    errorConforme,
+    "",
+    `Duración: ${durationText}`,
+    `Throughput real: ${formatNumber(trx, 0)} trx / ${durationText} x 60 min / hs = ${formatNumber(throughputReal)} trx/hr`,
+    `No alcanza el pico (${formatNumber(trxHrPrdPico)} trx/hr) debido a la variabilidad en los tiempos de respuesta observados (${formatNumber(tMin)} min - ${formatNumber(tMax)} min), lo que reduce el throughput efectivo durante la ejecución.`,
+    "",
+    "Considerar que el throughput de producción es referencial y el throughput medido ha sido en entorno pre productivo.",
+    "",
+    `Se entiende que si bien no son ${formatNumber(aseguradosSla, 0)} asegurados con los que se prueba, igual ${formatNumber(asegurados, 0)} está dentro del rango aceptable. Y también las pruebas de carga se realizan entre 30 a 60 min, ${durationText} es aceptable.`,
+  ].join("\n");
+};
+
+const buildStressAnalysis = (svc: any): string => {
+  const steps = Array.isArray(svc?.stressSteps) ? svc.stressSteps : [];
+  if (steps.length === 0) return "";
+
+  const responseTimeMaxMin = toNumber(svc?.criteria?.responseTimeMaxMin);
+  const firstOutIndex = responseTimeMaxMin !== undefined
+    ? steps.findIndex((step: any) => {
+      const tProm = toNumber(step?.tProm);
+      return tProm !== undefined && tProm > responseTimeMaxMin;
+    })
+    : -1;
+
+  const splitIndex = firstOutIndex >= 0 ? firstOutIndex : (steps.length > 1 ? 1 : 0);
+  const untilUvc = toNumber(steps[Math.max(0, splitIndex - 1)]?.uvc) ?? toNumber(steps[0]?.uvc);
+  const fromUvc = toNumber(steps[splitIndex]?.uvc) ?? untilUvc;
+
+  return [
+    `El servicio mantiene tiempos dentro del SLA hasta ${formatNumber(untilUvc, 0)} usuarios concurrentes, mientras que a partir de ${formatNumber(fromUvc, 0)} se observa un aumento considerable en los tiempos de respuesta.`,
+    "",
+    `Evidenciando que el punto de inicio de degradación se observa alrededor de ${formatNumber(fromUvc, 0)} usuarios concurrentes.",
+  ].join("\n");
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
