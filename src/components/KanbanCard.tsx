@@ -40,6 +40,7 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
   const [cyclesOpen, setCyclesOpen] = useState(false);
   const [estimatorOpen, setEstimatorOpen] = useState(false);
   const [dragCycleId, setDragCycleId] = useState<string | null>(null);
+  const [collapsedPhases, setCollapsedPhases] = useState<Record<string, boolean>>({});
 
   // Compute checklist counts from phases + checklistMap
   const allItemIds = checklistPhases.flatMap(p => p.items.map(i => i.id));
@@ -199,6 +200,15 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                   value={atencion.description || ''}
                   onChange={e => onUpdate({ ...atencion, description: e.target.value || undefined })}
                   placeholder="Descripción de la atención..."
+                  className="w-full bg-surface-1 border border-border rounded-lg p-2 text-sm text-foreground placeholder:text-muted-foreground resize-none h-16 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Detalle Funcional</label>
+                <textarea
+                  value={atencion.detalleFuncional || ''}
+                  onChange={e => onUpdate({ ...atencion, detalleFuncional: e.target.value || undefined })}
+                  placeholder="Detalle funcional de la atención..."
                   className="w-full bg-surface-1 border border-border rounded-lg p-2 text-sm text-foreground placeholder:text-muted-foreground resize-none h-16 focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -493,11 +503,20 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
               </div>
             </div>
 
-            {checklistPhases.map(phase => (
+            {checklistPhases.map(phase => {
+              const isCollapsed = collapsedPhases[phase.id] ?? false;
+              return (
               <div key={phase.id} className="mb-4">
-                <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">
-                  {phase.name}
-                </h3>
+                <button
+                  onClick={() => setCollapsedPhases(prev => ({ ...prev, [phase.id]: !isCollapsed }))}
+                  className="flex items-center gap-1.5 w-full text-left mb-2"
+                >
+                  {isCollapsed ? <ChevronRight className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                    {phase.name}
+                  </h3>
+                </button>
+                {!isCollapsed && (
                 <div className="space-y-1.5">
                   {phase.items.map(item => {
                     const val = checkMap[item.id];
@@ -532,8 +551,10 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                     );
                   })}
                 </div>
+                )}
               </div>
-            ))}
+            );
+            })}
 
             {/* Status Summary (read-only, from cycles) */}
             <div className="mb-4">

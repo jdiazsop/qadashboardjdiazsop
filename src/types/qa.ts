@@ -286,6 +286,8 @@ export interface Atencion {
   columnId: string;
   /** Free-text description */
   description?: string;
+  /** Detalle funcional */
+  detalleFuncional?: string;
   /** Application name */
   aplicativo?: string;
   /** Jira status */
