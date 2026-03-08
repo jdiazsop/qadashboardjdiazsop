@@ -60,13 +60,15 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - date: fecha de la prueba (formato DD/MM/YYYY)
 
 3. **Resultados de Estrés** (TODOS los tramos/escalones de usuarios del proceso asíncrono):
-   Para cada tramo/escalón de usuarios concurrentes, extrae:
+   Para cada tramo/escalón de usuarios concurrentes (SIN incluir la fila de Total/Resumen), extrae:
    - uvc: usuarios virtuales concurrentes de ese tramo
    - trx: transacciones
    - asegurados: registros
    - tProm: tiempo respuesta promedio en minutos
    - tMin: tiempo respuesta mínimo en minutos
    - tMax: tiempo respuesta máximo en minutos
+
+   Además, extrae por separado la fila de **Total/Resumen** del informe como "stressSummary" con los mismos campos (uvc, trx, asegurados, tProm, tMin, tMax). Esta fila tiene valores agregados/totales que pueden ser DIFERENTES a la última fila de tramos individuales. Extraerla exactamente como aparece en el informe.
 
 4. **Análisis** (TODO va en un solo campo por sección):
 
@@ -138,6 +140,14 @@ Responde SOLO con un JSON válido con esta estructura exacta:
           "tMax": number
         }
       ],
+      "stressSummary": {
+        "uvc": number,
+        "trx": number,
+        "asegurados": number,
+        "tProm": number,
+        "tMin": number,
+        "tMax": number
+      },
       "loadAnalysis": "string",
       "loadComments": "string",
       "stressAnalysis": "string",
