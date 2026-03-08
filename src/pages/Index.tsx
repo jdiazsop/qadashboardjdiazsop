@@ -10,6 +10,7 @@ import { DashboardState, ProjectTab } from '@/lib/store';
 import { Atencion, KanbanColumn, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES } from '@/types/qa';
 import { TestSchedule } from '@/components/TestSchedule';
 import { PerformanceSection } from '@/components/PerformanceSection';
+import { ExportPerformance } from '@/components/ExportPerformance';
 import { LayoutDashboard, Kanban, GanttChart, CalendarDays, Plus, Pencil, Settings, Trash2, LogOut, Activity } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
