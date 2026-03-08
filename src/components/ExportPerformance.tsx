@@ -66,45 +66,37 @@ const FIELD_GROUPS = [
 
 type FieldKey = (typeof FIELD_GROUPS)[number]['fields'][number]['key'];
 
-const STORAGE_KEY = 'perf-export-fields';
 const ALL_FIELD_KEYS = FIELD_GROUPS.flatMap(g => g.fields.map(f => f.key));
-const ATENCIONES_STORAGE_KEY = 'perf-export-atenciones';
+const TEMPLATES_KEY = 'perf-export-templates';
 
-function loadSavedFields(): Set<string> {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const arr = JSON.parse(saved) as string[];
-      if (Array.isArray(arr) && arr.length > 0) return new Set(arr);
-    }
-  } catch {}
-  return new Set(ALL_FIELD_KEYS);
+interface ExportTemplate {
+  name: string;
+  fields: string[];
+  atencionIds: string[];
 }
 
-function loadSavedAtenciones(): Set<string> {
+function loadTemplates(): ExportTemplate[] {
   try {
-    const saved = localStorage.getItem(ATENCIONES_STORAGE_KEY);
+    const saved = localStorage.getItem(TEMPLATES_KEY);
     if (saved) {
-      const arr = JSON.parse(saved) as string[];
-      if (Array.isArray(arr)) return new Set(arr);
+      const arr = JSON.parse(saved) as ExportTemplate[];
+      if (Array.isArray(arr)) return arr;
     }
   } catch {}
-  return new Set();
+  return [];
+}
+
+function saveTemplates(templates: ExportTemplate[]) {
+  localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates));
 }
 
 export function ExportPerformance({ atenciones }: Props) {
   const [open, setOpen] = useState(false);
-  const [selectedAtenciones, setSelectedAtenciones] = useState<Set<string>>(loadSavedAtenciones);
-  const [selectedFields, setSelectedFields] = useState<Set<string>>(loadSavedFields);
-
-  // Persist selections
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...selectedFields]));
-  }, [selectedFields]);
-
-  useEffect(() => {
-    localStorage.setItem(ATENCIONES_STORAGE_KEY, JSON.stringify([...selectedAtenciones]));
-  }, [selectedAtenciones]);
+  const [selectedAtenciones, setSelectedAtenciones] = useState<Set<string>>(new Set());
+  const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set(ALL_FIELD_KEYS));
+  const [templates, setTemplates] = useState<ExportTemplate[]>(loadTemplates);
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [showSaveInput, setShowSaveInput] = useState(false);
 
   const toggleAtencion = (id: string) => {
     setSelectedAtenciones(prev => {
