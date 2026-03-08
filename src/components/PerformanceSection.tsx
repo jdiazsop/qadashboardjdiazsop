@@ -15,7 +15,7 @@ interface Props {
   atencion?: Atencion;
 }
 
-export function PerformanceSection({ data, onChange }: Props) {
+export function PerformanceSection({ data, onChange, atencion }: Props) {
   const { user } = useAuth();
   const d = data ?? {};
   const [parsingChecklist, setParsingChecklist] = useState(false);
