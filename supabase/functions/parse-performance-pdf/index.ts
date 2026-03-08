@@ -225,6 +225,7 @@ No incluyas explicaciones, solo el JSON.`;
       console.log(`[PDF] service path="${svc.criteria?.path}" process="${svc.criteria?.process}"`);
       console.log(`[PDF]   load: tProm=${svc.loadResult?.tProm} tMax=${svc.loadResult?.tMax}`);
       console.log(`[PDF]   stress steps: ${svc.stressSteps?.length ?? 0}`);
+      console.log(`[PDF]   stressSummary: uvc=${svc.stressSummary?.uvc} trx=${svc.stressSummary?.trx} tProm=${svc.stressSummary?.tProm} tMin=${svc.stressSummary?.tMin} tMax=${svc.stressSummary?.tMax}`);
     }
 
     return new Response(JSON.stringify(parsed), {
