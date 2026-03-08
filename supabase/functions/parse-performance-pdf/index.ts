@@ -369,6 +369,15 @@ No incluyas explicaciones, solo el JSON.`;
     const parsed = JSON.parse(jsonMatch[0]);
 
     for (const svc of (parsed.services ?? [])) {
+      const stressSteps = Array.isArray(svc.stressSteps) ? svc.stressSteps : [];
+      svc.stressSteps = stressSteps;
+      svc.stressSummary = deriveStressSummary(stressSteps);
+
+      svc.loadAnalysis = buildLoadAnalysis(svc);
+      svc.loadComments = "";
+      svc.stressAnalysis = buildStressAnalysis(svc);
+      svc.stressComments = "";
+
       console.log(`[PDF] service path="${svc.criteria?.path}" process="${svc.criteria?.process}"`);
       console.log(`[PDF]   load: tProm=${svc.loadResult?.tProm} tMax=${svc.loadResult?.tMax}`);
       console.log(`[PDF]   stress steps: ${svc.stressSteps?.length ?? 0}`);
