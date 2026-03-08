@@ -233,8 +233,14 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - duration: duración de la prueba
    - date: fecha de la prueba (formato DD/MM/YYYY)
 
-3. **Resultados de Estrés** (TODOS los tramos/escalones de usuarios del proceso asíncrono):
-   Para cada tramo/escalón de usuarios concurrentes (SIN incluir la fila de Total/Resumen), extrae:
+3. **Resultados de Estrés** (SOLO si existe sección explícita de estrés en el informe):
+   - hasStressSection: true SOLO cuando el informe menciona explícitamente una sección tipo "Pruebas de Estrés", "Stress" o equivalente.
+   - Si NO existe sección explícita de estrés, devuelve obligatoriamente:
+     - hasStressSection: false
+     - stressSteps: []
+     - stressSummary: null
+
+   Para casos con hasStressSection=true, extrae TODOS los tramos/escalones de usuarios del proceso asíncrono (SIN incluir la fila de Total/Resumen):
    - uvc: usuarios virtuales concurrentes de ese tramo
    - trx: transacciones
    - asegurados: registros
