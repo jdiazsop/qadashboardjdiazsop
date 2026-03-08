@@ -186,6 +186,12 @@ export function ExportPerformance({ atenciones }: Props) {
       if (has('criteria.trxDayPrdNormal')) critCols.push({ header: 'Trx x día PRD', width: 14, getter: (_, s) => s?.criteria.trxDayPrdNormal ?? '—' });
       if (has('criteria.trxHrPrdPico')) critCols.push({ header: 'Trx x hr Pico', width: 14, getter: (_, s) => s?.criteria.trxHrPrdPico ?? '—' });
       if (has('criteria.maxErrorRate')) critCols.push({ header: '% Error Máx', width: 12, getter: (_, s) => s?.criteria.maxErrorRate ?? '—' });
+      if (has('criteria.uvcEsperado')) critCols.push({ header: 'UVC Esperado', width: 14, getter: (_, s) => {
+        const pico = s?.criteria.trxHrPrdPico;
+        const tMax = s?.criteria.responseTimeMaxMin;
+        if (pico != null && tMax != null) return Math.round((pico * tMax) / 60);
+        return '—';
+      }});
       if (critCols.length > 0) sections.push({ name: 'CRITERIOS DE ACEPTACIÓN', color: 'FF5F3A1E', textColor: 'FFFFFFFF', cols: critCols });
 
       // Load
