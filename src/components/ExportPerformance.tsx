@@ -13,13 +13,9 @@ const FIELD_GROUPS = [
     group: 'Datos Generales',
     fields: [
       { key: 'code', label: 'Código de Atención' },
+      { key: 'description', label: 'Descripción' },
       { key: 'detalleFuncional', label: 'Detalle Funcional' },
       { key: 'tipoAtencion', label: 'Tipo de Atención' },
-    ],
-  },
-  {
-    group: 'Estado de Rendimiento',
-    fields: [
       { key: 'checklistLevel', label: 'Checklist (Alta/Baja)' },
       { key: 'hadUnderstandingSession', label: 'Sesión de Entendimiento' },
       { key: 'appliesPerformanceTests', label: '¿Aplica Pruebas?' },
@@ -41,6 +37,7 @@ const FIELD_GROUPS = [
       { key: 'criteria.trxDayPrdNormal', label: 'Trx x día PRD' },
       { key: 'criteria.trxHrPrdPico', label: 'Trx x hr PRD - Pico' },
       { key: 'criteria.maxErrorRate', label: '% Error Máx' },
+      { key: 'criteria.uvcEsperado', label: 'UVC Esperado' },
     ],
   },
   {
@@ -71,6 +68,7 @@ type FieldKey = (typeof FIELD_GROUPS)[number]['fields'][number]['key'];
 
 const STORAGE_KEY = 'perf-export-fields';
 const ALL_FIELD_KEYS = FIELD_GROUPS.flatMap(g => g.fields.map(f => f.key));
+const ATENCIONES_STORAGE_KEY = 'perf-export-atenciones';
 
 function loadSavedFields(): Set<string> {
   try {
@@ -83,15 +81,30 @@ function loadSavedFields(): Set<string> {
   return new Set(ALL_FIELD_KEYS);
 }
 
+function loadSavedAtenciones(): Set<string> {
+  try {
+    const saved = localStorage.getItem(ATENCIONES_STORAGE_KEY);
+    if (saved) {
+      const arr = JSON.parse(saved) as string[];
+      if (Array.isArray(arr)) return new Set(arr);
+    }
+  } catch {}
+  return new Set();
+}
+
 export function ExportPerformance({ atenciones }: Props) {
   const [open, setOpen] = useState(false);
-  const [selectedAtenciones, setSelectedAtenciones] = useState<Set<string>>(new Set());
+  const [selectedAtenciones, setSelectedAtenciones] = useState<Set<string>>(loadSavedAtenciones);
   const [selectedFields, setSelectedFields] = useState<Set<string>>(loadSavedFields);
 
-  // Persist field selection whenever it changes
+  // Persist selections
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...selectedFields]));
   }, [selectedFields]);
+
+  useEffect(() => {
+    localStorage.setItem(ATENCIONES_STORAGE_KEY, JSON.stringify([...selectedAtenciones]));
+  }, [selectedAtenciones]);
 
   const toggleAtencion = (id: string) => {
     setSelectedAtenciones(prev => {
@@ -163,24 +176,21 @@ export function ExportPerformance({ atenciones }: Props) {
 
       const sections: Section[] = [];
 
-      // General
+      // General (includes former "Estado de Rendimiento" fields)
       const generalCols: ColDef[] = [];
       if (has('code')) generalCols.push({ header: 'Código', width: 18, getter: a => a.code });
+      if (has('description')) generalCols.push({ header: 'Descripción', width: 40, getter: a => a.description ?? '—' });
       if (has('detalleFuncional')) generalCols.push({ header: 'Detalle Funcional', width: 35, getter: a => a.detalleFuncional ?? '—' });
       if (has('tipoAtencion')) generalCols.push({ header: 'Tipo de Atención', width: 20, getter: a => formatValue(a.tipoAtencion) });
+      if (has('checklistLevel')) generalCols.push({ header: 'Checklist', width: 12, getter: a => formatValue(pd(a).checklistLevel) });
+      if (has('hadUnderstandingSession')) generalCols.push({ header: 'Sesión Entendimiento', width: 20, getter: a => formatValue(pd(a).hadUnderstandingSession) });
+      if (has('appliesPerformanceTests')) generalCols.push({ header: '¿Aplica Pruebas?', width: 15, getter: a => formatValue(pd(a).appliesPerformanceTests) });
+      if (has('dependentRq')) generalCols.push({ header: 'Dep. Estado', width: 12, getter: a => formatValue(pd(a).dependentRq) });
+      if (has('dependentRqName')) generalCols.push({ header: 'Dep. Atención', width: 18, getter: a => pd(a).dependentRqName ?? '—' });
+      if (has('dependentRqComment')) generalCols.push({ header: 'Dep. Motivo', width: 30, getter: a => pd(a).dependentRqComment ?? '—' });
+      if (has('serviciosRelacionadosApplies')) generalCols.push({ header: 'Serv. Rel. Estado', width: 15, getter: a => formatValue(pd(a).serviciosRelacionadosApplies) });
+      if (has('serviciosRelacionados')) generalCols.push({ header: 'Serv. Relacionados', width: 30, getter: a => pd(a).serviciosRelacionados ?? '—' });
       if (generalCols.length > 0) sections.push({ name: 'DATOS GENERALES', color: 'FF1E3A5F', textColor: 'FFFFFFFF', cols: generalCols });
-
-      // Status
-      const statusCols: ColDef[] = [];
-      if (has('checklistLevel')) statusCols.push({ header: 'Checklist', width: 12, getter: a => formatValue(pd(a).checklistLevel) });
-      if (has('hadUnderstandingSession')) statusCols.push({ header: 'Sesión Entendimiento', width: 20, getter: a => formatValue(pd(a).hadUnderstandingSession) });
-      if (has('appliesPerformanceTests')) statusCols.push({ header: '¿Aplica Pruebas?', width: 15, getter: a => formatValue(pd(a).appliesPerformanceTests) });
-      if (has('dependentRq')) statusCols.push({ header: 'Dep. Estado', width: 12, getter: a => formatValue(pd(a).dependentRq) });
-      if (has('dependentRqName')) statusCols.push({ header: 'Dep. Atención', width: 18, getter: a => pd(a).dependentRqName ?? '—' });
-      if (has('dependentRqComment')) statusCols.push({ header: 'Dep. Motivo', width: 30, getter: a => pd(a).dependentRqComment ?? '—' });
-      if (has('serviciosRelacionadosApplies')) statusCols.push({ header: 'Serv. Rel. Estado', width: 15, getter: a => formatValue(pd(a).serviciosRelacionadosApplies) });
-      if (has('serviciosRelacionados')) statusCols.push({ header: 'Serv. Relacionados', width: 30, getter: a => pd(a).serviciosRelacionados ?? '—' });
-      if (statusCols.length > 0) sections.push({ name: 'ESTADO DE RENDIMIENTO', color: 'FF2D5F2D', textColor: 'FFFFFFFF', cols: statusCols });
 
       // Criteria
       const critCols: ColDef[] = [];
@@ -192,6 +202,12 @@ export function ExportPerformance({ atenciones }: Props) {
       if (has('criteria.trxDayPrdNormal')) critCols.push({ header: 'Trx x día PRD', width: 14, getter: (_, s) => s?.criteria.trxDayPrdNormal ?? '—' });
       if (has('criteria.trxHrPrdPico')) critCols.push({ header: 'Trx x hr Pico', width: 14, getter: (_, s) => s?.criteria.trxHrPrdPico ?? '—' });
       if (has('criteria.maxErrorRate')) critCols.push({ header: '% Error Máx', width: 12, getter: (_, s) => s?.criteria.maxErrorRate ?? '—' });
+      if (has('criteria.uvcEsperado')) critCols.push({ header: 'UVC Esperado', width: 14, getter: (_, s) => {
+        const pico = s?.criteria.trxHrPrdPico;
+        const tMax = s?.criteria.responseTimeMaxMin;
+        if (pico != null && tMax != null) return Math.round((pico * tMax) / 60);
+        return '—';
+      }});
       if (critCols.length > 0) sections.push({ name: 'CRITERIOS DE ACEPTACIÓN', color: 'FF5F3A1E', textColor: 'FFFFFFFF', cols: critCols });
 
       // Load
@@ -405,7 +421,9 @@ export function ExportPerformance({ atenciones }: Props) {
     <>
       <button
         onClick={() => {
-          setSelectedAtenciones(new Set(atenciones.map(a => a.id)));
+          if (selectedAtenciones.size === 0) {
+            setSelectedAtenciones(new Set(atenciones.map(a => a.id)));
+          }
           setOpen(true);
         }}
         className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-medium rounded-md border border-primary/50 text-primary hover:bg-primary/10 transition-colors"
