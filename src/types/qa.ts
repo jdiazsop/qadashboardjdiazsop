@@ -469,6 +469,7 @@ export interface PerformanceData {
   /** Comentario del motivo de dependencia */
   dependentRqComment?: string;
   /** Servicios relacionados */
+  serviciosRelacionadosApplies?: 'si' | 'na';
   serviciosRelacionados?: string;
 }
 
