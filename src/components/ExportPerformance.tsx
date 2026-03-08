@@ -132,6 +132,32 @@ export function ExportPerformance({ atenciones }: Props) {
     });
   };
 
+  const saveTemplate = () => {
+    const name = newTemplateName.trim();
+    if (!name) { toast.error('Escribe un nombre para la plantilla'); return; }
+    const tpl: ExportTemplate = { name, fields: [...selectedFields], atencionIds: [...selectedAtenciones] };
+    const updated = [...templates.filter(t => t.name !== name), tpl];
+    setTemplates(updated);
+    saveTemplates(updated);
+    setNewTemplateName('');
+    setShowSaveInput(false);
+    toast.success(`Plantilla "${name}" guardada`);
+  };
+
+  const loadTemplate = (tpl: ExportTemplate) => {
+    setSelectedFields(new Set(tpl.fields));
+    // Only restore atenciones that still exist
+    setSelectedAtenciones(new Set(tpl.atencionIds.filter(id => atenciones.some(a => a.id === id))));
+    toast.success(`Plantilla "${tpl.name}" cargada`);
+  };
+
+  const deleteTemplate = (name: string) => {
+    const updated = templates.filter(t => t.name !== name);
+    setTemplates(updated);
+    saveTemplates(updated);
+    toast.success(`Plantilla "${name}" eliminada`);
+  };
+
   const has = (key: string) => selectedFields.has(key);
 
   const formatValue = (val: any): string => {
