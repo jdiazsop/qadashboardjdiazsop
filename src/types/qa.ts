@@ -429,6 +429,7 @@ export interface PerfServiceData {
   loadAnalysis?: string;
   loadComments?: string;
   stressSteps: PerfStressStep[];
+  stressSummary?: PerfStressStep;
   stressAnalysis?: string;
   stressComments?: string;
 }

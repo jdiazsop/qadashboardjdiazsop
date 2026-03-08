@@ -283,7 +283,7 @@ export function PerformanceSection({ data, onChange }: Props) {
       { label: 'T. Min', key: 'tMin' },
       { label: 'T. Max', key: 'tMax' },
     ];
-    const lastStep = steps[steps.length - 1];
+    const summary = svc.stressSummary ?? steps[steps.length - 1];
     return (
       <div className="overflow-x-auto">
         <table className="w-full text-[10px]">
@@ -306,7 +306,7 @@ export function PerformanceSection({ data, onChange }: Props) {
             <tr className="border-t-2 border-primary/40 bg-primary/5 font-semibold">
               {stressCols.map(c => (
                 <td key={c.key} className="py-1.5 px-2 text-[10px] text-primary text-right">
-                  {lastStep?.[c.key] ?? '—'}
+                  {summary?.[c.key] ?? '—'}
                 </td>
               ))}
             </tr>
