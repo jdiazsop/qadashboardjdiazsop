@@ -12,6 +12,7 @@ import {
 interface Props {
   data: PerformanceData | undefined;
   onChange: (data: PerformanceData) => void;
+  atencion?: Atencion;
 }
 
 export function PerformanceSection({ data, onChange }: Props) {
