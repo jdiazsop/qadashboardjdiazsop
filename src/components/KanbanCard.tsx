@@ -40,6 +40,7 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
   const [cyclesOpen, setCyclesOpen] = useState(false);
   const [estimatorOpen, setEstimatorOpen] = useState(false);
   const [dragCycleId, setDragCycleId] = useState<string | null>(null);
+  const [collapsedPhases, setCollapsedPhases] = useState<Record<string, boolean>>({});
 
   // Compute checklist counts from phases + checklistMap
   const allItemIds = checklistPhases.flatMap(p => p.items.map(i => i.id));
