@@ -101,7 +101,7 @@ export function PerformanceSection({ data, onChange }: Props) {
     }
   };
 
-  /* ── PDF import (new structured extraction) ── */
+  /* ── PDF import ── */
   const handlePdfImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -118,7 +118,8 @@ export function PerformanceSection({ data, onChange }: Props) {
 
       console.log('[PDF RAW]', JSON.stringify(fnData));
 
-      const services: PerfServiceData[] = (fnData?.services ?? []).map((svc: any) => {
+      // Filter: only keep async services
+      const allServices: PerfServiceData[] = (fnData?.services ?? []).map((svc: any) => {
         const criteria: PerfServiceCriteria = svc.criteria ?? {};
         const loadResult: PerfLoadResult | undefined = svc.loadResult ?? undefined;
         const stressSteps: PerfStressStep[] = svc.stressSteps ?? [];
@@ -133,9 +134,18 @@ export function PerformanceSection({ data, onChange }: Props) {
         };
       });
 
+      // Only keep Asíncrono processes
+      const services = allServices.filter(svc => {
+        const proc = (svc.criteria.process ?? '').toLowerCase();
+        return proc.includes('asíncron') || proc.includes('asincron') || proc.includes('async');
+      });
+
+      // If none matched async filter, keep all (fallback)
+      const finalServices = services.length > 0 ? services : allServices;
+
       const storagePath = await uploadFile(file, 'pdf-informe');
-      update({ services, pdfFileName: file.name, pdfStoragePath: storagePath ?? undefined });
-      toast.success(`${services.length} servicio(s) extraído(s) del informe`);
+      update({ services: finalServices, pdfFileName: file.name, pdfStoragePath: storagePath ?? undefined });
+      toast.success(`${finalServices.length} servicio(s) extraído(s) del informe`);
     } catch (err) {
       console.error(err);
       toast.error('Error al procesar el PDF');
@@ -149,32 +159,6 @@ export function PerformanceSection({ data, onChange }: Props) {
   const updateService = (idx: number, partial: Partial<PerfServiceData>) => {
     const services = [...(d.services ?? [])];
     services[idx] = { ...services[idx], ...partial };
-    update({ services });
-  };
-
-  const updateServiceCriteria = (idx: number, field: keyof PerfServiceCriteria, value: string) => {
-    const services = [...(d.services ?? [])];
-    const criteria = { ...services[idx].criteria };
-    const numFields: (keyof PerfServiceCriteria)[] = ['responseTimeMaxMin', 'userHrPrdNormal', 'trxDayPrdNormal', 'trxHrPrdPico', 'maxErrorRate'];
-    (criteria as any)[field] = numFields.includes(field) ? (value ? Number(value) : undefined) : (value || undefined);
-    services[idx] = { ...services[idx], criteria };
-    update({ services });
-  };
-
-  const updateServiceLoadResult = (idx: number, field: keyof PerfLoadResult, value: string) => {
-    const services = [...(d.services ?? [])];
-    const loadResult = { ...(services[idx].loadResult ?? {}) };
-    const numFields: (keyof PerfLoadResult)[] = ['uvc', 'trx', 'asegurados', 'tProm', 'tMin', 'tMax', 'errors', 'tps'];
-    (loadResult as any)[field] = numFields.includes(field) ? (value ? Number(value) : undefined) : (value || undefined);
-    services[idx] = { ...services[idx], loadResult };
-    update({ services });
-  };
-
-  const updateStressStep = (svcIdx: number, stepIdx: number, field: keyof PerfStressStep, value: string) => {
-    const services = [...(d.services ?? [])];
-    const steps = [...services[svcIdx].stressSteps];
-    steps[stepIdx] = { ...steps[stepIdx], [field]: value ? Number(value) : undefined };
-    services[svcIdx] = { ...services[svcIdx], stressSteps: steps };
     update({ services });
   };
 
@@ -204,79 +188,80 @@ export function PerformanceSection({ data, onChange }: Props) {
     );
   };
 
-  const inputClass = "w-full bg-surface-0 border border-border rounded px-1.5 py-1 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary";
-  const numInputClass = "w-16 bg-transparent border-b border-border/50 focus:border-primary outline-none text-right px-0.5 text-[10px]";
+  const cellClass = "py-1.5 px-2 text-[10px] text-foreground border-b border-border/30";
+  const headerCellClass = "py-1.5 px-2 text-[8px] uppercase text-muted-foreground font-medium border-b border-border whitespace-nowrap";
 
-  const renderCriteriaTable = (svc: PerfServiceData, svcIdx: number) => {
+  /* ── Criteria as compact table (read-only) ── */
+  const renderCriteriaTable = (svc: PerfServiceData) => {
     const c = svc.criteria;
     const uvc = computeUvc(c);
-    const fields: { label: string; key: keyof PerfServiceCriteria; type?: string }[] = [
-      { label: 'Proceso', key: 'process' },
-      { label: 'Path', key: 'path' },
-      { label: 'Tiempo Respuesta', key: 'responseTimeDesc' },
-      { label: 'Tiempo Rpta Max (min)', key: 'responseTimeMaxMin', type: 'number' },
-      { label: 'User x hr PRD - Carga normal', key: 'userHrPrdNormal', type: 'number' },
-      { label: 'Trx x día PRD - Carga normal', key: 'trxDayPrdNormal', type: 'number' },
-      { label: 'Trx x hr PRD - Pico', key: 'trxHrPrdPico', type: 'number' },
-      { label: '% Error', key: 'maxErrorRate', type: 'number' },
-    ];
     return (
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-        {fields.map(f => (
-          <div key={f.key}>
-            <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">{f.label}</label>
-            <input
-              type={f.type ?? 'text'}
-              value={c[f.key] ?? ''}
-              onChange={e => updateServiceCriteria(svcIdx, f.key, e.target.value)}
-              className={inputClass}
-            />
-          </div>
-        ))}
-        <div>
-          <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">UVC Esperado</label>
-          <div className={`${inputClass} bg-muted/20 cursor-default`}>{uvc ?? '—'}</div>
-        </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-[10px]">
+          <thead>
+            <tr>
+              <th className={headerCellClass}>Proceso</th>
+              <th className={headerCellClass}>Path</th>
+              <th className={headerCellClass}>Tiempo Respuesta</th>
+              <th className={`${headerCellClass} text-right`}>T. Rpta Max (min)</th>
+              <th className={`${headerCellClass} text-right`}>User x hr PRD</th>
+              <th className={`${headerCellClass} text-right`}>Trx x día PRD</th>
+              <th className={`${headerCellClass} text-right`}>Trx x hr PRD - Pico</th>
+              <th className={`${headerCellClass} text-right`}>% Error</th>
+              <th className={`${headerCellClass} text-right`}>UVC Esperado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className={cellClass}>{c.process ?? '—'}</td>
+              <td className={`${cellClass} font-mono text-[9px]`}>{c.path ?? '—'}</td>
+              <td className={`${cellClass} max-w-[200px]`}>{c.responseTimeDesc ?? '—'}</td>
+              <td className={`${cellClass} text-right`}>{c.responseTimeMaxMin ?? '—'}</td>
+              <td className={`${cellClass} text-right`}>{c.userHrPrdNormal ?? '—'}</td>
+              <td className={`${cellClass} text-right`}>{c.trxDayPrdNormal ?? '—'}</td>
+              <td className={`${cellClass} text-right`}>{c.trxHrPrdPico ?? '—'}</td>
+              <td className={`${cellClass} text-right`}>{c.maxErrorRate ?? '—'}</td>
+              <td className={`${cellClass} text-right font-semibold text-primary`}>{uvc ?? '—'}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     );
   };
 
-  const renderLoadTable = (svc: PerfServiceData, svcIdx: number) => {
+  /* ── Load results table (read-only) ── */
+  const renderLoadTable = (svc: PerfServiceData) => {
     const r = svc.loadResult;
     if (!r) return <p className="text-[10px] text-muted-foreground italic">Sin resultados de carga</p>;
-    const cols: { label: string; key: keyof PerfLoadResult; type?: string }[] = [
+    const cols: { label: string; key: keyof PerfLoadResult; align?: string }[] = [
       { label: 'Proceso', key: 'process' },
       { label: 'Fecha', key: 'date' },
       { label: 'Duración', key: 'duration' },
-      { label: 'UVC', key: 'uvc', type: 'number' },
-      { label: 'TRX', key: 'trx', type: 'number' },
-      { label: 'Asegurados', key: 'asegurados', type: 'number' },
-      { label: 'T. Prom', key: 'tProm', type: 'number' },
-      { label: 'T. Min', key: 'tMin', type: 'number' },
-      { label: 'T. Max', key: 'tMax', type: 'number' },
-      { label: '% Error', key: 'errorRate' },
-      { label: 'Errores', key: 'errors', type: 'number' },
-      { label: 'TPS', key: 'tps', type: 'number' },
+      { label: 'UVC', key: 'uvc', align: 'right' },
+      { label: 'TRX', key: 'trx', align: 'right' },
+      { label: 'Asegurados', key: 'asegurados', align: 'right' },
+      { label: 'T. Prom', key: 'tProm', align: 'right' },
+      { label: 'T. Min', key: 'tMin', align: 'right' },
+      { label: 'T. Max', key: 'tMax', align: 'right' },
+      { label: '% Error', key: 'errorRate', align: 'right' },
+      { label: 'Errores', key: 'errors', align: 'right' },
+      { label: 'TPS', key: 'tps', align: 'right' },
     ];
     return (
       <div className="overflow-x-auto">
         <table className="w-full text-[10px]">
           <thead>
-            <tr className="border-b border-border text-muted-foreground">
-              {cols.map(c => <th key={c.key} className="text-left py-1 px-1 font-medium whitespace-nowrap">{c.label}</th>)}
+            <tr>
+              {cols.map(c => (
+                <th key={c.key} className={`${headerCellClass} ${c.align === 'right' ? 'text-right' : 'text-left'}`}>{c.label}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b border-border/50">
+            <tr>
               {cols.map(c => (
-                <td key={c.key} className="py-1 px-1">
-                  <input
-                    type={c.type ?? 'text'}
-                    step={c.type === 'number' ? '0.001' : undefined}
-                    value={r[c.key] ?? ''}
-                    onChange={e => updateServiceLoadResult(svcIdx, c.key, e.target.value)}
-                    className={c.type === 'number' ? numInputClass : 'w-24 bg-transparent border-b border-border/50 focus:border-primary outline-none px-0.5 text-[10px]'}
-                  />
+                <td key={c.key} className={`${cellClass} ${c.align === 'right' ? 'text-right' : ''}`}>
+                  {r[c.key] ?? '—'}
                 </td>
               ))}
             </tr>
@@ -286,7 +271,8 @@ export function PerformanceSection({ data, onChange }: Props) {
     );
   };
 
-  const renderStressTable = (svc: PerfServiceData, svcIdx: number) => {
+  /* ── Stress results table (read-only) ── */
+  const renderStressTable = (svc: PerfServiceData) => {
     const steps = svc.stressSteps ?? [];
     if (steps.length === 0) return <p className="text-[10px] text-muted-foreground italic">Sin resultados de estrés</p>;
     const stressCols: { label: string; key: keyof PerfStressStep }[] = [
@@ -297,49 +283,35 @@ export function PerformanceSection({ data, onChange }: Props) {
       { label: 'T. Min', key: 'tMin' },
       { label: 'T. Max', key: 'tMax' },
     ];
+    const lastStep = steps[steps.length - 1];
     return (
       <div className="overflow-x-auto">
         <table className="w-full text-[10px]">
           <thead>
-            <tr className="border-b border-border text-muted-foreground">
-              {stressCols.map(c => <th key={c.key} className="text-right py-1 px-1 font-medium">{c.label}</th>)}
-              <th className="py-1 px-1"></th>
+            <tr>
+              {stressCols.map(c => <th key={c.key} className={`${headerCellClass} text-right`}>{c.label}</th>)}
             </tr>
           </thead>
           <tbody>
             {steps.map((step, stepIdx) => (
-              <tr key={stepIdx} className="border-b border-border/50 hover:bg-surface-1/50">
+              <tr key={stepIdx} className="hover:bg-surface-1/50">
                 {stressCols.map(c => (
-                  <td key={c.key} className="py-1 px-1 text-right">
-                    <input
-                      type="number"
-                      step="0.001"
-                      value={step[c.key] ?? ''}
-                      onChange={e => updateStressStep(svcIdx, stepIdx, c.key, e.target.value)}
-                      className={numInputClass}
-                    />
+                  <td key={c.key} className={`${cellClass} text-right`}>
+                    {step[c.key] ?? '—'}
                   </td>
                 ))}
-                <td className="py-1 px-1">
-                  <button onClick={() => {
-                    const services = [...(d.services ?? [])];
-                    services[svcIdx] = { ...services[svcIdx], stressSteps: steps.filter((_, i) => i !== stepIdx) };
-                    update({ services });
-                  }} className="text-muted-foreground hover:text-destructive transition-colors">
-                    <XCircle className="w-3 h-3" />
-                  </button>
-                </td>
               </tr>
             ))}
-            {/* Summary row */}
-            <tr className="border-t-2 border-primary/30 font-semibold bg-muted/10">
-              <td className="py-1 px-1 text-right text-[10px]">{steps[steps.length - 1]?.uvc ?? '—'}</td>
-              <td className="py-1 px-1 text-right text-[10px]">{steps[steps.length - 1]?.trx ?? '—'}</td>
-              <td className="py-1 px-1 text-right text-[10px]">{steps[steps.length - 1]?.asegurados ?? '—'}</td>
-              <td className="py-1 px-1 text-right text-[10px]">{steps[steps.length - 1]?.tProm ?? '—'}</td>
-              <td className="py-1 px-1 text-right text-[10px]">{steps[steps.length - 1]?.tMin ?? '—'}</td>
-              <td className="py-1 px-1 text-right text-[10px]">{steps[steps.length - 1]?.tMax ?? '—'}</td>
-              <td className="py-1 px-1 text-[9px] text-muted-foreground">Total</td>
+            {/* Summary/Total row */}
+            <tr className="border-t-2 border-primary/40 bg-primary/5 font-semibold">
+              {stressCols.map(c => (
+                <td key={c.key} className="py-1.5 px-2 text-[10px] text-primary text-right">
+                  {lastStep?.[c.key] ?? '—'}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td colSpan={stressCols.length} className="text-right text-[9px] text-muted-foreground py-0.5 px-2">Total</td>
             </tr>
           </tbody>
         </table>
@@ -504,7 +476,7 @@ export function PerformanceSection({ data, onChange }: Props) {
       </div>
 
       {/* ── RIGHT COLUMN: PDF data ── */}
-      <div className="flex-1 space-y-3">
+      <div className="flex-1 space-y-3 min-w-0">
         {applies === true ? (
           <>
             {/* Import PDF button */}
@@ -535,7 +507,7 @@ export function PerformanceSection({ data, onChange }: Props) {
                     </div>
                   )}
 
-                  {/* Criteria */}
+                  {/* Criteria (compact table, read-only) */}
                   <div className="bg-surface-0 border border-border rounded-lg p-3">
                     <button onClick={() => setExpandedCriteria(!expandedCriteria)} className="w-full flex items-center justify-between mb-2">
                       <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
@@ -543,10 +515,10 @@ export function PerformanceSection({ data, onChange }: Props) {
                       </h4>
                       {expandedCriteria ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
                     </button>
-                    {expandedCriteria && renderCriteriaTable(svc, svcIdx)}
+                    {expandedCriteria && renderCriteriaTable(svc)}
                   </div>
 
-                  {/* Load Results */}
+                  {/* Load Results (read-only table + editable analysis/comments) */}
                   <div className="bg-surface-0 border border-border rounded-lg p-3">
                     <button onClick={() => setExpandedLoad(!expandedLoad)} className="w-full flex items-center justify-between mb-2">
                       <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
@@ -556,18 +528,18 @@ export function PerformanceSection({ data, onChange }: Props) {
                     </button>
                     {expandedLoad && (
                       <>
-                        {renderLoadTable(svc, svcIdx)}
+                        {renderLoadTable(svc)}
                         <div className="mt-3 space-y-2">
                           <div>
                             <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Análisis</label>
                             <textarea value={svc.loadAnalysis ?? ''} onChange={e => updateService(svcIdx, { loadAnalysis: e.target.value })}
-                              rows={4} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                              rows={6} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
                               placeholder="Análisis de las pruebas de carga..." />
                           </div>
                           <div>
                             <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Comentarios Adicionales</label>
                             <textarea value={svc.loadComments ?? ''} onChange={e => updateService(svcIdx, { loadComments: e.target.value })}
-                              rows={3} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                              rows={6} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
                               placeholder="Comentarios adicionales..." />
                           </div>
                         </div>
@@ -575,7 +547,7 @@ export function PerformanceSection({ data, onChange }: Props) {
                     )}
                   </div>
 
-                  {/* Stress Results */}
+                  {/* Stress Results (read-only table + editable analysis/comments) */}
                   <div className="bg-surface-0 border border-border rounded-lg p-3">
                     <button onClick={() => setExpandedStress(!expandedStress)} className="w-full flex items-center justify-between mb-2">
                       <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
@@ -585,18 +557,18 @@ export function PerformanceSection({ data, onChange }: Props) {
                     </button>
                     {expandedStress && (
                       <>
-                        {renderStressTable(svc, svcIdx)}
+                        {renderStressTable(svc)}
                         <div className="mt-3 space-y-2">
                           <div>
                             <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Análisis</label>
                             <textarea value={svc.stressAnalysis ?? ''} onChange={e => updateService(svcIdx, { stressAnalysis: e.target.value })}
-                              rows={4} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                              rows={6} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
                               placeholder="Análisis de las pruebas de estrés..." />
                           </div>
                           <div>
                             <label className="block text-[8px] uppercase text-muted-foreground mb-0.5">Comentarios Adicionales</label>
                             <textarea value={svc.stressComments ?? ''} onChange={e => updateService(svcIdx, { stressComments: e.target.value })}
-                              rows={3} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                              rows={6} className="w-full bg-surface-0 border border-border rounded px-2 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
                               placeholder="Comentarios adicionales..." />
                           </div>
                         </div>

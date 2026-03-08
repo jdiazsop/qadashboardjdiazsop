@@ -31,10 +31,12 @@ serve(async (req) => {
 
     const prompt = `Analiza este informe de pruebas de rendimiento y extrae TODA la información estructurada.
 
-El informe puede contener uno o más servicios/paths. Para CADA servicio/path encontrado, extrae:
+IMPORTANTE: Solo extrae información de los procesos ASÍNCRONOS. Si el informe contiene tanto procesos síncronos como asíncronos para el mismo servicio/path, SOLO extrae el asíncrono.
+
+Para CADA servicio/path asíncrono encontrado, extrae:
 
 1. **Criterios de aceptación** (de las tablas de criterios del informe):
-   - process: tipo de proceso ("Síncrono" o "Asíncrono")
+   - process: tipo de proceso (siempre "Asíncrono" ya que solo extraemos estos)
    - path: el endpoint/path del servicio
    - responseTimeDesc: descripción textual completa del tiempo de respuesta (ej: "De 1 a 500 asegurados = 1 a 2 minutos")
    - responseTimeMaxMin: el valor MÁXIMO del tiempo de respuesta aplicable en MINUTOS. Si hay rangos, selecciona el máximo del rango que corresponda según los usuarios/asegurados usados en las pruebas. Por ejemplo si dice "De 1 a 500 asegurados = 1 a 2 min" y se probó con 200 asegurados (que está en ese rango), el max es 2.
@@ -43,40 +45,58 @@ El informe puede contener uno o más servicios/paths. Para CADA servicio/path en
    - trxHrPrdPico: transacciones por hora PRD pico
    - maxErrorRate: porcentaje máximo de error aceptado (número, ej: 1 para 1%)
 
-2. **Resultados de Carga** (SOLO los valores finales/resumen, NO los tramos intermedios):
-   - process: tipo de proceso
+2. **Resultados de Carga** (SOLO los valores finales/resumen del proceso asíncrono, NO los tramos intermedios):
+   - process: "Asíncrono" o "Asíncrona"
    - uvc: usuarios virtuales concurrentes
    - trx: transacciones totales
    - asegurados: número de asegurados/registros usados
-   - tProm: tiempo de respuesta promedio en segundos
-   - tMin: tiempo de respuesta mínimo en segundos
-   - tMax: tiempo de respuesta máximo en segundos
+   - tProm: tiempo de respuesta promedio en minutos (convertir si está en segundos)
+   - tMin: tiempo de respuesta mínimo en minutos
+   - tMax: tiempo de respuesta máximo en minutos
    - errorRate: tasa de error (ej: "0.0%")
    - errors: número de errores
    - tps: transacciones por segundo (throughput)
    - duration: duración de la prueba
    - date: fecha de la prueba (formato DD/MM/YYYY)
 
-3. **Resultados de Estrés** (TODOS los tramos/escalones de usuarios, cada fila):
+3. **Resultados de Estrés** (TODOS los tramos/escalones de usuarios del proceso asíncrono):
    Para cada tramo/escalón de usuarios concurrentes, extrae:
    - uvc: usuarios virtuales concurrentes de ese tramo
    - trx: transacciones
    - asegurados: registros
-   - tProm: tiempo respuesta promedio en segundos
-   - tMin: tiempo respuesta mínimo en segundos
-   - tMax: tiempo respuesta máximo en segundos
+   - tProm: tiempo respuesta promedio en minutos
+   - tMin: tiempo respuesta mínimo en minutos
+   - tMax: tiempo respuesta máximo en minutos
 
-4. **Análisis y Comentarios** (del texto de análisis/conclusiones del informe):
-   - loadAnalysis: texto de análisis para pruebas de carga (copiar del informe)
-   - loadComments: comentarios adicionales de carga (copiar del informe)
-   - stressAnalysis: texto de análisis para pruebas de estrés (copiar del informe)
-   - stressComments: comentarios adicionales de estrés (copiar del informe)
+4. **Análisis y Comentarios**:
+   Para el ANÁLISIS de CARGA, genera un texto técnico con esta estructura y tono exacto:
+   "Para la validación asíncrona, el proceso inicia con la invocación del servicio de [nombre del servicio], el cual genera un ID de trabajo utilizado posteriormente para consultar el estado de procesamiento hasta alcanzar el estado [estado final]."
+   
+   Para los COMENTARIOS ADICIONALES de CARGA, genera un texto con esta estructura y tono:
+   "El proceso asíncrono, evaluado bajo un escenario de [X] asegurados y [Y] usuarios concurrentes, registró un tiempo de respuesta promedio de [tProm] minutos y un tiempo máximo de [tMax] minutos. Estos valores se mantienen dentro de los criterios de aceptación establecidos para el proceso ([rango de tiempo] en condiciones promedio).
+   Asimismo, se observa una tendencia de incremento proporcional de los tiempos de respuesta en función del aumento de la concurrencia y del volumen de procesamiento.
+   [Si aplica: Se procesaron X transacciones en el escenario con Y asegurados y Z usuarios concurrentes, manteniendo un comportamiento estable.]"
+   
+   Luego añade evaluación con el formato:
+   "Tiempo Rpta Esperado: [valor] min max
+   Tiempo Rpta Obtenido: [tProm obtenido] min
+   ☑ Conforme - [justificación basada en si el tiempo obtenido está dentro del rango aceptable, mencionar el rango y los asegurados probados vs el SLA]
+   % Error esperado: [valor]% max
+   % Error obtenido: [valor]%
+   ☑ Conforme : No se presentan errores en la ejecución."
+   
+   Para los COMENTARIOS ADICIONALES de CARGA, añadir también:
+   "Duración: [duración]
+   Throughput real: [cálculo de throughput] trx / [duración] = [resultado] trx/hr
+   No alcanza al pico ([trxHrPrdPico] trx/hr) debido a la variabilidad en los tiempos de respuesta observados ([tMin] min - [tMax] min), lo que reduce el throughput efectivo durante la ejecución.
+   Considerar que el throughput de producción es referencial y el throughput medido ha sido en entorno pre productivo.
+   Se entiende que si bien no son [asegurados del SLA] asegurados con los que se prueba, igual [asegurados probados] esta dentro del rango aceptable. Y también las pruebas de carga se realizan entre [rango de duración aceptable]."
+   
+   Para el ANÁLISIS de ESTRÉS, genera texto describiendo el comportamiento por tramos:
+   "El servicio mantiene tiempos dentro del SLA hasta [X] usuarios concurrentes, mientras que a partir de [Y] se observa un aumento considerable en los tiempos de respuesta.
+   Evidenciando que el punto de inicio de degradación se observa alrededor de [Z] usuarios concurrentes."
 
-IMPORTANTE:
-- Si hay procesos Síncronos y Asíncronos, crea un servicio separado para cada uno con el mismo path.
-- Para Carga: solo extrae la fila FINAL/resumen, no los tramos intermedios.
-- Para Estrés: extrae TODOS los tramos (cada nivel de usuarios concurrentes como fila separada).
-- El análisis y comentarios son textos descriptivos del informe sobre los resultados.
+IMPORTANTE: Adapta los valores reales del informe en cada campo. Los análisis y comentarios deben reflejar exactamente los datos numéricos extraídos.
 
 Responde SOLO con un JSON válido con esta estructura exacta:
 {
@@ -116,10 +136,10 @@ Responde SOLO con un JSON válido con esta estructura exacta:
           "tMax": number
         }
       ],
-      "loadAnalysis": "string_or_null",
-      "loadComments": "string_or_null",
-      "stressAnalysis": "string_or_null",
-      "stressComments": "string_or_null"
+      "loadAnalysis": "string",
+      "loadComments": "string",
+      "stressAnalysis": "string",
+      "stressComments": "string"
     }
   ]
 }
@@ -189,7 +209,6 @@ No incluyas explicaciones, solo el JSON.`;
 
     const parsed = JSON.parse(jsonMatch[0]);
 
-    // Debug log
     for (const svc of (parsed.services ?? [])) {
       console.log(`[PDF] service path="${svc.criteria?.path}" process="${svc.criteria?.process}"`);
       console.log(`[PDF]   load: tProm=${svc.loadResult?.tProm} tMax=${svc.loadResult?.tMax}`);
