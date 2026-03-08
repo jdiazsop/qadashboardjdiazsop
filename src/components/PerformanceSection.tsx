@@ -284,7 +284,7 @@ export function PerformanceSection({ data, onChange }: Props) {
       { label: 'T. Min', key: 'tMin' },
       { label: 'T. Max', key: 'tMax' },
     ];
-    const summary = svc.stressSummary ?? steps[steps.length - 1];
+    const summary = svc.stressSummary;
     return (
       <div className="overflow-x-auto">
         <table className="w-full text-[10px]">
