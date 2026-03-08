@@ -160,24 +160,21 @@ export function ExportPerformance({ atenciones }: Props) {
 
       const sections: Section[] = [];
 
-      // General
+      // General (includes former "Estado de Rendimiento" fields)
       const generalCols: ColDef[] = [];
       if (has('code')) generalCols.push({ header: 'Código', width: 18, getter: a => a.code });
+      if (has('description')) generalCols.push({ header: 'Descripción', width: 40, getter: a => a.description ?? '—' });
       if (has('detalleFuncional')) generalCols.push({ header: 'Detalle Funcional', width: 35, getter: a => a.detalleFuncional ?? '—' });
       if (has('tipoAtencion')) generalCols.push({ header: 'Tipo de Atención', width: 20, getter: a => formatValue(a.tipoAtencion) });
+      if (has('checklistLevel')) generalCols.push({ header: 'Checklist', width: 12, getter: a => formatValue(pd(a).checklistLevel) });
+      if (has('hadUnderstandingSession')) generalCols.push({ header: 'Sesión Entendimiento', width: 20, getter: a => formatValue(pd(a).hadUnderstandingSession) });
+      if (has('appliesPerformanceTests')) generalCols.push({ header: '¿Aplica Pruebas?', width: 15, getter: a => formatValue(pd(a).appliesPerformanceTests) });
+      if (has('dependentRq')) generalCols.push({ header: 'Dep. Estado', width: 12, getter: a => formatValue(pd(a).dependentRq) });
+      if (has('dependentRqName')) generalCols.push({ header: 'Dep. Atención', width: 18, getter: a => pd(a).dependentRqName ?? '—' });
+      if (has('dependentRqComment')) generalCols.push({ header: 'Dep. Motivo', width: 30, getter: a => pd(a).dependentRqComment ?? '—' });
+      if (has('serviciosRelacionadosApplies')) generalCols.push({ header: 'Serv. Rel. Estado', width: 15, getter: a => formatValue(pd(a).serviciosRelacionadosApplies) });
+      if (has('serviciosRelacionados')) generalCols.push({ header: 'Serv. Relacionados', width: 30, getter: a => pd(a).serviciosRelacionados ?? '—' });
       if (generalCols.length > 0) sections.push({ name: 'DATOS GENERALES', color: 'FF1E3A5F', textColor: 'FFFFFFFF', cols: generalCols });
-
-      // Status
-      const statusCols: ColDef[] = [];
-      if (has('checklistLevel')) statusCols.push({ header: 'Checklist', width: 12, getter: a => formatValue(pd(a).checklistLevel) });
-      if (has('hadUnderstandingSession')) statusCols.push({ header: 'Sesión Entendimiento', width: 20, getter: a => formatValue(pd(a).hadUnderstandingSession) });
-      if (has('appliesPerformanceTests')) statusCols.push({ header: '¿Aplica Pruebas?', width: 15, getter: a => formatValue(pd(a).appliesPerformanceTests) });
-      if (has('dependentRq')) statusCols.push({ header: 'Dep. Estado', width: 12, getter: a => formatValue(pd(a).dependentRq) });
-      if (has('dependentRqName')) statusCols.push({ header: 'Dep. Atención', width: 18, getter: a => pd(a).dependentRqName ?? '—' });
-      if (has('dependentRqComment')) statusCols.push({ header: 'Dep. Motivo', width: 30, getter: a => pd(a).dependentRqComment ?? '—' });
-      if (has('serviciosRelacionadosApplies')) statusCols.push({ header: 'Serv. Rel. Estado', width: 15, getter: a => formatValue(pd(a).serviciosRelacionadosApplies) });
-      if (has('serviciosRelacionados')) statusCols.push({ header: 'Serv. Relacionados', width: 30, getter: a => pd(a).serviciosRelacionados ?? '—' });
-      if (statusCols.length > 0) sections.push({ name: 'ESTADO DE RENDIMIENTO', color: 'FF2D5F2D', textColor: 'FFFFFFFF', cols: statusCols });
 
       // Criteria
       const critCols: ColDef[] = [];
