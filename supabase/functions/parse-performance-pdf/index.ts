@@ -55,27 +55,20 @@ const extractMaxAsegurados = (responseTimeDesc: unknown): number | undefined => 
   return match ? Number(match[1]) : undefined;
 };
 
-const deriveStressSummary = (stressSteps: any[]): any | undefined => {
-  if (!Array.isArray(stressSteps) || stressSteps.length === 0) return undefined;
+const hasAnyStressMetric = (value: any): boolean => {
+  if (!value || typeof value !== "object") return false;
+  return ["uvc", "trx", "asegurados", "tProm", "tMin", "tMax"].some((key) => toNumber(value?.[key]) !== undefined);
+};
 
-  const toNums = (key: string) => stressSteps
-    .map((s) => toNumber(s?.[key]))
-    .filter((v): v is number => v !== undefined);
-
-  const uvcVals = toNums("uvc");
-  const trxVals = toNums("trx");
-  const aseguradosVals = toNums("asegurados");
-  const tPromVals = toNums("tProm");
-  const tMinVals = toNums("tMin");
-  const tMaxVals = toNums("tMax");
-
+const normalizeStressSummary = (value: any): any | undefined => {
+  if (!hasAnyStressMetric(value)) return undefined;
   return {
-    uvc: uvcVals.length ? Math.max(...uvcVals) : undefined,
-    trx: trxVals.length ? Math.max(...trxVals) : undefined,
-    asegurados: aseguradosVals.length ? aseguradosVals[0] : undefined,
-    tProm: tPromVals.length ? Number((tPromVals.reduce((a, b) => a + b, 0) / tPromVals.length).toFixed(2)) : undefined,
-    tMin: tMinVals.length ? Math.min(...tMinVals) : undefined,
-    tMax: tMaxVals.length ? Math.max(...tMaxVals) : undefined,
+    uvc: toNumber(value?.uvc),
+    trx: toNumber(value?.trx),
+    asegurados: toNumber(value?.asegurados),
+    tProm: toNumber(value?.tProm),
+    tMin: toNumber(value?.tMin),
+    tMax: toNumber(value?.tMax),
   };
 };
 
@@ -90,7 +83,7 @@ const looksLikeLoadPhasesInsteadOfStress = (svc: any): boolean => {
   const steps = Array.isArray(svc?.stressSteps) ? svc.stressSteps : [];
   if (steps.length === 0) return false;
 
-  const summary = svc?.stressSummary ?? deriveStressSummary(steps) ?? steps[steps.length - 1];
+  const summary = svc?.stressSummary ?? steps[steps.length - 1];
   const load = svc?.loadResult;
   if (!summary || !load) return false;
 
@@ -227,6 +220,7 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - tProm: tiempo de respuesta promedio en minutos (convertir si está en segundos)
    - tMin: tiempo de respuesta mínimo en minutos
    - tMax: tiempo de respuesta máximo en minutos
+   - IMPORTANTE: mantener precisión (al menos 3 decimales cuando corresponda). Ej: 6.18 segundos = 0.103 minutos.
    - errorRate: tasa de error (ej: "0.0%")
    - errors: número de errores
    - tps: transacciones por segundo (throughput)
@@ -244,11 +238,11 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - uvc: usuarios virtuales concurrentes de ese tramo
    - trx: transacciones
    - asegurados: registros
-   - tProm: tiempo respuesta promedio en minutos
-   - tMin: tiempo respuesta mínimo en minutos
-   - tMax: tiempo respuesta máximo en minutos
+   - tProm: tiempo respuesta promedio en minutos (misma precisión del punto anterior)
+   - tMin: tiempo respuesta mínimo en minutos (misma precisión del punto anterior)
+   - tMax: tiempo respuesta máximo en minutos (misma precisión del punto anterior)
 
-   Además, extrae por separado la fila de **Total/Resumen** del informe como "stressSummary" con los mismos campos (uvc, trx, asegurados, tProm, tMin, tMax). Esta fila tiene valores agregados/totales que pueden ser DIFERENTES a la última fila de tramos individuales. Extraerla exactamente como aparece en el informe.
+   Además, extrae por separado la fila de **Total/Resumen** del informe como "stressSummary" con los mismos campos (uvc, trx, asegurados, tProm, tMin, tMax) SOLO si existe explícitamente una fila total/resumen. Si no existe, devuelve stressSummary: null.
 
 4. **Análisis** (TODO va en un solo campo por sección):
 
@@ -405,7 +399,7 @@ No incluyas explicaciones, solo el JSON.`;
     for (const svc of (parsed.services ?? [])) {
       const stressSteps = Array.isArray(svc.stressSteps) ? svc.stressSteps : [];
       svc.stressSteps = stressSteps;
-      svc.stressSummary = deriveStressSummary(stressSteps);
+      svc.stressSummary = normalizeStressSummary(svc.stressSummary);
 
       const stressDeclared = svc.hasStressSection === true;
       const stressExplicitlyMissing = svc.hasStressSection === false;

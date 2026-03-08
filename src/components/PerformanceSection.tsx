@@ -193,6 +193,19 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
   const cellClass = "py-1.5 px-2 text-[10px] text-foreground border-b border-border/30";
   const headerCellClass = "py-1.5 px-2 text-[8px] uppercase text-muted-foreground font-medium border-b border-border whitespace-nowrap";
 
+  const formatResponseMetric = (value: unknown): string => {
+    if (value == null || value === '') return '—';
+    const n = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
+    if (!Number.isFinite(n)) return String(value);
+
+    if (Math.abs(n) < 1) {
+      const sec = n * 60;
+      return `${sec.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} seg`;
+    }
+
+    return `${n.toFixed(3).replace(/\.000$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} min`;
+  };
+
   /* ── Criteria as compact table (read-only) ── */
   const renderCriteriaTable = (svc: PerfServiceData) => {
     const c = svc.criteria;
@@ -261,11 +274,15 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
           </thead>
           <tbody>
             <tr>
-              {cols.map(c => (
-                <td key={c.key} className={`${cellClass} ${c.align === 'right' ? 'text-right' : ''}`}>
-                  {r[c.key] ?? '—'}
-                </td>
-              ))}
+              {cols.map(c => {
+                const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
+                const value = r[c.key];
+                return (
+                  <td key={c.key} className={`${cellClass} ${c.align === 'right' ? 'text-right' : ''}`}>
+                    {isResponseMetric ? formatResponseMetric(value) : (value ?? '—')}
+                  </td>
+                );
+              })}
             </tr>
           </tbody>
         </table>
@@ -286,6 +303,11 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
       { label: 'T. Max', key: 'tMax' },
     ];
     const summary = svc.stressSummary;
+    const hasSummaryData = summary && ['uvc', 'trx', 'asegurados', 'tProm', 'tMin', 'tMax'].some((k) => {
+      const v = (summary as any)[k];
+      return v !== undefined && v !== null && v !== '';
+    });
+
     return (
       <div className="overflow-x-auto">
         <table className="w-full text-[10px]">
@@ -297,24 +319,35 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
           <tbody>
             {steps.map((step, stepIdx) => (
               <tr key={stepIdx} className="hover:bg-surface-1/50">
-                {stressCols.map(c => (
-                  <td key={c.key} className={`${cellClass} text-right`}>
-                    {step[c.key] ?? '—'}
-                  </td>
-                ))}
+                {stressCols.map(c => {
+                  const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
+                  const value = step[c.key];
+                  return (
+                    <td key={c.key} className={`${cellClass} text-right`}>
+                      {isResponseMetric ? formatResponseMetric(value) : (value ?? '—')}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
-            {/* Summary/Total row */}
-            <tr className="border-t-2 border-primary/40 bg-primary/5 font-semibold">
-              {stressCols.map(c => (
-                <td key={c.key} className="py-1.5 px-2 text-[10px] text-primary text-right">
-                  {summary?.[c.key] ?? '—'}
-                </td>
-              ))}
-            </tr>
-            <tr>
-              <td colSpan={stressCols.length} className="text-right text-[9px] text-muted-foreground py-0.5 px-2">Total</td>
-            </tr>
+            {hasSummaryData && (
+              <>
+                <tr className="border-t-2 border-primary/40 bg-primary/5 font-semibold">
+                  {stressCols.map(c => {
+                    const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
+                    const value = summary?.[c.key];
+                    return (
+                      <td key={c.key} className="py-1.5 px-2 text-[10px] text-primary text-right">
+                        {isResponseMetric ? formatResponseMetric(value) : (value ?? '—')}
+                      </td>
+                    );
+                  })}
+                </tr>
+                <tr>
+                  <td colSpan={stressCols.length} className="text-right text-[9px] text-muted-foreground py-0.5 px-2">Total</td>
+                </tr>
+              </>
+            )}
           </tbody>
         </table>
       </div>
