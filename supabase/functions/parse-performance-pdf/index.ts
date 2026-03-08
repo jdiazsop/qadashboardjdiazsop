@@ -310,6 +310,7 @@ Responde SOLO con un JSON válido con esta estructura exacta:
         "duration": "string_or_null",
         "date": "string_or_null"
       },
+      "hasStressSection": boolean,
       "stressSteps": [
         {
           "uvc": number,
@@ -327,7 +328,7 @@ Responde SOLO con un JSON válido con esta estructura exacta:
         "tProm": number,
         "tMin": number,
         "tMax": number
-      },
+      } | null,
       "loadAnalysis": "string",
       "loadComments": "string",
       "stressAnalysis": "string",
