@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Atencion, PerformanceData, PerfServiceData } from '@/types/qa';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Download, FileSpreadsheet, Check } from 'lucide-react';
