@@ -10,6 +10,7 @@ import { DashboardState, ProjectTab } from '@/lib/store';
 import { Atencion, KanbanColumn, Tag, ChecklistPhase, DEFAULT_CHECKLIST_PHASES } from '@/types/qa';
 import { TestSchedule } from '@/components/TestSchedule';
 import { PerformanceSection } from '@/components/PerformanceSection';
+import { ExportPerformance } from '@/components/ExportPerformance';
 import { LayoutDashboard, Kanban, GanttChart, CalendarDays, Plus, Pencil, Settings, Trash2, LogOut, Activity } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -329,6 +330,9 @@ const Index = () => {
           <div className="flex items-center gap-2 mb-3">
             <Activity className="w-4 h-4 text-primary" />
             <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">Rendimiento</h2>
+            {state.atenciones.length > 0 && (
+              <ExportPerformance atenciones={state.atenciones} />
+            )}
           </div>
           {state.atenciones.length === 0 ? (
             <p className="text-sm text-muted-foreground">No hay atenciones. Crea una en el Kanban para gestionar rendimiento.</p>
