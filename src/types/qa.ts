@@ -468,6 +468,8 @@ export interface PerformanceData {
   dependentRqName?: string;
   /** Comentario del motivo de dependencia */
   dependentRqComment?: string;
+  /** Servicios relacionados */
+  serviciosRelacionados?: string;
 }
 
 /** Compute delay for a single cycle: if realEndDate > endDate, delay = realEndDate */
