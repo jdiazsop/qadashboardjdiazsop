@@ -502,7 +502,7 @@ export function PerformanceSection({ data, onChange }: Props) {
           </div>
           {d.dependentRq === 'si' && (
             <textarea
-              placeholder="Indique el RQ dependiente y el motivo..."
+              placeholder="Indique la atención dependiente y el motivo..."
               value={d.dependentRqComment ?? ''}
               onChange={e => update({ dependentRqComment: e.target.value })}
               className="w-full min-h-[60px] mt-1 rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
