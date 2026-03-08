@@ -193,6 +193,19 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
   const cellClass = "py-1.5 px-2 text-[10px] text-foreground border-b border-border/30";
   const headerCellClass = "py-1.5 px-2 text-[8px] uppercase text-muted-foreground font-medium border-b border-border whitespace-nowrap";
 
+  const formatResponseMetric = (value: unknown): string => {
+    if (value == null || value === '') return '—';
+    const n = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
+    if (!Number.isFinite(n)) return String(value);
+
+    if (Math.abs(n) < 1) {
+      const sec = n * 60;
+      return `${sec.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} seg`;
+    }
+
+    return `${n.toFixed(3).replace(/\.000$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} min`;
+  };
+
   /* ── Criteria as compact table (read-only) ── */
   const renderCriteriaTable = (svc: PerfServiceData) => {
     const c = svc.criteria;
