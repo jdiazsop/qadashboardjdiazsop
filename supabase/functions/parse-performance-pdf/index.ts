@@ -138,6 +138,14 @@ Responde SOLO con un JSON válido con esta estructura exacta:
           "tMax": number
         }
       ],
+      "stressSummary": {
+        "uvc": number,
+        "trx": number,
+        "asegurados": number,
+        "tProm": number,
+        "tMin": number,
+        "tMax": number
+      },
       "loadAnalysis": "string",
       "loadComments": "string",
       "stressAnalysis": "string",
