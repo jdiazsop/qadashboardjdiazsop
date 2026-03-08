@@ -203,6 +203,15 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                   className="w-full bg-surface-1 border border-border rounded-lg p-2 text-sm text-foreground placeholder:text-muted-foreground resize-none h-16 focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Detalle Funcional</label>
+                <textarea
+                  value={atencion.detalleFuncional || ''}
+                  onChange={e => onUpdate({ ...atencion, detalleFuncional: e.target.value || undefined })}
+                  placeholder="Detalle funcional de la atención..."
+                  className="w-full bg-surface-1 border border-border rounded-lg p-2 text-sm text-foreground placeholder:text-muted-foreground resize-none h-16 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Aplicativo</label>
                 <input
