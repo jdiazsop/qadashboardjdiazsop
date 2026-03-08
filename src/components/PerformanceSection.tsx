@@ -475,12 +475,12 @@ export function PerformanceSection({ data, onChange }: Props) {
           )}
       </div>
 
-        {/* ── 4. RQ Dependiente ── */}
+        {/* ── 4. Atención Dependiente ── */}
         <div className="bg-surface-0 border border-border rounded-lg p-3">
           <div className="flex items-center gap-3 mb-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5 shrink-0">
               <FileText className="w-3.5 h-3.5 text-primary" />
-              RQ Dependiente
+              Atención Dependiente
             </h4>
             <div className="flex gap-1.5">
               {(['si', 'na'] as const).map(val => {
@@ -502,7 +502,7 @@ export function PerformanceSection({ data, onChange }: Props) {
           </div>
           {d.dependentRq === 'si' && (
             <textarea
-              placeholder="Indique el RQ dependiente y el motivo..."
+              placeholder="Indique la atención dependiente y el motivo..."
               value={d.dependentRqComment ?? ''}
               onChange={e => update({ dependentRqComment: e.target.value })}
               className="w-full min-h-[60px] mt-1 rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
