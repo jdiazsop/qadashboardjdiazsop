@@ -242,9 +242,14 @@ export function ExportPerformance({ atenciones }: Props) {
       if (has('loadAnalysis')) loadCols.push({ header: 'Análisis Carga', width: 50, getter: (_, s) => s?.loadAnalysis ?? '—' });
       if (loadCols.length > 0) sections.push({ name: 'PRUEBAS DE CARGA', color: 'FF1E4D5F', textColor: 'FFFFFFFF', cols: loadCols });
 
-      // Stress columns (individual step columns)
+      // Stress columns — only include if at least one chosen atencion has stress data
+      const chosenForCheck = atenciones.filter(a => selectedAtenciones.has(a.id));
+      const anyHasStress = chosenForCheck.some(a =>
+        (a.performanceData?.services ?? []).some(s => (s.stressSteps ?? []).length > 0)
+      );
+
       const stressCols: ColDef[] = [];
-      if (has('stressSteps')) {
+      if (has('stressSteps') && anyHasStress) {
         stressCols.push({ header: 'Tramo', width: 8, getter: () => '' });
         stressCols.push({ header: 'UVC', width: 10, getter: () => '' });
         stressCols.push({ header: 'TRX', width: 10, getter: () => '' });
@@ -253,7 +258,7 @@ export function ExportPerformance({ atenciones }: Props) {
         stressCols.push({ header: 'T. Min', width: 10, getter: () => '' });
         stressCols.push({ header: 'T. Max', width: 10, getter: () => '' });
       }
-      if (has('stressAnalysis')) stressCols.push({ header: 'Análisis Estrés', width: 50, getter: (_, s) => s?.stressAnalysis ?? '—' });
+      if (has('stressAnalysis') && anyHasStress) stressCols.push({ header: 'Análisis Estrés', width: 50, getter: (_, s) => s?.stressAnalysis ?? '—' });
       if (stressCols.length > 0) sections.push({ name: 'PRUEBAS DE ESTRÉS', color: 'FF5F1E3A', textColor: 'FFFFFFFF', cols: stressCols });
 
       // Flatten all columns
