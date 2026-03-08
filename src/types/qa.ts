@@ -458,6 +458,10 @@ export interface PerformanceData {
   /** New structured data extracted from PDF per service/path */
   services?: PerfServiceData[];
   understandingSessionComment?: string;
+  /** RQ dependiente: 'si' | 'na' (no aplica) | undefined */
+  dependentRq?: 'si' | 'na';
+  /** Comentario del RQ dependiente */
+  dependentRqComment?: string;
 }
 
 /** Compute delay for a single cycle: if realEndDate > endDate, delay = realEndDate */

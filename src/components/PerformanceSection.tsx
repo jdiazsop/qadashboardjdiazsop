@@ -473,6 +473,41 @@ export function PerformanceSection({ data, onChange }: Props) {
               </div>
             </div>
           )}
+      </div>
+
+        {/* ── 4. RQ Dependiente ── */}
+        <div className="bg-surface-0 border border-border rounded-lg p-3">
+          <div className="flex items-center gap-3 mb-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5 shrink-0">
+              <FileText className="w-3.5 h-3.5 text-primary" />
+              RQ Dependiente
+            </h4>
+            <div className="flex gap-1.5">
+              {(['si', 'na'] as const).map(val => {
+                const isActive = d.dependentRq === val;
+                const labels = { si: 'Sí', na: 'No Aplica' };
+                const colors = {
+                  si: isActive ? 'bg-green-500/20 border-green-500 text-green-400' : 'border-border text-muted-foreground hover:border-primary/50',
+                  na: isActive ? 'bg-muted border-muted-foreground text-muted-foreground' : 'border-border text-muted-foreground hover:border-primary/50',
+                };
+                return (
+                  <button key={val}
+                    onClick={() => update({ dependentRq: val })}
+                    className={`px-2.5 py-1 text-[10px] font-medium rounded-md border transition-colors ${colors[val]}`}>
+                    {labels[val]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {d.dependentRq === 'si' && (
+            <textarea
+              placeholder="Indique el RQ dependiente y el motivo..."
+              value={d.dependentRqComment ?? ''}
+              onChange={e => update({ dependentRqComment: e.target.value })}
+              className="w-full min-h-[60px] mt-1 rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+            />
+          )}
         </div>
       </div>
 
