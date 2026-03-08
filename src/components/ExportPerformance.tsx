@@ -13,13 +13,9 @@ const FIELD_GROUPS = [
     group: 'Datos Generales',
     fields: [
       { key: 'code', label: 'Código de Atención' },
+      { key: 'description', label: 'Descripción' },
       { key: 'detalleFuncional', label: 'Detalle Funcional' },
       { key: 'tipoAtencion', label: 'Tipo de Atención' },
-    ],
-  },
-  {
-    group: 'Estado de Rendimiento',
-    fields: [
       { key: 'checklistLevel', label: 'Checklist (Alta/Baja)' },
       { key: 'hadUnderstandingSession', label: 'Sesión de Entendimiento' },
       { key: 'appliesPerformanceTests', label: '¿Aplica Pruebas?' },
@@ -41,6 +37,7 @@ const FIELD_GROUPS = [
       { key: 'criteria.trxDayPrdNormal', label: 'Trx x día PRD' },
       { key: 'criteria.trxHrPrdPico', label: 'Trx x hr PRD - Pico' },
       { key: 'criteria.maxErrorRate', label: '% Error Máx' },
+      { key: 'criteria.uvcEsperado', label: 'UVC Esperado' },
     ],
   },
   {
