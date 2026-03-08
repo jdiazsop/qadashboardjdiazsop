@@ -386,10 +386,55 @@ export interface PerformanceTestResult {
   status?: string;
 }
 
+/* ── New structured PDF extraction types ── */
+
+export interface PerfServiceCriteria {
+  process?: string;
+  path?: string;
+  responseTimeDesc?: string;
+  responseTimeMaxMin?: number;
+  userHrPrdNormal?: number;
+  trxDayPrdNormal?: number;
+  trxHrPrdPico?: number;
+  maxErrorRate?: number;
+}
+
+export interface PerfLoadResult {
+  process?: string;
+  uvc?: number;
+  trx?: number;
+  asegurados?: number;
+  tProm?: number;
+  tMin?: number;
+  tMax?: number;
+  errorRate?: string;
+  errors?: number;
+  tps?: number;
+  duration?: string;
+  date?: string;
+}
+
+export interface PerfStressStep {
+  uvc?: number;
+  trx?: number;
+  asegurados?: number;
+  tProm?: number;
+  tMin?: number;
+  tMax?: number;
+}
+
+export interface PerfServiceData {
+  criteria: PerfServiceCriteria;
+  loadResult?: PerfLoadResult;
+  loadAnalysis?: string;
+  loadComments?: string;
+  stressSteps: PerfStressStep[];
+  stressAnalysis?: string;
+  stressComments?: string;
+}
+
 export interface PerformanceData {
-  /** Checklist result: conforme / no_conforme / pendiente */
   checklistResult?: 'conforme' | 'no_conforme' | 'pendiente';
-  /** Checklist level detected from Excel: alta / baja */
   checklistLevel?: 'alta' | 'baja';
   checklistFileName?: string;
   checklistStoragePath?: string;
@@ -400,13 +445,18 @@ export interface PerformanceData {
   appliesPerformanceTests?: boolean | null;
   notApplicableReason?: string;
   notApplicableEmailAttached?: boolean;
+  /** @deprecated Use services instead */
   acceptanceCriteria?: PerformanceAcceptanceCriteria;
   matrizFileName?: string;
   matrizStoragePath?: string;
+  /** @deprecated Use services instead */
   testResults?: PerformanceTestResult[];
   pdfFileName?: string;
   pdfStoragePath?: string;
   additionalEvidenceFiles?: { name: string; storagePath: string }[];
+  /** New structured data extracted from PDF per service/path */
+  services?: PerfServiceData[];
+  understandingSessionComment?: string;
 }
 
 /** Compute delay for a single cycle: if realEndDate > endDate, delay = realEndDate */

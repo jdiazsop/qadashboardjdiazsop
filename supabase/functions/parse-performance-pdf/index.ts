@@ -29,54 +29,98 @@ serve(async (req) => {
       });
     }
 
-    const prompt = `Analiza este informe de pruebas de rendimiento (performance) y extrae los resultados de CADA tipo de prueba encontrado.
+    const prompt = `Analiza este informe de pruebas de rendimiento y extrae TODA la información estructurada.
 
-Los tipos de prueba pueden incluir (pero no limitarse a):
-- Prueba de Carga (síncrona)
-- Prueba de Carga (asíncrona)
-- Prueba de Estrés (síncrona)
-- Prueba de Estrés (asíncrona)
-- Prueba de Carga
-- Prueba de Estrés
+El informe puede contener uno o más servicios/paths. Para CADA servicio/path encontrado, extrae:
 
-IMPORTANTE: Si hay pruebas síncronas y asíncronas separadas, extráelas como resultados INDEPENDIENTES con tipos como "Carga (Síncrona)", "Carga (Asíncrona)", "Estrés (Síncrona)", "Estrés (Asíncrona)", etc.
+1. **Criterios de aceptación** (de las tablas de criterios del informe):
+   - process: tipo de proceso ("Síncrono" o "Asíncrono")
+   - path: el endpoint/path del servicio
+   - responseTimeDesc: descripción textual completa del tiempo de respuesta (ej: "De 1 a 500 asegurados = 1 a 2 minutos")
+   - responseTimeMaxMin: el valor MÁXIMO del tiempo de respuesta aplicable en MINUTOS. Si hay rangos, selecciona el máximo del rango que corresponda según los usuarios/asegurados usados en las pruebas. Por ejemplo si dice "De 1 a 500 asegurados = 1 a 2 min" y se probó con 200 asegurados (que está en ese rango), el max es 2.
+   - userHrPrdNormal: usuarios por hora en PRD carga normal
+   - trxDayPrdNormal: transacciones por día PRD carga normal
+   - trxHrPrdPico: transacciones por hora PRD pico
+   - maxErrorRate: porcentaje máximo de error aceptado (número, ej: 1 para 1%)
 
-Para CADA tipo de prueba encontrado, extrae:
-- type: tipo de prueba (ej: "Carga", "Carga (Síncrona)", "Carga (Asíncrona)", "Estrés", "Estrés (Síncrona)", "Estrés (Asíncrona)")
-- startDate: fecha de inicio (formato YYYY-MM-DD si es posible)
-- trx: número de transacciones (TRX)
-- simulatedUsers: usuarios simulados (ej: "hasta 10 usuarios")
-- duration: duración (ej: "30 minutos")
-- errors: número de errores
-- errorRate: porcentaje de error (ej: "0.0%")
-- responseTimeAvg: tiempo de respuesta promedio en segundos
-- responseTimeMin: tiempo de respuesta mínimo en segundos
-- responseTimeMax: tiempo de respuesta máximo en segundos
-- tps: transacciones por segundo
-- status: estado final. REGLAS para determinar el estado:
-  * Si el informe dice explícitamente "CONFORME" o "NO CONFORME" para esa prueba, usa ese valor.
-  * Para pruebas de Estrés: SOLO usa "NO CONFORME" si existe evidencia textual explícita en observaciones/análisis/conclusiones (cita breve).
-  * Si no hay evidencia negativa explícita, usa "CONFORME".
-  * Si no hay suficiente información para determinar el estado, déjalo como null (se mostrará como guión "—").
-- statusEvidence: cita corta textual (máx 180 chars) que justifica el estado. Si no hay evidencia explícita, devolver null.
+2. **Resultados de Carga** (SOLO los valores finales/resumen, NO los tramos intermedios):
+   - process: tipo de proceso
+   - uvc: usuarios virtuales concurrentes
+   - trx: transacciones totales
+   - asegurados: número de asegurados/registros usados
+   - tProm: tiempo de respuesta promedio en segundos
+   - tMin: tiempo de respuesta mínimo en segundos
+   - tMax: tiempo de respuesta máximo en segundos
+   - errorRate: tasa de error (ej: "0.0%")
+   - errors: número de errores
+   - tps: transacciones por segundo (throughput)
+   - duration: duración de la prueba
+   - date: fecha de la prueba (formato DD/MM/YYYY)
+
+3. **Resultados de Estrés** (TODOS los tramos/escalones de usuarios, cada fila):
+   Para cada tramo/escalón de usuarios concurrentes, extrae:
+   - uvc: usuarios virtuales concurrentes de ese tramo
+   - trx: transacciones
+   - asegurados: registros
+   - tProm: tiempo respuesta promedio en segundos
+   - tMin: tiempo respuesta mínimo en segundos
+   - tMax: tiempo respuesta máximo en segundos
+
+4. **Análisis y Comentarios** (del texto de análisis/conclusiones del informe):
+   - loadAnalysis: texto de análisis para pruebas de carga (copiar del informe)
+   - loadComments: comentarios adicionales de carga (copiar del informe)
+   - stressAnalysis: texto de análisis para pruebas de estrés (copiar del informe)
+   - stressComments: comentarios adicionales de estrés (copiar del informe)
+
+IMPORTANTE:
+- Si hay procesos Síncronos y Asíncronos, crea un servicio separado para cada uno con el mismo path.
+- Para Carga: solo extrae la fila FINAL/resumen, no los tramos intermedios.
+- Para Estrés: extrae TODOS los tramos (cada nivel de usuarios concurrentes como fila separada).
+- El análisis y comentarios son textos descriptivos del informe sobre los resultados.
 
 Responde SOLO con un JSON válido con esta estructura exacta:
 {
-  "results": [
+  "services": [
     {
-      "type": "string",
-      "startDate": "string or null",
-      "trx": number_or_null,
-      "simulatedUsers": "string or null",
-      "duration": "string or null",
-      "errors": number_or_null,
-      "errorRate": "string or null",
-      "responseTimeAvg": number_or_null,
-      "responseTimeMin": number_or_null,
-      "responseTimeMax": number_or_null,
-      "tps": number_or_null,
-      "status": "string or null",
-      "statusEvidence": "string or null"
+      "criteria": {
+        "process": "string",
+        "path": "string",
+        "responseTimeDesc": "string",
+        "responseTimeMaxMin": number,
+        "userHrPrdNormal": number_or_null,
+        "trxDayPrdNormal": number_or_null,
+        "trxHrPrdPico": number_or_null,
+        "maxErrorRate": number_or_null
+      },
+      "loadResult": {
+        "process": "string",
+        "uvc": number_or_null,
+        "trx": number_or_null,
+        "asegurados": number_or_null,
+        "tProm": number_or_null,
+        "tMin": number_or_null,
+        "tMax": number_or_null,
+        "errorRate": "string_or_null",
+        "errors": number_or_null,
+        "tps": number_or_null,
+        "duration": "string_or_null",
+        "date": "string_or_null"
+      },
+      "stressSteps": [
+        {
+          "uvc": number,
+          "trx": number,
+          "asegurados": number,
+          "tProm": number,
+          "tMin": number,
+          "tMax": number
+        }
+      ],
+      "loadAnalysis": "string_or_null",
+      "loadComments": "string_or_null",
+      "stressAnalysis": "string_or_null",
+      "stressComments": "string_or_null"
+    }
   ]
 }
 
@@ -114,6 +158,18 @@ No incluyas explicaciones, solo el JSON.`;
     if (!response.ok) {
       const errText = await response.text();
       console.error("AI Gateway error:", response.status, errText);
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded, intente de nuevo en unos segundos." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "Créditos insuficientes." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify({ error: `AI Gateway error [${response.status}]` }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -123,7 +179,6 @@ No incluyas explicaciones, solo el JSON.`;
     const aiResult = await response.json();
     const content = aiResult.choices?.[0]?.message?.content ?? "";
 
-    // Extract JSON from response (may be wrapped in markdown code block)
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return new Response(JSON.stringify({ error: "Could not parse AI response", raw: content }), {
@@ -134,9 +189,11 @@ No incluyas explicaciones, solo el JSON.`;
 
     const parsed = JSON.parse(jsonMatch[0]);
 
-    // Debug: log what AI returned for each result
-    for (const r of (parsed.results ?? [])) {
-      console.log(`[PDF] type="${r.type}" status="${r.status}" evidence="${r.statusEvidence}"`);
+    // Debug log
+    for (const svc of (parsed.services ?? [])) {
+      console.log(`[PDF] service path="${svc.criteria?.path}" process="${svc.criteria?.process}"`);
+      console.log(`[PDF]   load: tProm=${svc.loadResult?.tProm} tMax=${svc.loadResult?.tMax}`);
+      console.log(`[PDF]   stress steps: ${svc.stressSteps?.length ?? 0}`);
     }
 
     return new Response(JSON.stringify(parsed), {
