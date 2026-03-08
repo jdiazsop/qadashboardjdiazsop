@@ -55,27 +55,20 @@ const extractMaxAsegurados = (responseTimeDesc: unknown): number | undefined => 
   return match ? Number(match[1]) : undefined;
 };
 
-const deriveStressSummary = (stressSteps: any[]): any | undefined => {
-  if (!Array.isArray(stressSteps) || stressSteps.length === 0) return undefined;
+const hasAnyStressMetric = (value: any): boolean => {
+  if (!value || typeof value !== "object") return false;
+  return ["uvc", "trx", "asegurados", "tProm", "tMin", "tMax"].some((key) => toNumber(value?.[key]) !== undefined);
+};
 
-  const toNums = (key: string) => stressSteps
-    .map((s) => toNumber(s?.[key]))
-    .filter((v): v is number => v !== undefined);
-
-  const uvcVals = toNums("uvc");
-  const trxVals = toNums("trx");
-  const aseguradosVals = toNums("asegurados");
-  const tPromVals = toNums("tProm");
-  const tMinVals = toNums("tMin");
-  const tMaxVals = toNums("tMax");
-
+const normalizeStressSummary = (value: any): any | undefined => {
+  if (!hasAnyStressMetric(value)) return undefined;
   return {
-    uvc: uvcVals.length ? Math.max(...uvcVals) : undefined,
-    trx: trxVals.length ? Math.max(...trxVals) : undefined,
-    asegurados: aseguradosVals.length ? aseguradosVals[0] : undefined,
-    tProm: tPromVals.length ? Number((tPromVals.reduce((a, b) => a + b, 0) / tPromVals.length).toFixed(2)) : undefined,
-    tMin: tMinVals.length ? Math.min(...tMinVals) : undefined,
-    tMax: tMaxVals.length ? Math.max(...tMaxVals) : undefined,
+    uvc: toNumber(value?.uvc),
+    trx: toNumber(value?.trx),
+    asegurados: toNumber(value?.asegurados),
+    tProm: toNumber(value?.tProm),
+    tMin: toNumber(value?.tMin),
+    tMax: toNumber(value?.tMax),
   };
 };
 
