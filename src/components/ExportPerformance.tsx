@@ -155,90 +155,239 @@ export function ExportPerformance({ atenciones }: Props) {
       const wb = new ExcelJS.Workbook();
       const ws = wb.addWorksheet('Rendimiento');
 
-      // Build columns dynamically
-      const columns: { header: string; key: string; width: number }[] = [];
-      const fieldGetters: ((a: Atencion, svc?: PerfServiceData) => string)[] = [];
+      const pd = (a: Atencion) => a.performanceData ?? {};
 
-      const addCol = (header: string, width: number, getter: (a: Atencion, svc?: PerfServiceData) => string) => {
-        const key = `col_${columns.length}`;
-        columns.push({ header, key, width });
-        fieldGetters.push(getter);
+      // ── Define column groups with section colors ──
+      type ColDef = { header: string; width: number; getter: (a: Atencion, svc?: PerfServiceData) => string | number | undefined };
+      type Section = { name: string; color: string; textColor: string; cols: ColDef[] };
+
+      const sections: Section[] = [];
+
+      // General
+      const generalCols: ColDef[] = [];
+      if (has('code')) generalCols.push({ header: 'Código', width: 18, getter: a => a.code });
+      if (has('detalleFuncional')) generalCols.push({ header: 'Detalle Funcional', width: 35, getter: a => a.detalleFuncional ?? '—' });
+      if (has('tipoAtencion')) generalCols.push({ header: 'Tipo de Atención', width: 20, getter: a => formatValue(a.tipoAtencion) });
+      if (generalCols.length > 0) sections.push({ name: 'DATOS GENERALES', color: 'FF1E3A5F', textColor: 'FFFFFFFF', cols: generalCols });
+
+      // Status
+      const statusCols: ColDef[] = [];
+      if (has('checklistLevel')) statusCols.push({ header: 'Checklist', width: 12, getter: a => formatValue(pd(a).checklistLevel) });
+      if (has('hadUnderstandingSession')) statusCols.push({ header: 'Sesión Entendimiento', width: 20, getter: a => formatValue(pd(a).hadUnderstandingSession) });
+      if (has('appliesPerformanceTests')) statusCols.push({ header: '¿Aplica Pruebas?', width: 15, getter: a => formatValue(pd(a).appliesPerformanceTests) });
+      if (has('dependentRq')) statusCols.push({ header: 'Dep. Estado', width: 12, getter: a => formatValue(pd(a).dependentRq) });
+      if (has('dependentRqName')) statusCols.push({ header: 'Dep. Atención', width: 18, getter: a => pd(a).dependentRqName ?? '—' });
+      if (has('dependentRqComment')) statusCols.push({ header: 'Dep. Motivo', width: 30, getter: a => pd(a).dependentRqComment ?? '—' });
+      if (has('serviciosRelacionadosApplies')) statusCols.push({ header: 'Serv. Rel. Estado', width: 15, getter: a => formatValue(pd(a).serviciosRelacionadosApplies) });
+      if (has('serviciosRelacionados')) statusCols.push({ header: 'Serv. Relacionados', width: 30, getter: a => pd(a).serviciosRelacionados ?? '—' });
+      if (statusCols.length > 0) sections.push({ name: 'ESTADO DE RENDIMIENTO', color: 'FF2D5F2D', textColor: 'FFFFFFFF', cols: statusCols });
+
+      // Criteria
+      const critCols: ColDef[] = [];
+      if (has('criteria.process')) critCols.push({ header: 'Proceso', width: 20, getter: (_, s) => s?.criteria.process ?? '—' });
+      if (has('criteria.path')) critCols.push({ header: 'Path', width: 35, getter: (_, s) => s?.criteria.path ?? '—' });
+      if (has('criteria.responseTimeDesc')) critCols.push({ header: 'Tiempo Respuesta', width: 30, getter: (_, s) => s?.criteria.responseTimeDesc ?? '—' });
+      if (has('criteria.responseTimeMaxMin')) critCols.push({ header: 'T. Rpta Max (min)', width: 16, getter: (_, s) => s?.criteria.responseTimeMaxMin ?? '—' });
+      if (has('criteria.userHrPrdNormal')) critCols.push({ header: 'User x hr PRD', width: 14, getter: (_, s) => s?.criteria.userHrPrdNormal ?? '—' });
+      if (has('criteria.trxDayPrdNormal')) critCols.push({ header: 'Trx x día PRD', width: 14, getter: (_, s) => s?.criteria.trxDayPrdNormal ?? '—' });
+      if (has('criteria.trxHrPrdPico')) critCols.push({ header: 'Trx x hr Pico', width: 14, getter: (_, s) => s?.criteria.trxHrPrdPico ?? '—' });
+      if (has('criteria.maxErrorRate')) critCols.push({ header: '% Error Máx', width: 12, getter: (_, s) => s?.criteria.maxErrorRate ?? '—' });
+      if (critCols.length > 0) sections.push({ name: 'CRITERIOS DE ACEPTACIÓN', color: 'FF5F3A1E', textColor: 'FFFFFFFF', cols: critCols });
+
+      // Load
+      const loadCols: ColDef[] = [];
+      if (has('load.uvc')) loadCols.push({ header: 'UVC', width: 10, getter: (_, s) => s?.loadResult?.uvc ?? '—' });
+      if (has('load.trx')) loadCols.push({ header: 'TRX', width: 10, getter: (_, s) => s?.loadResult?.trx ?? '—' });
+      if (has('load.asegurados')) loadCols.push({ header: 'Asegurados', width: 12, getter: (_, s) => s?.loadResult?.asegurados ?? '—' });
+      if (has('load.tProm')) loadCols.push({ header: 'T. Prom', width: 10, getter: (_, s) => s?.loadResult?.tProm ?? '—' });
+      if (has('load.tMin')) loadCols.push({ header: 'T. Min', width: 10, getter: (_, s) => s?.loadResult?.tMin ?? '—' });
+      if (has('load.tMax')) loadCols.push({ header: 'T. Max', width: 10, getter: (_, s) => s?.loadResult?.tMax ?? '—' });
+      if (has('load.errorRate')) loadCols.push({ header: '% Error', width: 10, getter: (_, s) => s?.loadResult?.errorRate ?? '—' });
+      if (has('load.errors')) loadCols.push({ header: 'Errores', width: 10, getter: (_, s) => s?.loadResult?.errors ?? '—' });
+      if (has('load.tps')) loadCols.push({ header: 'TPS', width: 10, getter: (_, s) => s?.loadResult?.tps ?? '—' });
+      if (has('loadAnalysis')) loadCols.push({ header: 'Análisis Carga', width: 50, getter: (_, s) => s?.loadAnalysis ?? '—' });
+      if (loadCols.length > 0) sections.push({ name: 'PRUEBAS DE CARGA', color: 'FF1E4D5F', textColor: 'FFFFFFFF', cols: loadCols });
+
+      // Stress columns (individual step columns)
+      const stressCols: ColDef[] = [];
+      if (has('stressSteps')) {
+        stressCols.push({ header: 'Tramo', width: 8, getter: () => '' });
+        stressCols.push({ header: 'UVC', width: 10, getter: () => '' });
+        stressCols.push({ header: 'TRX', width: 10, getter: () => '' });
+        stressCols.push({ header: 'Asegurados', width: 12, getter: () => '' });
+        stressCols.push({ header: 'T. Prom', width: 10, getter: () => '' });
+        stressCols.push({ header: 'T. Min', width: 10, getter: () => '' });
+        stressCols.push({ header: 'T. Max', width: 10, getter: () => '' });
+      }
+      if (has('stressAnalysis')) stressCols.push({ header: 'Análisis Estrés', width: 50, getter: (_, s) => s?.stressAnalysis ?? '—' });
+      if (stressCols.length > 0) sections.push({ name: 'PRUEBAS DE ESTRÉS', color: 'FF5F1E3A', textColor: 'FFFFFFFF', cols: stressCols });
+
+      // Flatten all columns
+      const allCols = sections.flatMap(s => s.cols);
+      const totalCols = allCols.length;
+      if (totalCols === 0) { toast.error('No hay columnas seleccionadas'); return; }
+
+      // ── Row 1: Section header (merged cells per section) ──
+      const sectionRow = ws.getRow(1);
+      sectionRow.height = 22;
+      let colOffset = 1;
+      for (const section of sections) {
+        const count = section.cols.length;
+        if (count > 1) {
+          ws.mergeCells(1, colOffset, 1, colOffset + count - 1);
+        }
+        const cell = ws.getCell(1, colOffset);
+        cell.value = section.name;
+        cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: section.textColor } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: section.color } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        // Apply fill to all cells in merge
+        for (let c = colOffset; c < colOffset + count; c++) {
+          const mc = ws.getCell(1, c);
+          mc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: section.color } };
+        }
+        colOffset += count;
+      }
+
+      // ── Row 2: Column headers ──
+      const headerRow = ws.getRow(2);
+      headerRow.height = 24;
+      allCols.forEach((col, idx) => {
+        const cell = ws.getCell(2, idx + 1);
+        cell.value = col.header;
+        cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.border = { bottom: { style: 'thin', color: { argb: 'FF95A5A6' } } };
+      });
+
+      // Set column widths
+      allCols.forEach((col, idx) => {
+        ws.getColumn(idx + 1).width = col.width;
+      });
+
+      // ── Helper: find column index for a section ──
+      const sectionStartCol = (sectionName: string) => {
+        let start = 0;
+        for (const s of sections) {
+          if (s.name === sectionName) return start;
+          start += s.cols.length;
+        }
+        return start;
       };
 
-      // General fields
-      if (has('code')) addCol('Código', 18, a => a.code);
-      if (has('detalleFuncional')) addCol('Detalle Funcional', 35, a => a.detalleFuncional ?? '—');
-      if (has('tipoAtencion')) addCol('Tipo de Atención', 20, a => formatValue(a.tipoAtencion));
+      // ── Data rows ──
+      const hasSvcFields = ['CRITERIOS DE ACEPTACIÓN', 'PRUEBAS DE CARGA', 'PRUEBAS DE ESTRÉS'].some(
+        n => sections.some(s => s.name === n)
+      );
+      const hasStressStepCols = has('stressSteps');
 
-      // Performance status
-      const d = (a: Atencion) => a.performanceData ?? {};
-      if (has('checklistLevel')) addCol('Checklist', 12, a => formatValue(d(a).checklistLevel));
-      if (has('hadUnderstandingSession')) addCol('Sesión Entendimiento', 18, a => formatValue(d(a).hadUnderstandingSession));
-      if (has('appliesPerformanceTests')) addCol('¿Aplica Pruebas?', 15, a => formatValue(d(a).appliesPerformanceTests));
-      if (has('dependentRq')) addCol('Dep. Estado', 12, a => formatValue(d(a).dependentRq));
-      if (has('dependentRqName')) addCol('Dep. Atención', 18, a => d(a).dependentRqName ?? '—');
-      if (has('dependentRqComment')) addCol('Dep. Motivo', 30, a => d(a).dependentRqComment ?? '—');
-      if (has('serviciosRelacionadosApplies')) addCol('Serv. Rel. Estado', 15, a => formatValue(d(a).serviciosRelacionadosApplies));
-      if (has('serviciosRelacionados')) addCol('Serv. Relacionados', 30, a => d(a).serviciosRelacionados ?? '—');
-
-      // Criteria fields
-      if (has('criteria.process')) addCol('Proceso', 20, (_, svc) => svc?.criteria.process ?? '—');
-      if (has('criteria.path')) addCol('Path', 30, (_, svc) => svc?.criteria.path ?? '—');
-      if (has('criteria.responseTimeDesc')) addCol('Tiempo Respuesta', 25, (_, svc) => svc?.criteria.responseTimeDesc ?? '—');
-      if (has('criteria.responseTimeMaxMin')) addCol('T. Rpta Max (min)', 15, (_, svc) => String(svc?.criteria.responseTimeMaxMin ?? '—'));
-      if (has('criteria.userHrPrdNormal')) addCol('User x hr PRD', 13, (_, svc) => String(svc?.criteria.userHrPrdNormal ?? '—'));
-      if (has('criteria.trxDayPrdNormal')) addCol('Trx x día PRD', 13, (_, svc) => String(svc?.criteria.trxDayPrdNormal ?? '—'));
-      if (has('criteria.trxHrPrdPico')) addCol('Trx x hr Pico', 13, (_, svc) => String(svc?.criteria.trxHrPrdPico ?? '—'));
-      if (has('criteria.maxErrorRate')) addCol('% Error Máx', 10, (_, svc) => String(svc?.criteria.maxErrorRate ?? '—'));
-
-      // Load fields
-      if (has('load.uvc')) addCol('Carga UVC', 10, (_, svc) => String(svc?.loadResult?.uvc ?? '—'));
-      if (has('load.trx')) addCol('Carga TRX', 10, (_, svc) => String(svc?.loadResult?.trx ?? '—'));
-      if (has('load.asegurados')) addCol('Carga Aseg.', 10, (_, svc) => String(svc?.loadResult?.asegurados ?? '—'));
-      if (has('load.tProm')) addCol('Carga T.Prom', 10, (_, svc) => String(svc?.loadResult?.tProm ?? '—'));
-      if (has('load.tMin')) addCol('Carga T.Min', 10, (_, svc) => String(svc?.loadResult?.tMin ?? '—'));
-      if (has('load.tMax')) addCol('Carga T.Max', 10, (_, svc) => String(svc?.loadResult?.tMax ?? '—'));
-      if (has('load.errorRate')) addCol('Carga %Error', 10, (_, svc) => String(svc?.loadResult?.errorRate ?? '—'));
-      if (has('load.errors')) addCol('Carga Errores', 10, (_, svc) => String(svc?.loadResult?.errors ?? '—'));
-      if (has('load.tps')) addCol('Carga TPS', 10, (_, svc) => String(svc?.loadResult?.tps ?? '—'));
-      if (has('loadAnalysis')) addCol('Análisis Carga', 40, (_, svc) => svc?.loadAnalysis ?? '—');
-
-      // Stress
-      if (has('stressSteps')) addCol('Estrés (resumen)', 40, (_, svc) => {
-        const s = svc?.stressSummary;
-        if (!s) return '—';
-        return `UVC:${s.uvc ?? '-'} TRX:${s.trx ?? '-'} TProm:${s.tProm ?? '-'} TMax:${s.tMax ?? '-'}`;
-      });
-      if (has('stressAnalysis')) addCol('Análisis Estrés', 40, (_, svc) => svc?.stressAnalysis ?? '—');
-
-      ws.columns = columns;
-
-      // Style header
-      const headerRow = ws.getRow(1);
-      headerRow.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
-      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
-      headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      headerRow.height = 28;
-
-      // Data rows — one row per service per atencion
-      const hasSvcFields = FIELD_GROUPS.slice(2).some(g => g.fields.some(f => selectedFields.has(f.key)));
+      const centerAlign: Partial<ExcelJS.Alignment> = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      const leftAlign: Partial<ExcelJS.Alignment> = { vertical: 'middle', horizontal: 'left', wrapText: true };
 
       for (const a of chosen) {
         const services = a.performanceData?.services ?? [];
-        if (hasSvcFields && services.length > 0) {
-          for (const svc of services) {
-            const row: Record<string, string> = {};
-            columns.forEach((col, idx) => { row[col.key] = fieldGetters[idx](a, svc); });
-            const r = ws.addRow(row);
-            r.font = { name: 'Calibri', size: 9 };
-            r.alignment = { vertical: 'top', wrapText: true };
+        const svcsToExport = hasSvcFields && services.length > 0 ? services : [undefined];
+
+        for (const svc of svcsToExport) {
+          // Determine how many rows this entry needs (max of 1 data row + stress steps)
+          const steps = svc?.stressSteps ?? [];
+          const maxStressRows = hasStressStepCols ? Math.max(steps.length + 1, 1) : 1; // +1 for summary
+
+          // First row: general + status + criteria + load + first stress step
+          const baseRowNum = ws.rowCount + 1;
+          const baseRow = ws.addRow([]);
+          baseRow.height = 20;
+
+          // Fill general + status columns
+          let ci = 0;
+          for (const section of sections) {
+            if (['PRUEBAS DE ESTRÉS'].includes(section.name)) {
+              ci += section.cols.length;
+              continue;
+            }
+            for (const col of section.cols) {
+              const cell = ws.getCell(baseRowNum, ci + 1);
+              const val = col.getter(a, svc);
+              cell.value = val == null ? '—' : val;
+              // Use left align for long text fields
+              const isLong = col.width >= 30;
+              cell.alignment = isLong ? leftAlign : centerAlign;
+              cell.font = { name: 'Calibri', size: 9 };
+              ci++;
+            }
           }
-        } else {
-          const row: Record<string, string> = {};
-          columns.forEach((col, idx) => { row[col.key] = fieldGetters[idx](a); });
-          const r = ws.addRow(row);
-          r.font = { name: 'Calibri', size: 9 };
-          r.alignment = { vertical: 'top', wrapText: true };
+
+          // Fill stress steps as rows
+          if (hasStressStepCols) {
+            const stressStartCol = sectionStartCol('PRUEBAS DE ESTRÉS');
+            const stressAnalysisIncluded = has('stressAnalysis');
+
+            // Write each step
+            for (let stepIdx = 0; stepIdx < steps.length; stepIdx++) {
+              const step = steps[stepIdx];
+              const rowNum = stepIdx === 0 ? baseRowNum : ws.rowCount + 1;
+              const row = stepIdx === 0 ? baseRow : ws.addRow([]);
+              row.height = 18;
+
+              const vals = [stepIdx + 1, step.uvc ?? '—', step.trx ?? '—', step.asegurados ?? '—', step.tProm ?? '—', step.tMin ?? '—', step.tMax ?? '—'];
+              vals.forEach((v, vi) => {
+                const cell = ws.getCell(rowNum, stressStartCol + vi + 1);
+                cell.value = v;
+                cell.alignment = centerAlign;
+                cell.font = { name: 'Calibri', size: 9 };
+              });
+            }
+
+            // Summary/Total row
+            const summary = svc?.stressSummary;
+            if (summary) {
+              const sumRowNum = ws.rowCount + 1;
+              const sumRow = ws.addRow([]);
+              sumRow.height = 20;
+              const sumVals = ['Total', summary.uvc ?? '—', summary.trx ?? '—', summary.asegurados ?? '—', summary.tProm ?? '—', summary.tMin ?? '—', summary.tMax ?? '—'];
+              sumVals.forEach((v, vi) => {
+                const cell = ws.getCell(sumRowNum, stressStartCol + vi + 1);
+                cell.value = v;
+                cell.alignment = centerAlign;
+                cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF1E3A5F' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF2F8' } };
+              });
+            }
+
+            // Stress analysis in first stress row
+            if (stressAnalysisIncluded) {
+              const analCol = stressStartCol + (has('stressSteps') ? 7 : 0) + 1;
+              const cell = ws.getCell(baseRowNum, analCol);
+              cell.value = svc?.stressAnalysis ?? '—';
+              cell.alignment = leftAlign;
+              cell.font = { name: 'Calibri', size: 9 };
+              // Merge analysis cell across stress rows
+              const lastStressRow = ws.rowCount;
+              if (lastStressRow > baseRowNum) {
+                ws.mergeCells(baseRowNum, analCol, lastStressRow, analCol);
+              }
+            }
+
+            // Merge general/status/criteria/load cells across stress rows
+            const lastStressRow = ws.rowCount;
+            if (lastStressRow > baseRowNum) {
+              let mergeCI = 0;
+              for (const section of sections) {
+                if (section.name === 'PRUEBAS DE ESTRÉS') { mergeCI += section.cols.length; continue; }
+                for (const col of section.cols) {
+                  ws.mergeCells(baseRowNum, mergeCI + 1, lastStressRow, mergeCI + 1);
+                  mergeCI++;
+                }
+              }
+            }
+          }
+
+          // Add thin bottom border to last row of this atencion block
+          const lastRow = ws.rowCount;
+          for (let c = 1; c <= totalCols; c++) {
+            ws.getCell(lastRow, c).border = { bottom: { style: 'thin', color: { argb: 'FFBDC3C7' } } };
+          }
         }
       }
 
