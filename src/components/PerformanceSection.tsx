@@ -129,6 +129,7 @@ export function PerformanceSection({ data, onChange }: Props) {
           loadAnalysis: svc.loadAnalysis ?? '',
           loadComments: svc.loadComments ?? '',
           stressSteps,
+          stressSummary: svc.stressSummary ?? undefined,
           stressAnalysis: svc.stressAnalysis ?? '',
           stressComments: svc.stressComments ?? '',
         };
