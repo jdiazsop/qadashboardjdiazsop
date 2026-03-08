@@ -175,6 +175,33 @@ export function ExportPerformance({ atenciones }: Props) {
     return String(val);
   };
 
+  const hasRealStressData = (svc?: PerfServiceData): boolean => {
+    if (!svc) return false;
+    const steps = svc.stressSteps ?? [];
+    if (steps.length === 0) return false;
+
+    const summary = svc.stressSummary ?? steps[steps.length - 1];
+    const load = svc.loadResult;
+    if (!summary || !load) return true;
+
+    const toNum = (v: unknown) => {
+      if (typeof v === 'number') return v;
+      const n = Number(String(v ?? '').replace(',', '.'));
+      return Number.isFinite(n) ? n : NaN;
+    };
+
+    const fields: Array<keyof NonNullable<PerfServiceData['stressSummary']>> = ['uvc', 'trx', 'asegurados', 'tProm', 'tMin', 'tMax'];
+    const comparable = fields
+      .map((field) => {
+        const s = toNum(summary[field]);
+        const l = toNum((load as any)[field]);
+        return Number.isFinite(s) && Number.isFinite(l) ? Math.abs(s - l) <= 0.01 : null;
+      })
+      .filter((v): v is boolean => v !== null);
+
+    return !(comparable.length >= 4 && comparable.every(Boolean));
+  };
+
   const handleExport = async () => {
     const chosen = atenciones.filter(a => selectedAtenciones.has(a.id));
     if (chosen.length === 0) { toast.error('Selecciona al menos una atención'); return; }
@@ -242,10 +269,10 @@ export function ExportPerformance({ atenciones }: Props) {
       if (has('loadAnalysis')) loadCols.push({ header: 'Análisis Carga', width: 50, getter: (_, s) => s?.loadAnalysis ?? '—' });
       if (loadCols.length > 0) sections.push({ name: 'PRUEBAS DE CARGA', color: 'FF1E4D5F', textColor: 'FFFFFFFF', cols: loadCols });
 
-      // Stress columns — only include if at least one chosen atencion has stress data
+      // Stress columns — only include if at least one chosen atencion has stress data real
       const chosenForCheck = atenciones.filter(a => selectedAtenciones.has(a.id));
       const anyHasStress = chosenForCheck.some(a =>
-        (a.performanceData?.services ?? []).some(s => (s.stressSteps ?? []).length > 0)
+        (a.performanceData?.services ?? []).some(s => hasRealStressData(s))
       );
 
       const stressCols: ColDef[] = [];
@@ -329,9 +356,8 @@ export function ExportPerformance({ atenciones }: Props) {
         const svcsToExport = hasSvcFields && services.length > 0 ? services : [undefined];
 
         for (const svc of svcsToExport) {
-          // Determine how many rows this entry needs (max of 1 data row + stress steps)
-          const steps = svc?.stressSteps ?? [];
-          const maxStressRows = hasStressStepCols ? Math.max(steps.length + 1, 1) : 1; // +1 for summary
+          const stressEnabledForService = hasRealStressData(svc);
+          const steps = stressEnabledForService ? (svc?.stressSteps ?? []) : [];
 
           // First row: general + status + criteria + load + first stress step
           const baseRowNum = ws.rowCount + 1;
@@ -379,7 +405,7 @@ export function ExportPerformance({ atenciones }: Props) {
             }
 
             // Summary/Total row
-            const summary = svc?.stressSummary;
+            const summary = stressEnabledForService ? svc?.stressSummary : undefined;
             if (summary) {
               const sumRowNum = ws.rowCount + 1;
               const sumRow = ws.addRow([]);
@@ -398,7 +424,7 @@ export function ExportPerformance({ atenciones }: Props) {
             if (stressAnalysisIncluded) {
               const analCol = stressStartCol + (has('stressSteps') ? 7 : 0) + 1;
               const cell = ws.getCell(baseRowNum, analCol);
-              cell.value = svc?.stressAnalysis ?? '—';
+              cell.value = stressEnabledForService ? (svc?.stressAnalysis ?? '—') : '—';
               cell.alignment = leftAlign;
               cell.font = { name: 'Calibri', size: 9 };
               // Merge analysis cell across stress rows

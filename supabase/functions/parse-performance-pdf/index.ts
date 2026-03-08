@@ -79,6 +79,33 @@ const deriveStressSummary = (stressSteps: any[]): any | undefined => {
   };
 };
 
+const sameMetric = (a: unknown, b: unknown): boolean | null => {
+  const na = toNumber(a);
+  const nb = toNumber(b);
+  if (na === undefined || nb === undefined) return null;
+  return Math.abs(na - nb) <= 0.01;
+};
+
+const looksLikeLoadPhasesInsteadOfStress = (svc: any): boolean => {
+  const steps = Array.isArray(svc?.stressSteps) ? svc.stressSteps : [];
+  if (steps.length === 0) return false;
+
+  const summary = svc?.stressSummary ?? deriveStressSummary(steps) ?? steps[steps.length - 1];
+  const load = svc?.loadResult;
+  if (!summary || !load) return false;
+
+  const checks = [
+    sameMetric(summary.uvc, load.uvc),
+    sameMetric(summary.trx, load.trx),
+    sameMetric(summary.asegurados, load.asegurados),
+    sameMetric(summary.tProm, load.tProm),
+    sameMetric(summary.tMin, load.tMin),
+    sameMetric(summary.tMax, load.tMax),
+  ].filter((v): v is boolean => v !== null);
+
+  return checks.length >= 4 && checks.every(Boolean);
+};
+
 const buildLoadAnalysis = (svc: any): string => {
   const c = svc?.criteria ?? {};
   const r = svc?.loadResult ?? {};
@@ -206,8 +233,14 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - duration: duración de la prueba
    - date: fecha de la prueba (formato DD/MM/YYYY)
 
-3. **Resultados de Estrés** (TODOS los tramos/escalones de usuarios del proceso asíncrono):
-   Para cada tramo/escalón de usuarios concurrentes (SIN incluir la fila de Total/Resumen), extrae:
+3. **Resultados de Estrés** (SOLO si existe sección explícita de estrés en el informe):
+   - hasStressSection: true SOLO cuando el informe menciona explícitamente una sección tipo "Pruebas de Estrés", "Stress" o equivalente.
+   - Si NO existe sección explícita de estrés, devuelve obligatoriamente:
+     - hasStressSection: false
+     - stressSteps: []
+     - stressSummary: null
+
+   Para casos con hasStressSection=true, extrae TODOS los tramos/escalones de usuarios del proceso asíncrono (SIN incluir la fila de Total/Resumen):
    - uvc: usuarios virtuales concurrentes de ese tramo
    - trx: transacciones
    - asegurados: registros
@@ -277,6 +310,7 @@ Responde SOLO con un JSON válido con esta estructura exacta:
         "duration": "string_or_null",
         "date": "string_or_null"
       },
+      "hasStressSection": boolean,
       "stressSteps": [
         {
           "uvc": number,
@@ -294,7 +328,7 @@ Responde SOLO con un JSON válido con esta estructura exacta:
         "tProm": number,
         "tMin": number,
         "tMax": number
-      },
+      } | null,
       "loadAnalysis": "string",
       "loadComments": "string",
       "stressAnalysis": "string",
@@ -373,9 +407,18 @@ No incluyas explicaciones, solo el JSON.`;
       svc.stressSteps = stressSteps;
       svc.stressSummary = deriveStressSummary(stressSteps);
 
+      const stressDeclared = svc.hasStressSection === true;
+      const stressExplicitlyMissing = svc.hasStressSection === false;
+      const inferredFalsePositive = looksLikeLoadPhasesInsteadOfStress(svc);
+
+      if (stressExplicitlyMissing || (!stressDeclared && inferredFalsePositive)) {
+        svc.stressSteps = [];
+        svc.stressSummary = undefined;
+      }
+
       svc.loadAnalysis = buildLoadAnalysis(svc);
       svc.loadComments = "";
-      svc.stressAnalysis = buildStressAnalysis(svc);
+      svc.stressAnalysis = (svc.stressSteps?.length ?? 0) > 0 ? buildStressAnalysis(svc) : "";
       svc.stressComments = "";
 
       console.log(`[PDF] service path="${svc.criteria?.path}" process="${svc.criteria?.process}"`);
