@@ -423,7 +423,6 @@ export function ExportPerformance({ atenciones }: Props) {
                 timeForExcel(step.tMin),
                 timeForExcel(step.tMax),
                 step.tps ?? '—',
-                step.status ?? '—',
               ];
               vals.forEach((v, vi) => {
                 const cell = ws.getCell(rowNum, stressStartCol + vi + 1);
