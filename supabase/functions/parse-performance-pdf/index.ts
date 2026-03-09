@@ -360,7 +360,11 @@ Para CADA servicio/path asíncrono encontrado, extrae:
       - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto** tal como aparece en la tabla (en la unidad indicada por responseTimeUnit).
       - NO conviertas aquí. NO redondees. NO rehagas cálculos.
       - Nosotros convertiremos a minutos luego para comparar contra criterios.
-    - duration: duración EXACTA tal como figura en el informe (ej: "30 minutos", "45 minutos", "60 minutos"). NO asumas 60 minutos por defecto. Busca el valor exacto en frases como "Duración: XX minutos", "duración de XX minutos", "durante XX minutos" o en la tabla de resultados.
+    - duration: **CRÍTICO** - Extrae la duración EXACTA de la prueba tal como figura en el informe. Busca específicamente en:
+      * El texto que dice "Duración: XX minutos" o "duración de XX minutos"
+      * La tabla resumen de pruebas de carga (columna DURACIÓN)
+      * Frases como "se ejecutó durante XX minutos", "la prueba duró XX minutos"
+      * NO asumas 60 minutos ni ningún valor por defecto. Si dice 45 minutos, pon "45 minutos". Si dice 30, pon "30 minutos".
     - date: fecha (DD/MM/YYYY)
     - status: estado (ej: "CONFORME")
 
@@ -599,7 +603,7 @@ No incluyas explicaciones, solo el JSON.`;
       svc.stressComments = "";
 
       console.log(`[PDF] service path="${svc.criteria?.path}" process="${svc.criteria?.process}"`);
-      console.log(`[PDF]   load: tProm=${svc.loadResult?.tProm} tMax=${svc.loadResult?.tMax}`);
+      console.log(`[PDF]   load: duration="${svc.loadResult?.duration}" tProm=${svc.loadResult?.tProm} tMax=${svc.loadResult?.tMax} unit=${svc.loadResult?.responseTimeUnit}`);
       console.log(`[PDF]   stress steps: ${svc.stressSteps?.length ?? 0}`);
       console.log(`[PDF]   stressSummary: uvc=${svc.stressSummary?.uvc} trx=${svc.stressSummary?.trx} tProm=${svc.stressSummary?.tProm} tMin=${svc.stressSummary?.tMin} tMax=${svc.stressSummary?.tMax}`);
     }
