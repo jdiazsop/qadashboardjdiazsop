@@ -419,6 +419,7 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
               <>
                 <tr className="border-t-2 border-primary/40 bg-primary/5 font-semibold">
                   {stressCols.map(c => {
+                    if (c.key === '_process') return null;
                     const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
                     const value = (summary as any)?.[c.key];
                     const secRaw = isResponseMetric ? getSecRaw(summary, c.key as any) : undefined;
@@ -426,7 +427,6 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
                       <td key={String(c.key)} className={`py-1.5 px-2 text-[10px] text-primary ${c.align === 'right' ? 'text-right' : 'text-left'}`}>
                         {isResponseMetric ? formatResponseMetric(value, secRaw, svc.stressResponseTimeUnit as any) : (value ?? '—')}
                       </td>
-
                     );
                   })}
                 </tr>
