@@ -331,6 +331,8 @@ export interface Atencion {
   cardOrder?: number;
   /** Date estimation data */
   estimation?: DateEstimation;
+  /** Historia relacionada */
+  historiaRelacionada?: string;
   /** Performance data per atencion */
   performanceData?: PerformanceData;
 }
