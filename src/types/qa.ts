@@ -392,6 +392,8 @@ export interface PerformanceTestResult {
 
 /* ── New structured PDF extraction types ── */
 
+export type PerfResponseTimeUnit = 'seconds' | 'minutes';
+
 export interface PerfServiceCriteria {
   process?: string;
   path?: string;
@@ -408,11 +410,13 @@ export interface PerfLoadResult {
   uvc?: number;
   trx?: number;
   asegurados?: number;
+  /** Unidad EXACTA tal como aparece en el encabezado del informe. */
+  responseTimeUnit?: PerfResponseTimeUnit;
   /** Tiempos normalizados en MINUTOS (se usan para análisis/comparaciones). */
   tProm?: number;
   tMin?: number;
   tMax?: number;
-  /** Valores RAW del informe en SEGUNDOS (texto exacto, para mostrar sin pérdida). */
+  /** Valores RAW tal como aparecen en el informe (texto exacto; puede venir en segundos o minutos según el reporte). */
   tPromSecRaw?: string;
   tMinSecRaw?: string;
   tMaxSecRaw?: string;
@@ -436,7 +440,7 @@ export interface PerfStressStep {
   tProm?: number;
   tMin?: number;
   tMax?: number;
-  /** Valores RAW del informe en SEGUNDOS (texto exacto, para mostrar sin pérdida). */
+  /** Valores RAW tal como aparecen en el informe (texto exacto; puede venir en segundos o minutos según el reporte). */
   tPromSecRaw?: string;
   tMinSecRaw?: string;
   tMaxSecRaw?: string;
@@ -450,6 +454,8 @@ export interface PerfServiceData {
   loadResult?: PerfLoadResult;
   loadAnalysis?: string;
   loadComments?: string;
+  /** Unidad del encabezado de tiempos para la tabla de estrés (si existe). */
+  stressResponseTimeUnit?: PerfResponseTimeUnit;
   stressSteps: PerfStressStep[];
   stressSummary?: PerfStressStep;
   stressAnalysis?: string;

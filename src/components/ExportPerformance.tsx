@@ -221,6 +221,45 @@ export function ExportPerformance({ atenciones }: Props) {
         return Number.isFinite(n) ? n : NaN;
       };
 
+      type TimeUnit = 'seconds' | 'minutes';
+      const normalizeTimeUnit = (v: unknown): TimeUnit | undefined => {
+        const t = String(v ?? '').toLowerCase().trim();
+        if (!t) return undefined;
+        if (['seconds', 'second', 'segundos', 'segundo', 'sec', 'secs', 's'].includes(t)) return 'seconds';
+        if (['minutes', 'minute', 'minutos', 'minuto', 'min', 'mins', 'm'].includes(t)) return 'minutes';
+        if (t.includes('seg')) return 'seconds';
+        if (t.includes('min')) return 'minutes';
+        return undefined;
+      };
+
+      const fmtFixed = (n: number, decimals: number) => n
+        .toFixed(decimals)
+        .replace(/\.0+$/, '')
+        .replace(/(\.\d*[1-9])0+$/, '$1');
+
+      const normalizeNumericText = (t: string) => t.trim().replace(',', '.');
+
+      const formatResponse = (minutesValue: unknown, rawTextValue: unknown, unitValue: unknown): string => {
+        const rawText = String(rawTextValue ?? '').trim();
+        const rawNorm = rawText ? normalizeNumericText(rawText) : '';
+        const unit = normalizeTimeUnit(unitValue);
+
+        const minutesNum = toNum(minutesValue);
+        const minutesOk = Number.isFinite(minutesNum);
+
+        if (unit === 'minutes') {
+          const base = rawNorm || (minutesOk ? fmtFixed(minutesNum, 3) : '—');
+          return base === '—' ? '—' : `${base} min`;
+        }
+
+        // default/seconds
+        const secNum = rawNorm ? Number(rawNorm) : (minutesOk ? minutesNum * 60 : NaN);
+        if (!Number.isFinite(secNum)) return '—';
+        const secText = rawNorm || fmtFixed(secNum, 5);
+        const minText = minutesOk ? fmtFixed(minutesNum, 3) : fmtFixed(secNum / 60, 3);
+        return `${secText} seg (${minText} min)`;
+      };
+
       // ── Define column groups with section colors ──
       type ColDef = { header: string; width: number; getter: (a: Atencion, svc?: PerfServiceData) => string | number | undefined };
       type Section = { name: string; color: string; textColor: string; cols: ColDef[] };
@@ -266,9 +305,9 @@ export function ExportPerformance({ atenciones }: Props) {
       if (has('load.uvc')) loadCols.push({ header: 'UVC', width: 10, getter: (_, s) => s?.loadResult?.uvc ?? '—' });
       if (has('load.trx')) loadCols.push({ header: 'TRX', width: 10, getter: (_, s) => s?.loadResult?.trx ?? '—' });
       if (has('load.asegurados')) loadCols.push({ header: 'Asegurados', width: 12, getter: (_, s) => s?.loadResult?.asegurados ?? '—' });
-      if (has('load.tProm')) loadCols.push({ header: 'T. Prom', width: 10, getter: (_, s) => s?.loadResult?.tProm ?? '—' });
-      if (has('load.tMin')) loadCols.push({ header: 'T. Min', width: 10, getter: (_, s) => s?.loadResult?.tMin ?? '—' });
-      if (has('load.tMax')) loadCols.push({ header: 'T. Max', width: 10, getter: (_, s) => s?.loadResult?.tMax ?? '—' });
+      if (has('load.tProm')) loadCols.push({ header: 'T. Prom', width: 18, getter: (_, s) => formatResponse(s?.loadResult?.tProm, s?.loadResult?.tPromSecRaw, s?.loadResult?.responseTimeUnit) });
+      if (has('load.tMin')) loadCols.push({ header: 'T. Min', width: 18, getter: (_, s) => formatResponse(s?.loadResult?.tMin, s?.loadResult?.tMinSecRaw, s?.loadResult?.responseTimeUnit) });
+      if (has('load.tMax')) loadCols.push({ header: 'T. Max', width: 18, getter: (_, s) => formatResponse(s?.loadResult?.tMax, s?.loadResult?.tMaxSecRaw, s?.loadResult?.responseTimeUnit) });
       if (has('load.errorRate')) loadCols.push({ header: '% Error', width: 10, getter: (_, s) => s?.loadResult?.errorRate ?? '—' });
       if (has('load.errors')) loadCols.push({ header: 'Errores', width: 10, getter: (_, s) => s?.loadResult?.errors ?? '—' });
       if (has('load.tps')) loadCols.push({ header: 'TPS', width: 10, getter: (_, s) => s?.loadResult?.tps ?? '—' });
@@ -419,9 +458,9 @@ export function ExportPerformance({ atenciones }: Props) {
                 step.trx ?? '—',
                 step.errors ?? '—',
                 step.errorRate ?? '—',
-                timeForExcel(step.tProm),
-                timeForExcel(step.tMin),
-                timeForExcel(step.tMax),
+                formatResponse(step.tProm, (step as any).tPromSecRaw, (svc as any)?.stressResponseTimeUnit),
+                formatResponse(step.tMin, (step as any).tMinSecRaw, (svc as any)?.stressResponseTimeUnit),
+                formatResponse(step.tMax, (step as any).tMaxSecRaw, (svc as any)?.stressResponseTimeUnit),
                 step.tps ?? '—',
               ];
               vals.forEach((v, vi) => {
@@ -452,9 +491,9 @@ export function ExportPerformance({ atenciones }: Props) {
                 summary.trx ?? '—',
                 (summary as any).errors ?? '—',
                 (summary as any).errorRate ?? '—',
-                timeForExcel(summary.tProm),
-                timeForExcel(summary.tMin),
-                timeForExcel(summary.tMax),
+                formatResponse(summary.tProm, (summary as any).tPromSecRaw, (svc as any)?.stressResponseTimeUnit),
+                formatResponse(summary.tMin, (summary as any).tMinSecRaw, (svc as any)?.stressResponseTimeUnit),
+                formatResponse(summary.tMax, (summary as any).tMaxSecRaw, (svc as any)?.stressResponseTimeUnit),
                 (summary as any).tps ?? '—',
               ];
               sumVals.forEach((v, vi) => {

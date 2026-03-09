@@ -124,26 +124,55 @@ const normalizeTimeMin = (
   return v;
 };
 
-const applyResponseTimes = (obj: any, criteriaMaxMin?: number) => {
+const normalizeTimeUnit = (value: unknown): 'seconds' | 'minutes' | undefined => {
+  const t = String(value ?? '').toLowerCase().trim();
+  if (!t) return undefined;
+  if (['seconds', 'second', 'segundos', 'segundo', 'sec', 'secs', 's'].includes(t)) return 'seconds';
+  if (['minutes', 'minute', 'minutos', 'minuto', 'min', 'mins', 'm'].includes(t)) return 'minutes';
+  // Sometimes comes embedded in a longer header
+  if (t.includes('seg')) return 'seconds';
+  if (t.includes('min')) return 'minutes';
+  return undefined;
+};
+
+const applyResponseTimes = (obj: any, criteriaMaxMin?: number, unit?: 'seconds' | 'minutes') => {
   if (!obj || typeof obj !== 'object') return;
+
+  const convertToMinutes = (val: number): number => (unit === 'seconds' ? (val / 60) : val);
+
   (['tProm', 'tMin', 'tMax'] as const).forEach((k) => {
     const rawKey = `${k}SecRaw`;
     const rawText = typeof obj?.[rawKey] === 'string' ? String(obj[rawKey]).trim() : '';
 
-    // Preferimos el RAW exacto en segundos si viene del informe
+    // Preferimos el RAW exacto del informe (en la unidad que indique el encabezado)
     if (rawText && rawText !== 'N/D' && rawText !== '—') {
-      const sec = toNumber(rawText);
-      if (sec !== undefined) {
-        obj[k] = sec / 60;
+      const rawNum = toNumber(rawText);
+      if (rawNum !== undefined) {
+        if (unit === 'seconds' || unit === 'minutes') {
+          obj[k] = convertToMinutes(rawNum);
+        } else {
+          // Sin unidad explícita: usamos heurística legacy
+          obj[k] = normalizeTimeMin(rawNum, criteriaMaxMin);
+        }
       } else {
-        // Si no se puede parsear, dejamos el tiempo previo (si existe)
         obj[k] = normalizeTimeMin(obj?.[k], criteriaMaxMin);
       }
       obj[rawKey] = rawText;
       return;
     }
 
-    // Fallback: valores existentes (minutos o segundos) + heurística
+    // Fallback: valores existentes + unidad si está disponible
+    if (unit === 'seconds') {
+      const n = toNumber(obj?.[k]);
+      obj[k] = n !== undefined ? (n / 60) : normalizeTimeMin(obj?.[k], criteriaMaxMin);
+      return;
+    }
+    if (unit === 'minutes') {
+      obj[k] = normalizeTimeMin(obj?.[k], criteriaMaxMin) ?? undefined;
+      return;
+    }
+
+    // Legacy heurística
     obj[k] = normalizeTimeMin(obj?.[k], criteriaMaxMin);
   });
 };
@@ -288,18 +317,21 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - errors: número de errores
    - errorRate: tasa de error (ej: "0.35%")
    - tps: transacciones por segundo
-   - response times (MUY IMPORTANTE):
-     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto en SEGUNDOS** tal como aparece en la tabla (ej: "6.05192", "2.056", "21.288").
-     - NO conviertas aquí a minutos. NO redondees. NO rehagas cálculos.
-     - Nosotros convertiremos a minutos luego.
+   - response times (CRÍTICO):
+     - responseTimeUnit: "seconds" o "minutes" según el encabezado de la tabla (ej: "TIEMPO RESPUESTA (SEGUNDOS)" vs "TIEMPO RESPUESTA (MINUTOS)").
+     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto** tal como aparece en la tabla (en la unidad indicada por responseTimeUnit).
+     - NO conviertas aquí. NO redondees. NO rehagas cálculos.
+     - Nosotros convertiremos a minutos luego para comparar contra criterios.
    - duration: duración (ej: "30 minutos")
    - date: fecha (DD/MM/YYYY)
    - status: estado (ej: "CONFORME")
 
 3. **Resultados de Estrés** (SOLO si existe sección explícita de estrés en el informe):
    - hasStressSection: true SOLO cuando el informe menciona explícitamente una sección tipo "Pruebas de Estrés", "Stress" o equivalente.
+   - stressResponseTimeUnit: "seconds" o "minutes" según el encabezado de la tabla de estrés (si no hay estrés, null).
    - Si NO existe sección explícita de estrés, devuelve obligatoriamente:
      - hasStressSection: false
+     - stressResponseTimeUnit: null
      - stressSteps: []
      - stressSummary: null
 
@@ -318,9 +350,9 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - errorRate: string (ej: "6.32%")
    - tps: number
    - status: string (ej: "CONFORME" o "-")
-   - response times (MUY IMPORTANTE):
-     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto en SEGUNDOS** tal como aparece en la tabla.
-     - NO conviertas a minutos. NO redondees.
+   - response times (CRÍTICO):
+     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto** tal como aparece en la tabla (en la unidad indicada por stressResponseTimeUnit).
+     - NO conviertas. NO redondees.
 
    "stressSummary": extrae una fila Total/Resumen SOLO si existe explícitamente en el informe. Si no existe, null.
 
@@ -347,6 +379,7 @@ Responde SOLO con un JSON válido con esta estructura exacta:
         "uvc": number_or_null,
         "trx": number_or_null,
         "asegurados": number_or_null,
+        "responseTimeUnit": "seconds"|"minutes"|null,
         "tPromSecRaw": "string_or_null",
         "tMinSecRaw": "string_or_null",
         "tMaxSecRaw": "string_or_null",
@@ -358,6 +391,7 @@ Responde SOLO con un JSON válido con esta estructura exacta:
         "status": "string_or_null"
       },
       "hasStressSection": boolean,
+      "stressResponseTimeUnit": "seconds"|"minutes"|null,
       "stressSteps": [
         {
           "minutesRange": "string_or_null",
@@ -463,15 +497,19 @@ No incluyas explicaciones, solo el JSON.`;
 
       const criteriaMax = toNumber(svc?.criteria?.responseTimeMaxMin);
 
-      // Normalize times (prefer RAW seconds fields, fallback heuristics)
+      const loadUnit = normalizeTimeUnit(svc?.loadResult?.responseTimeUnit);
       if (svc.loadResult) {
-        applyResponseTimes(svc.loadResult, criteriaMax);
+        svc.loadResult.responseTimeUnit = loadUnit;
+        applyResponseTimes(svc.loadResult, criteriaMax, loadUnit);
         svc.loadResult.uvc = toNumber(svc.loadResult.uvc);
         svc.loadResult.trx = toNumber(svc.loadResult.trx);
         svc.loadResult.asegurados = toNumber(svc.loadResult.asegurados);
         svc.loadResult.errors = toNumber(svc.loadResult.errors);
         svc.loadResult.tps = toNumber(svc.loadResult.tps);
       }
+
+      const stressUnit = normalizeTimeUnit(svc?.stressResponseTimeUnit);
+      svc.stressResponseTimeUnit = stressUnit;
 
       svc.stressSteps = (svc.stressSteps ?? []).map((step: any) => {
         const next = {
@@ -484,13 +522,13 @@ No incluyas explicaciones, solo el JSON.`;
           errors: toNumber(step?.errors),
           tps: toNumber(step?.tps),
         };
-        applyResponseTimes(next, criteriaMax);
+        applyResponseTimes(next, criteriaMax, stressUnit);
         return next;
       });
 
       svc.stressSummary = normalizeStressSummary(svc.stressSummary);
       if (svc.stressSummary) {
-        applyResponseTimes(svc.stressSummary, criteriaMax);
+        applyResponseTimes(svc.stressSummary, criteriaMax, stressUnit);
         svc.stressSummary.uvc = toNumber(svc.stressSummary.uvc);
         svc.stressSummary.trx = toNumber(svc.stressSummary.trx);
         svc.stressSummary.errors = toNumber(svc.stressSummary.errors);
