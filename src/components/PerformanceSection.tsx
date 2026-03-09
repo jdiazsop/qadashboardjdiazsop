@@ -296,13 +296,17 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
   const renderStressTable = (svc: PerfServiceData) => {
     const steps = svc.stressSteps ?? [];
     if (steps.length === 0) return <p className="text-[10px] text-muted-foreground italic">Sin resultados de estrés</p>;
-    const stressCols: { label: string; key: keyof PerfStressStep }[] = [
-      { label: 'UVC', key: 'uvc' },
-      { label: 'TRX', key: 'trx' },
-      { label: 'Asegurados', key: 'asegurados' },
-      { label: 'T. Prom', key: 'tProm' },
-      { label: 'T. Min', key: 'tMin' },
-      { label: 'T. Max', key: 'tMax' },
+    const stressCols: { label: string; key: keyof PerfStressStep; align?: string }[] = [
+      { label: 'Minutos', key: 'minutesRange', align: 'left' },
+      { label: 'UVC', key: 'uvc', align: 'right' },
+      { label: 'TRX', key: 'trx', align: 'right' },
+      { label: 'Errores', key: 'errors', align: 'right' },
+      { label: '% Error', key: 'errorRate', align: 'right' },
+      { label: 'T. Prom', key: 'tProm', align: 'right' },
+      { label: 'T. Min', key: 'tMin', align: 'right' },
+      { label: 'T. Max', key: 'tMax', align: 'right' },
+      { label: 'TPS', key: 'tps', align: 'right' },
+      { label: 'Estado', key: 'status', align: 'left' },
     ];
     const summary = svc.stressSummary;
     const hasSummaryData = summary && ['uvc', 'trx', 'asegurados', 'tProm', 'tMin', 'tMax'].some((k) => {
