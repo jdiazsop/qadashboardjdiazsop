@@ -252,9 +252,10 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - errors: número de errores
    - errorRate: tasa de error (ej: "0.35%")
    - tps: transacciones por segundo
-   - tProm/tMin/tMax: tiempo de respuesta en **MINUTOS**.
-     - Si el informe muestra tiempos en SEGUNDOS, conviértelos a minutos dividiendo entre 60.
-     - NO redondees: conserva la máxima precisión del informe (usa 6+ decimales si aplica). Ej: 6.05192 seg => 0.1008653333 min.
+   - response times (MUY IMPORTANTE):
+     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto en SEGUNDOS** tal como aparece en la tabla (ej: "6.05192", "2.056", "21.288").
+     - NO conviertas aquí a minutos. NO redondees. NO rehagas cálculos.
+     - Nosotros convertiremos a minutos luego.
    - duration: duración (ej: "30 minutos")
    - date: fecha (DD/MM/YYYY)
    - status: estado (ej: "CONFORME")
@@ -266,20 +267,24 @@ Para CADA servicio/path asíncrono encontrado, extrae:
      - stressSteps: []
      - stressSummary: null
 
-   Para casos con hasStressSection=true, extrae TODOS los tramos (filas) del proceso asíncrono.
-   IMPORTANTE: Algunos informes tienen una columna "MINUTOS" (ej: "0 - 10", "11 - 30"). En ese caso:
-   - minutesRange: el texto exacto del rango
-   - uvc: usuarios simulados (ej: "Usuarios simulados: hasta 15 usuarios" => uvc=15) — si es constante, repítelo en cada fila
+   Para casos con hasStressSection=true, extrae TODOS los tramos (filas) del proceso asíncrono en la tabla de estrés.
+
+   IMPORTANTE (evitar errores de mapeo):
+   - La columna "MINUTOS" debe ir a minutesRange (ej: "0 - 10", "11 - 30").
+   - uvc NO sale de la columna MINUTOS. uvc sale del texto "Usuarios simulados: hasta X usuarios" y se repite en cada fila.
+   - No intercambies columnas (p.ej. no pongas "5.03" como uvc).
 
    Campos por cada tramo:
-   - minutesRange: string | null
+   - minutesRange: string | null (texto exacto)
    - uvc: number | null
    - trx: number
    - errors: number
    - errorRate: string (ej: "6.32%")
    - tps: number
    - status: string (ej: "CONFORME" o "-")
-   - tProm/tMin/tMax: tiempo de respuesta en MINUTOS (misma regla de conversión y precisión)
+   - response times (MUY IMPORTANTE):
+     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto en SEGUNDOS** tal como aparece en la tabla.
+     - NO conviertas a minutos. NO redondees.
 
    "stressSummary": extrae una fila Total/Resumen SOLO si existe explícitamente en el informe. Si no existe, null.
 
@@ -306,9 +311,9 @@ Responde SOLO con un JSON válido con esta estructura exacta:
         "uvc": number_or_null,
         "trx": number_or_null,
         "asegurados": number_or_null,
-        "tProm": number_or_null,
-        "tMin": number_or_null,
-        "tMax": number_or_null,
+        "tPromSecRaw": "string_or_null",
+        "tMinSecRaw": "string_or_null",
+        "tMaxSecRaw": "string_or_null",
         "errorRate": "string_or_null",
         "errors": number_or_null,
         "tps": number_or_null,
@@ -325,9 +330,9 @@ Responde SOLO con un JSON válido con esta estructura exacta:
           "errors": number_or_null,
           "errorRate": "string_or_null",
           "tps": number_or_null,
-          "tProm": number_or_null,
-          "tMin": number_or_null,
-          "tMax": number_or_null,
+          "tPromSecRaw": "string_or_null",
+          "tMinSecRaw": "string_or_null",
+          "tMaxSecRaw": "string_or_null",
           "status": "string_or_null"
         }
       ],
@@ -338,9 +343,9 @@ Responde SOLO con un JSON válido con esta estructura exacta:
         "errors": number_or_null,
         "errorRate": "string_or_null",
         "tps": number_or_null,
-        "tProm": number_or_null,
-        "tMin": number_or_null,
-        "tMax": number_or_null,
+        "tPromSecRaw": "string_or_null",
+        "tMinSecRaw": "string_or_null",
+        "tMaxSecRaw": "string_or_null",
         "status": "string_or_null"
       } | null,
       "loadAnalysis": "string",
@@ -360,7 +365,7 @@ No incluyas explicaciones, solo el JSON.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           {
             role: "user",
@@ -378,7 +383,7 @@ No incluyas explicaciones, solo el JSON.`;
             ],
           },
         ],
-        temperature: 0.1,
+        temperature: 0,
       }),
     });
 

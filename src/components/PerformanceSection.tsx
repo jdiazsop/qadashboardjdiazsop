@@ -193,10 +193,17 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
   const cellClass = "py-1.5 px-2 text-[10px] text-foreground border-b border-border/30";
   const headerCellClass = "py-1.5 px-2 text-[8px] uppercase text-muted-foreground font-medium border-b border-border whitespace-nowrap";
 
-  const formatResponseMetric = (value: unknown): string => {
-    if (value == null || value === '') return '—';
-    const n = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
-    if (!Number.isFinite(n)) return String(value);
+  const formatResponseMetric = (minutesValue: unknown, secRaw?: unknown): string => {
+    const rawText = String(secRaw ?? '').trim();
+    // Preferimos el valor RAW en segundos (texto exacto del informe) para evitar pérdidas (p.ej. 7.40→7.38)
+    if (rawText && rawText !== 'N/D' && rawText !== '—') {
+      const cleaned = rawText.replace(',', '.');
+      return `${cleaned} seg`;
+    }
+
+    if (minutesValue == null || minutesValue === '') return '—';
+    const n = typeof minutesValue === 'number' ? minutesValue : Number(String(minutesValue).replace(',', '.'));
+    if (!Number.isFinite(n)) return String(minutesValue);
 
     // Guardamos en MINUTOS, pero el informe suele mostrarse en SEGUNDOS.
     // Si es < 1 minuto, mostramos en segundos con alta precisión.

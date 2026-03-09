@@ -408,9 +408,14 @@ export interface PerfLoadResult {
   uvc?: number;
   trx?: number;
   asegurados?: number;
+  /** Tiempos normalizados en MINUTOS (se usan para análisis/comparaciones). */
   tProm?: number;
   tMin?: number;
   tMax?: number;
+  /** Valores RAW del informe en SEGUNDOS (texto exacto, para mostrar sin pérdida). */
+  tPromSecRaw?: string;
+  tMinSecRaw?: string;
+  tMaxSecRaw?: string;
   errorRate?: string;
   errors?: number;
   tps?: number;
