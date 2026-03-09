@@ -93,6 +93,25 @@ const sameMetric = (a: unknown, b: unknown): boolean | null => {
   return Math.abs(na - nb) <= 0.01;
 };
 
+const normalizeTimeMin = (
+  raw: unknown,
+  criteriaMaxMin?: number,
+): number | undefined => {
+  const v = toNumber(raw);
+  if (v === undefined) return undefined;
+
+  // Heurística: si el valor es muy alto frente al SLA (en minutos), probablemente viene en segundos.
+  // Ej: SLA=1 min y v=6.18 (seg) => v/60.
+  if (criteriaMaxMin !== undefined) {
+    if (v > criteriaMaxMin * 3 && v <= 600) return v / 60;
+    return v;
+  }
+
+  // Sin SLA: asumimos segundos cuando parece un tiempo típico de tabla en segundos.
+  if (v > 3 && v <= 600) return v / 60;
+  return v;
+};
+
 const looksLikeLoadPhasesInsteadOfStress = (svc: any): boolean => {
   const steps = Array.isArray(svc?.stressSteps) ? svc.stressSteps : [];
   if (steps.length === 0) return false;
