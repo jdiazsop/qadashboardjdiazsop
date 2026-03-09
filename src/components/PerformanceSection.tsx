@@ -198,9 +198,11 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
     const n = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
     if (!Number.isFinite(n)) return String(value);
 
+    // Guardamos en MINUTOS, pero el informe suele mostrarse en SEGUNDOS.
+    // Si es < 1 minuto, mostramos en segundos con alta precisión.
     if (Math.abs(n) < 1) {
       const sec = n * 60;
-      return `${sec.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} seg`;
+      return `${sec.toFixed(5).replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} seg`;
     }
 
     return `${n.toFixed(3).replace(/\.000$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} min`;
@@ -294,16 +296,20 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
   const renderStressTable = (svc: PerfServiceData) => {
     const steps = svc.stressSteps ?? [];
     if (steps.length === 0) return <p className="text-[10px] text-muted-foreground italic">Sin resultados de estrés</p>;
-    const stressCols: { label: string; key: keyof PerfStressStep }[] = [
-      { label: 'UVC', key: 'uvc' },
-      { label: 'TRX', key: 'trx' },
-      { label: 'Asegurados', key: 'asegurados' },
-      { label: 'T. Prom', key: 'tProm' },
-      { label: 'T. Min', key: 'tMin' },
-      { label: 'T. Max', key: 'tMax' },
+    const stressCols: { label: string; key: keyof PerfStressStep; align?: string }[] = [
+      { label: 'Minutos', key: 'minutesRange', align: 'left' },
+      { label: 'UVC', key: 'uvc', align: 'right' },
+      { label: 'TRX', key: 'trx', align: 'right' },
+      { label: 'Errores', key: 'errors', align: 'right' },
+      { label: '% Error', key: 'errorRate', align: 'right' },
+      { label: 'T. Prom', key: 'tProm', align: 'right' },
+      { label: 'T. Min', key: 'tMin', align: 'right' },
+      { label: 'T. Max', key: 'tMax', align: 'right' },
+      { label: 'TPS', key: 'tps', align: 'right' },
+      { label: 'Estado', key: 'status', align: 'left' },
     ];
     const summary = svc.stressSummary;
-    const hasSummaryData = summary && ['uvc', 'trx', 'asegurados', 'tProm', 'tMin', 'tMax'].some((k) => {
+    const hasSummaryData = summary && ['minutesRange', 'uvc', 'trx', 'errors', 'errorRate', 'tps', 'tProm', 'tMin', 'tMax', 'status'].some((k) => {
       const v = (summary as any)[k];
       return v !== undefined && v !== null && v !== '';
     });
@@ -313,7 +319,14 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
         <table className="w-full text-[10px]">
           <thead>
             <tr>
-              {stressCols.map(c => <th key={c.key} className={`${headerCellClass} text-right`}>{c.label}</th>)}
+              {stressCols.map(c => (
+                <th
+                  key={String(c.key)}
+                  className={`${headerCellClass} ${c.align === 'right' ? 'text-right' : 'text-left'}`}
+                >
+                  {c.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -323,7 +336,7 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
                   const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
                   const value = step[c.key];
                   return (
-                    <td key={c.key} className={`${cellClass} text-right`}>
+                    <td key={String(c.key)} className={`${cellClass} ${c.align === 'right' ? 'text-right' : ''}`}> 
                       {isResponseMetric ? formatResponseMetric(value) : (value ?? '—')}
                     </td>
                   );
@@ -335,9 +348,9 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
                 <tr className="border-t-2 border-primary/40 bg-primary/5 font-semibold">
                   {stressCols.map(c => {
                     const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
-                    const value = summary?.[c.key];
+                    const value = (summary as any)?.[c.key];
                     return (
-                      <td key={c.key} className="py-1.5 px-2 text-[10px] text-primary text-right">
+                      <td key={String(c.key)} className={`py-1.5 px-2 text-[10px] text-primary ${c.align === 'right' ? 'text-right' : 'text-left'}`}>
                         {isResponseMetric ? formatResponseMetric(value) : (value ?? '—')}
                       </td>
                     );

@@ -57,18 +57,32 @@ const extractMaxAsegurados = (responseTimeDesc: unknown): number | undefined => 
 
 const hasAnyStressMetric = (value: any): boolean => {
   if (!value || typeof value !== "object") return false;
-  return ["uvc", "trx", "asegurados", "tProm", "tMin", "tMax"].some((key) => toNumber(value?.[key]) !== undefined);
+  return [
+    "uvc",
+    "trx",
+    "asegurados",
+    "errors",
+    "tps",
+    "tProm",
+    "tMin",
+    "tMax",
+  ].some((key) => toNumber(value?.[key]) !== undefined || typeof value?.[key] === "string");
 };
 
 const normalizeStressSummary = (value: any): any | undefined => {
   if (!hasAnyStressMetric(value)) return undefined;
   return {
+    minutesRange: typeof value?.minutesRange === "string" ? value.minutesRange : undefined,
     uvc: toNumber(value?.uvc),
     trx: toNumber(value?.trx),
     asegurados: toNumber(value?.asegurados),
+    errors: toNumber(value?.errors),
+    errorRate: typeof value?.errorRate === "string" ? value.errorRate : undefined,
+    tps: toNumber(value?.tps),
     tProm: toNumber(value?.tProm),
     tMin: toNumber(value?.tMin),
     tMax: toNumber(value?.tMax),
+    status: typeof value?.status === "string" ? value.status : undefined,
   };
 };
 
@@ -77,6 +91,25 @@ const sameMetric = (a: unknown, b: unknown): boolean | null => {
   const nb = toNumber(b);
   if (na === undefined || nb === undefined) return null;
   return Math.abs(na - nb) <= 0.01;
+};
+
+const normalizeTimeMin = (
+  raw: unknown,
+  criteriaMaxMin?: number,
+): number | undefined => {
+  const v = toNumber(raw);
+  if (v === undefined) return undefined;
+
+  // Heurística: si el valor es muy alto frente al SLA (en minutos), probablemente viene en segundos.
+  // Ej: SLA=1 min y v=6.18 (seg) => v/60.
+  if (criteriaMaxMin !== undefined) {
+    if (v > criteriaMaxMin * 3 && v <= 600) return v / 60;
+    return v;
+  }
+
+  // Sin SLA: asumimos segundos cuando parece un tiempo típico de tabla en segundos.
+  if (v > 3 && v <= 600) return v / 60;
+  return v;
 };
 
 const looksLikeLoadPhasesInsteadOfStress = (svc: any): boolean => {
@@ -206,26 +239,25 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - process: tipo de proceso (siempre "Asíncrono" ya que solo extraemos estos)
    - path: el endpoint/path del servicio
    - responseTimeDesc: descripción textual completa del tiempo de respuesta (ej: "De 1 a 500 asegurados = 1 a 2 minutos")
-   - responseTimeMaxMin: el valor MÁXIMO del tiempo de respuesta aplicable en MINUTOS. Si hay rangos, selecciona el máximo del rango que corresponda según los usuarios/asegurados usados en las pruebas. Por ejemplo si dice "De 1 a 500 asegurados = 1 a 2 min" y se probó con 200 asegurados (que está en ese rango), el max es 2.
+   - responseTimeMaxMin: el valor MÁXIMO del tiempo de respuesta aplicable en MINUTOS.
    - userHrPrdNormal: usuarios por hora en PRD carga normal
    - trxDayPrdNormal: transacciones por día PRD carga normal
    - trxHrPrdPico: transacciones por hora PRD pico
    - maxErrorRate: porcentaje máximo de error aceptado (número, ej: 1 para 1%)
 
-2. **Resultados de Carga** (SOLO los valores finales/resumen del proceso asíncrono, NO los tramos intermedios):
+2. **Resultados de Carga** (resumen de la sección "Pruebas de carga"):
    - process: "Asíncrono" o "Asíncrona"
-   - uvc: usuarios virtuales concurrentes
-   - trx: transacciones totales
-   - asegurados: número de asegurados/registros usados
-   - tProm: tiempo de respuesta promedio en minutos (convertir si está en segundos)
-   - tMin: tiempo de respuesta mínimo en minutos
-   - tMax: tiempo de respuesta máximo en minutos
-   - IMPORTANTE: mantener precisión (al menos 3 decimales cuando corresponda). Ej: 6.18 segundos = 0.103 minutos.
-   - errorRate: tasa de error (ej: "0.0%")
+   - uvc: usuarios simulados (ej: en el texto "Usuarios simulados: hasta 10 usuarios" => uvc=10)
+   - trx: transacciones
    - errors: número de errores
-   - tps: transacciones por segundo (throughput)
-   - duration: duración de la prueba
-   - date: fecha de la prueba (formato DD/MM/YYYY)
+   - errorRate: tasa de error (ej: "0.35%")
+   - tps: transacciones por segundo
+   - tProm/tMin/tMax: tiempo de respuesta en **MINUTOS**.
+     - Si el informe muestra tiempos en SEGUNDOS, conviértelos a minutos dividiendo entre 60.
+     - NO redondees: conserva la máxima precisión del informe (usa 6+ decimales si aplica). Ej: 6.05192 seg => 0.1008653333 min.
+   - duration: duración (ej: "30 minutos")
+   - date: fecha (DD/MM/YYYY)
+   - status: estado (ej: "CONFORME")
 
 3. **Resultados de Estrés** (SOLO si existe sección explícita de estrés en el informe):
    - hasStressSection: true SOLO cuando el informe menciona explícitamente una sección tipo "Pruebas de Estrés", "Stress" o equivalente.
@@ -234,47 +266,26 @@ Para CADA servicio/path asíncrono encontrado, extrae:
      - stressSteps: []
      - stressSummary: null
 
-   Para casos con hasStressSection=true, extrae TODOS los tramos/escalones de usuarios del proceso asíncrono (SIN incluir la fila de Total/Resumen):
-   - uvc: usuarios virtuales concurrentes de ese tramo
-   - trx: transacciones
-   - asegurados: registros
-   - tProm: tiempo respuesta promedio en minutos (misma precisión del punto anterior)
-   - tMin: tiempo respuesta mínimo en minutos (misma precisión del punto anterior)
-   - tMax: tiempo respuesta máximo en minutos (misma precisión del punto anterior)
+   Para casos con hasStressSection=true, extrae TODOS los tramos (filas) del proceso asíncrono.
+   IMPORTANTE: Algunos informes tienen una columna "MINUTOS" (ej: "0 - 10", "11 - 30"). En ese caso:
+   - minutesRange: el texto exacto del rango
+   - uvc: usuarios simulados (ej: "Usuarios simulados: hasta 15 usuarios" => uvc=15) — si es constante, repítelo en cada fila
 
-   Además, extrae por separado la fila de **Total/Resumen** del informe como "stressSummary" con los mismos campos (uvc, trx, asegurados, tProm, tMin, tMax) SOLO si existe explícitamente una fila total/resumen. Si no existe, devuelve stressSummary: null.
+   Campos por cada tramo:
+   - minutesRange: string | null
+   - uvc: number | null
+   - trx: number
+   - errors: number
+   - errorRate: string (ej: "6.32%")
+   - tps: number
+   - status: string (ej: "CONFORME" o "-")
+   - tProm/tMin/tMax: tiempo de respuesta en MINUTOS (misma regla de conversión y precisión)
 
-4. **Análisis** (TODO va en un solo campo por sección):
+   "stressSummary": extrae una fila Total/Resumen SOLO si existe explícitamente en el informe. Si no existe, null.
 
-   "loadAnalysis" - Genera TODO el análisis de carga en este único campo, con esta estructura y tono exacto (reemplaza los valores con los datos reales del informe):
-   "Para la validación asíncrona, el proceso inicia con la invocación del servicio de [nombre del servicio], el cual genera un ID de trabajo utilizado posteriormente para consultar el estado de procesamiento hasta alcanzar el estado [estado final] (\"Terminado\").
-   El proceso asíncrono, evaluado bajo un escenario de [X] asegurados y [Y] usuarios concurrentes, registró un tiempo de respuesta promedio de [tProm] minutos y un tiempo máximo de [tMax] minutos. Estos valores se mantienen dentro de los criterios de aceptación establecidos para el proceso ([rango de tiempo] en condiciones promedio).
-   Asimismo, se observa una tendencia de incremento proporcional de los tiempos de respuesta en función del aumento de la concurrencia y del volumen de procesamiento.
-   Se procesaron [trx] transacciones en el escenario con [asegurados] asegurados y [uvc] usuarios concurrentes, manteniendo un comportamiento estable.
-   Tiempo Rpta Esperado: [responseTimeMaxMin] min max
-   Tiempo Rpta Obtenido: [tProm] min.
-   ☑ Conforme - El tiempo de respuesta obtenido de [tProm] minutos está dentro del rango aceptable de [rango] minutos con [asegurados] asegurados, cumple el SLA del proceso.
-   % Error esperado: [maxErrorRate]% max
-   % Error obtenido: [errorRate]%
-   ☑ Conforme : No se presentan errores en la ejecución.
-   Duración: [duration]
-   Throughput real: [trx] trx / [duration] = [cálculo] trx/hr
-   No alcanza al pico ([trxHrPrdPico] trx/hr) debido a la variabilidad en los tiempos de respuesta observados ([tMin] min - [tMax] min), lo que reduce el throughput efectivo durante la ejecución.
-   Considerar que el throughput de producción es referencial y el throughput medido ha sido en entorno pre productivo.
-   Se entiende que si bien no son [asegurados SLA] asegurados con los que se prueba, igual [asegurados probados] está dentro del rango aceptable. Y también las pruebas de carga se realizan entre [rango de duración aceptable]."
-
-   "loadComments" - Dejar como cadena VACÍA "". NO generes nada aquí.
-
-   "stressAnalysis" - Todo el análisis de estrés en este campo:
-   "El servicio mantiene tiempos dentro del SLA hasta [X] usuarios concurrentes, mientras que a partir de [Y] se observa un aumento considerable en los tiempos de respuesta.
-   Evidenciando que el punto de inicio de degradación se observa alrededor de [Z] usuarios concurrentes.
-   Se evidenció un aumento progresivo en los tiempos de respuesta conforme incrementó la cantidad de usuarios concurrentes, lo que demuestra el impacto directo de la carga en la latencia del sistema.
-   En las pruebas con [asegurados] asegurados, el tiempo promedio pasó de [tProm menor] minutos con [uvc menor] usuarios un máximo de [tMax mayor] minutos, lo que confirma que el servicio presenta degradación progresiva bajo condiciones de mayor carga.
-   En el escenario con [asegurados] asegurados y [uvc mayor] usuarios, se registraron [trx] transacciones completadas, evidenciando que a medida que aumenta la cantidad de usuarios y el volumen de datos procesados, el número de transacciones exitosas disminuye, lo que sugiere una limitación en la capacidad del sistema para sostener altos niveles de concurrencia."
-
-   "stressComments" - Dejar como cadena VACÍA "". NO generes nada aquí.
-
-IMPORTANTE: Adapta los valores reales del informe en cada campo. Los análisis y comentarios deben reflejar exactamente los datos numéricos extraídos.
+4. **Análisis**:
+   - loadAnalysis/stressAnalysis: déjalos (pueden estar vacíos) — el backend los generará.
+   - loadComments/stressComments: cadena vacía.
 
 Responde SOLO con un JSON válido con esta estructura exacta:
 {
@@ -302,26 +313,35 @@ Responde SOLO con un JSON válido con esta estructura exacta:
         "errors": number_or_null,
         "tps": number_or_null,
         "duration": "string_or_null",
-        "date": "string_or_null"
+        "date": "string_or_null",
+        "status": "string_or_null"
       },
       "hasStressSection": boolean,
       "stressSteps": [
         {
-          "uvc": number,
-          "trx": number,
-          "asegurados": number,
-          "tProm": number,
-          "tMin": number,
-          "tMax": number
+          "minutesRange": "string_or_null",
+          "uvc": number_or_null,
+          "trx": number_or_null,
+          "errors": number_or_null,
+          "errorRate": "string_or_null",
+          "tps": number_or_null,
+          "tProm": number_or_null,
+          "tMin": number_or_null,
+          "tMax": number_or_null,
+          "status": "string_or_null"
         }
       ],
       "stressSummary": {
-        "uvc": number,
-        "trx": number,
-        "asegurados": number,
-        "tProm": number,
-        "tMin": number,
-        "tMax": number
+        "minutesRange": "string_or_null",
+        "uvc": number_or_null,
+        "trx": number_or_null,
+        "errors": number_or_null,
+        "errorRate": "string_or_null",
+        "tps": number_or_null,
+        "tProm": number_or_null,
+        "tMin": number_or_null,
+        "tMax": number_or_null,
+        "status": "string_or_null"
       } | null,
       "loadAnalysis": "string",
       "loadComments": "string",
@@ -399,7 +419,33 @@ No incluyas explicaciones, solo el JSON.`;
     for (const svc of (parsed.services ?? [])) {
       const stressSteps = Array.isArray(svc.stressSteps) ? svc.stressSteps : [];
       svc.stressSteps = stressSteps;
+
+      const criteriaMax = toNumber(svc?.criteria?.responseTimeMaxMin);
+
+      // Normalize times (seconds->minutes when needed)
+      if (svc.loadResult) {
+        svc.loadResult.tProm = normalizeTimeMin(svc.loadResult.tProm, criteriaMax);
+        svc.loadResult.tMin = normalizeTimeMin(svc.loadResult.tMin, criteriaMax);
+        svc.loadResult.tMax = normalizeTimeMin(svc.loadResult.tMax, criteriaMax);
+      }
+
+      svc.stressSteps = (svc.stressSteps ?? []).map((step: any) => ({
+        ...step,
+        tProm: normalizeTimeMin(step?.tProm, criteriaMax),
+        tMin: normalizeTimeMin(step?.tMin, criteriaMax),
+        tMax: normalizeTimeMin(step?.tMax, criteriaMax),
+        uvc: toNumber(step?.uvc),
+        trx: toNumber(step?.trx),
+        errors: toNumber(step?.errors),
+        tps: toNumber(step?.tps),
+      }));
+
       svc.stressSummary = normalizeStressSummary(svc.stressSummary);
+      if (svc.stressSummary) {
+        svc.stressSummary.tProm = normalizeTimeMin(svc.stressSummary.tProm, criteriaMax);
+        svc.stressSummary.tMin = normalizeTimeMin(svc.stressSummary.tMin, criteriaMax);
+        svc.stressSummary.tMax = normalizeTimeMin(svc.stressSummary.tMax, criteriaMax);
+      }
 
       const stressDeclared = svc.hasStressSection === true;
       const stressExplicitlyMissing = svc.hasStressSection === false;

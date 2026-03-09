@@ -215,6 +215,12 @@ export function ExportPerformance({ atenciones }: Props) {
 
       const pd = (a: Atencion) => a.performanceData ?? {};
 
+      const toNum = (v: unknown) => {
+        if (typeof v === 'number') return v;
+        const n = Number(String(v ?? '').replace(',', '.'));
+        return Number.isFinite(n) ? n : NaN;
+      };
+
       // ── Define column groups with section colors ──
       type ColDef = { header: string; width: number; getter: (a: Atencion, svc?: PerfServiceData) => string | number | undefined };
       type Section = { name: string; color: string; textColor: string; cols: ColDef[] };
@@ -278,12 +284,16 @@ export function ExportPerformance({ atenciones }: Props) {
       const stressCols: ColDef[] = [];
       if (has('stressSteps') && anyHasStress) {
         stressCols.push({ header: 'Tramo', width: 8, getter: () => '' });
+        stressCols.push({ header: 'Minutos', width: 10, getter: () => '' });
         stressCols.push({ header: 'UVC', width: 10, getter: () => '' });
         stressCols.push({ header: 'TRX', width: 10, getter: () => '' });
-        stressCols.push({ header: 'Asegurados', width: 12, getter: () => '' });
+        stressCols.push({ header: 'Errores', width: 10, getter: () => '' });
+        stressCols.push({ header: '% Error', width: 10, getter: () => '' });
         stressCols.push({ header: 'T. Prom', width: 10, getter: () => '' });
         stressCols.push({ header: 'T. Min', width: 10, getter: () => '' });
         stressCols.push({ header: 'T. Max', width: 10, getter: () => '' });
+        stressCols.push({ header: 'TPS', width: 10, getter: () => '' });
+        stressCols.push({ header: 'Estado', width: 12, getter: () => '' });
       }
       if (has('stressAnalysis') && anyHasStress) stressCols.push({ header: 'Análisis Estrés', width: 50, getter: (_, s) => s?.stressAnalysis ?? '—' });
       if (stressCols.length > 0) sections.push({ name: 'PRUEBAS DE ESTRÉS', color: 'FF5F1E3A', textColor: 'FFFFFFFF', cols: stressCols });
@@ -395,7 +405,27 @@ export function ExportPerformance({ atenciones }: Props) {
               const row = stepIdx === 0 ? baseRow : ws.addRow([]);
               row.height = 18;
 
-              const vals = [stepIdx + 1, step.uvc ?? '—', step.trx ?? '—', step.asegurados ?? '—', step.tProm ?? '—', step.tMin ?? '—', step.tMax ?? '—'];
+              const timeForExcel = (v: unknown) => {
+                const n = toNum(v);
+                if (!Number.isFinite(n)) return '—';
+                // Si el tiempo está en minutos y es < 1, exportamos en segundos para igualar el informe.
+                if (Math.abs(n) < 1) return Math.round((n * 60) * 100000) / 100000;
+                return Math.round(n * 1000) / 1000;
+              }; 
+
+              const vals = [
+                stepIdx + 1,
+                step.minutesRange ?? '—',
+                step.uvc ?? '—',
+                step.trx ?? '—',
+                step.errors ?? '—',
+                step.errorRate ?? '—',
+                timeForExcel(step.tProm),
+                timeForExcel(step.tMin),
+                timeForExcel(step.tMax),
+                step.tps ?? '—',
+                step.status ?? '—',
+              ];
               vals.forEach((v, vi) => {
                 const cell = ws.getCell(rowNum, stressStartCol + vi + 1);
                 cell.value = v;
@@ -410,7 +440,26 @@ export function ExportPerformance({ atenciones }: Props) {
               const sumRowNum = ws.rowCount + 1;
               const sumRow = ws.addRow([]);
               sumRow.height = 20;
-              const sumVals = ['Total', summary.uvc ?? '—', summary.trx ?? '—', summary.asegurados ?? '—', summary.tProm ?? '—', summary.tMin ?? '—', summary.tMax ?? '—'];
+              const timeForExcel = (v: unknown) => {
+                const n = toNum(v);
+                if (!Number.isFinite(n)) return '—';
+                if (Math.abs(n) < 1) return Math.round((n * 60) * 100000) / 100000;
+                return Math.round(n * 1000) / 1000;
+              };
+
+              const sumVals = [
+                'Total',
+                (summary as any).minutesRange ?? '—',
+                summary.uvc ?? '—',
+                summary.trx ?? '—',
+                (summary as any).errors ?? '—',
+                (summary as any).errorRate ?? '—',
+                timeForExcel(summary.tProm),
+                timeForExcel(summary.tMin),
+                timeForExcel(summary.tMax),
+                (summary as any).tps ?? '—',
+                (summary as any).status ?? '—',
+              ];
               sumVals.forEach((v, vi) => {
                 const cell = ws.getCell(sumRowNum, stressStartCol + vi + 1);
                 cell.value = v;
@@ -422,7 +471,7 @@ export function ExportPerformance({ atenciones }: Props) {
 
             // Stress analysis in first stress row
             if (stressAnalysisIncluded) {
-              const analCol = stressStartCol + (has('stressSteps') ? 7 : 0) + 1;
+              const analCol = stressStartCol + (has('stressSteps') ? 11 : 0) + 1;
               const cell = ws.getCell(baseRowNum, analCol);
               cell.value = stressEnabledForService ? (svc?.stressAnalysis ?? '—') : '—';
               cell.alignment = leftAlign;
