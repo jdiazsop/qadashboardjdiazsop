@@ -454,6 +454,8 @@ export interface PerfServiceData {
   loadResult?: PerfLoadResult;
   loadAnalysis?: string;
   loadComments?: string;
+  /** Unidad del encabezado de tiempos para la tabla de estrés (si existe). */
+  stressResponseTimeUnit?: PerfResponseTimeUnit;
   stressSteps: PerfStressStep[];
   stressSummary?: PerfStressStep;
   stressAnalysis?: string;
