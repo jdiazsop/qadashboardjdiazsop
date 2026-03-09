@@ -491,9 +491,9 @@ export function ExportPerformance({ atenciones }: Props) {
                 summary.trx ?? '—',
                 (summary as any).errors ?? '—',
                 (summary as any).errorRate ?? '—',
-                timeForExcel(summary.tProm),
-                timeForExcel(summary.tMin),
-                timeForExcel(summary.tMax),
+                formatResponse(summary.tProm, (summary as any).tPromSecRaw, (svc as any)?.stressResponseTimeUnit),
+                formatResponse(summary.tMin, (summary as any).tMinSecRaw, (svc as any)?.stressResponseTimeUnit),
+                formatResponse(summary.tMax, (summary as any).tMaxSecRaw, (svc as any)?.stressResponseTimeUnit),
                 (summary as any).tps ?? '—',
               ];
               sumVals.forEach((v, vi) => {
