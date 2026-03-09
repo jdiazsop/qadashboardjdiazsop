@@ -135,6 +135,42 @@ const normalizeTimeUnit = (value: unknown): 'seconds' | 'minutes' | undefined =>
   return undefined;
 };
 
+/**
+ * Gemini a veces confunde la unidad cuando el PDF trae tablas SÍNCRONAS (seg) y ASÍNCRONAS (min).
+ * Reconciliamos la unidad declarada contra el SLA (si existe) usando el valor RAW exacto.
+ */
+const reconcileUnitWithCriteria = (
+  declared: 'seconds' | 'minutes' | undefined,
+  rawCandidate: unknown,
+  criteriaMaxMin?: number,
+): 'seconds' | 'minutes' | undefined => {
+  const rawNum = toNumber(rawCandidate);
+  if (rawNum === undefined || criteriaMaxMin === undefined) return declared;
+
+  // Si no hay unidad, inferimos con la misma heurística usada para normalizar.
+  if (!declared) {
+    return rawNum > criteriaMaxMin * 3 && rawNum <= 600 ? 'seconds' : 'minutes';
+  }
+
+  // Caso típico del bug reportado: el PDF dice MINUTOS (asíncrono) pero el modelo marca seconds.
+  // Si dividir entre 60 vuelve el valor irrealmente pequeño vs el SLA, asumimos minutos.
+  if (declared === 'seconds') {
+    const asMin = rawNum / 60;
+    const likelyMinutes =
+      rawNum >= criteriaMaxMin * 0.25 &&
+      rawNum <= criteriaMaxMin * 5 &&
+      asMin <= criteriaMaxMin * 0.2;
+    if (likelyMinutes) return 'minutes';
+  }
+
+  // Inverso: si marca minutos pero el número es demasiado alto vs SLA, probablemente son segundos.
+  if (declared === 'minutes') {
+    if (rawNum > criteriaMaxMin * 3 && rawNum <= 600) return 'seconds';
+  }
+
+  return declared;
+};
+
 const applyResponseTimes = (obj: any, criteriaMaxMin?: number, unit?: 'seconds' | 'minutes') => {
   if (!obj || typeof obj !== 'object') return;
 
