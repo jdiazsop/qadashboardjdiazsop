@@ -419,7 +419,33 @@ No incluyas explicaciones, solo el JSON.`;
     for (const svc of (parsed.services ?? [])) {
       const stressSteps = Array.isArray(svc.stressSteps) ? svc.stressSteps : [];
       svc.stressSteps = stressSteps;
+
+      const criteriaMax = toNumber(svc?.criteria?.responseTimeMaxMin);
+
+      // Normalize times (seconds->minutes when needed)
+      if (svc.loadResult) {
+        svc.loadResult.tProm = normalizeTimeMin(svc.loadResult.tProm, criteriaMax);
+        svc.loadResult.tMin = normalizeTimeMin(svc.loadResult.tMin, criteriaMax);
+        svc.loadResult.tMax = normalizeTimeMin(svc.loadResult.tMax, criteriaMax);
+      }
+
+      svc.stressSteps = (svc.stressSteps ?? []).map((step: any) => ({
+        ...step,
+        tProm: normalizeTimeMin(step?.tProm, criteriaMax),
+        tMin: normalizeTimeMin(step?.tMin, criteriaMax),
+        tMax: normalizeTimeMin(step?.tMax, criteriaMax),
+        uvc: toNumber(step?.uvc),
+        trx: toNumber(step?.trx),
+        errors: toNumber(step?.errors),
+        tps: toNumber(step?.tps),
+      }));
+
       svc.stressSummary = normalizeStressSummary(svc.stressSummary);
+      if (svc.stressSummary) {
+        svc.stressSummary.tProm = normalizeTimeMin(svc.stressSummary.tProm, criteriaMax);
+        svc.stressSummary.tMin = normalizeTimeMin(svc.stressSummary.tMin, criteriaMax);
+        svc.stressSummary.tMax = normalizeTimeMin(svc.stressSummary.tMax, criteriaMax);
+      }
 
       const stressDeclared = svc.hasStressSection === true;
       const stressExplicitlyMissing = svc.hasStressSection === false;

@@ -419,12 +419,21 @@ export interface PerfLoadResult {
 }
 
 export interface PerfStressStep {
+  /** Intervalo reportado en la columna "MINUTOS" (ej: "0 - 10", "11 - 30") */
+  minutesRange?: string;
+  /** Usuarios virtuales concurrentes (cuando el reporte lo indique) */
   uvc?: number;
   trx?: number;
-  asegurados?: number;
+  errors?: number;
+  errorRate?: string;
+  tps?: number;
+  /** Tiempos en MINUTOS (convertidos desde segundos cuando aplique). */
   tProm?: number;
   tMin?: number;
   tMax?: number;
+  status?: string;
+  /** @deprecated (algunos reportes antiguos usan este campo) */
+  asegurados?: number;
 }
 
 export interface PerfServiceData {

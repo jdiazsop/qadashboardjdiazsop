@@ -465,7 +465,7 @@ export function ExportPerformance({ atenciones }: Props) {
 
             // Stress analysis in first stress row
             if (stressAnalysisIncluded) {
-              const analCol = stressStartCol + (has('stressSteps') ? 7 : 0) + 1;
+              const analCol = stressStartCol + (has('stressSteps') ? 11 : 0) + 1;
               const cell = ws.getCell(baseRowNum, analCol);
               cell.value = stressEnabledForService ? (svc?.stressAnalysis ?? '—') : '—';
               cell.alignment = leftAlign;
