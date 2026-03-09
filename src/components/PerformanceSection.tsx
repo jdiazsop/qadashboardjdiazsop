@@ -129,6 +129,7 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
           loadResult,
           loadAnalysis: svc.loadAnalysis ?? '',
           loadComments: svc.loadComments ?? '',
+          stressResponseTimeUnit: svc.stressResponseTimeUnit ?? undefined,
           stressSteps,
           stressSummary: svc.stressSummary ?? undefined,
           stressAnalysis: svc.stressAnalysis ?? '',
