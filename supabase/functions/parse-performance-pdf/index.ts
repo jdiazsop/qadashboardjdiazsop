@@ -100,7 +100,7 @@ const normalizeTimeMin = (
   const v = toNumber(raw);
   if (v === undefined) return undefined;
 
-  // Heurística: si el valor es muy alto frente al SLA (en minutos), probablemente viene en segundos.
+  // Heurística legacy: si el valor es muy alto frente al SLA (en minutos), probablemente viene en segundos.
   // Ej: SLA=1 min y v=6.18 (seg) => v/60.
   if (criteriaMaxMin !== undefined) {
     if (v > criteriaMaxMin * 3 && v <= 600) return v / 60;
@@ -110,6 +110,30 @@ const normalizeTimeMin = (
   // Sin SLA: asumimos segundos cuando parece un tiempo típico de tabla en segundos.
   if (v > 3 && v <= 600) return v / 60;
   return v;
+};
+
+const applyResponseTimes = (obj: any, criteriaMaxMin?: number) => {
+  if (!obj || typeof obj !== 'object') return;
+  (['tProm', 'tMin', 'tMax'] as const).forEach((k) => {
+    const rawKey = `${k}SecRaw`;
+    const rawText = typeof obj?.[rawKey] === 'string' ? String(obj[rawKey]).trim() : '';
+
+    // Preferimos el RAW exacto en segundos si viene del informe
+    if (rawText && rawText !== 'N/D' && rawText !== '—') {
+      const sec = toNumber(rawText);
+      if (sec !== undefined) {
+        obj[k] = sec / 60;
+      } else {
+        // Si no se puede parsear, dejamos el tiempo previo (si existe)
+        obj[k] = normalizeTimeMin(obj?.[k], criteriaMaxMin);
+      }
+      obj[rawKey] = rawText;
+      return;
+    }
+
+    // Fallback: valores existentes (minutos o segundos) + heurística
+    obj[k] = normalizeTimeMin(obj?.[k], criteriaMaxMin);
+  });
 };
 
 const looksLikeLoadPhasesInsteadOfStress = (svc: any): boolean => {
