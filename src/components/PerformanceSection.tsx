@@ -412,8 +412,9 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
                     const secRaw = isResponseMetric ? getSecRaw(summary, c.key as any) : undefined;
                     return (
                       <td key={String(c.key)} className={`py-1.5 px-2 text-[10px] text-primary ${c.align === 'right' ? 'text-right' : 'text-left'}`}>
-                        {isResponseMetric ? formatResponseMetric(value, secRaw) : (value ?? '—')}
+                        {isResponseMetric ? formatResponseMetric(value, secRaw, svc.stressResponseTimeUnit as any) : (value ?? '—')}
                       </td>
+
                     );
                   })}
                 </tr>
