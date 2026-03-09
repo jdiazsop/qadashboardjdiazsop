@@ -305,9 +305,9 @@ export function ExportPerformance({ atenciones }: Props) {
       if (has('load.uvc')) loadCols.push({ header: 'UVC', width: 10, getter: (_, s) => s?.loadResult?.uvc ?? '—' });
       if (has('load.trx')) loadCols.push({ header: 'TRX', width: 10, getter: (_, s) => s?.loadResult?.trx ?? '—' });
       if (has('load.asegurados')) loadCols.push({ header: 'Asegurados', width: 12, getter: (_, s) => s?.loadResult?.asegurados ?? '—' });
-      if (has('load.tProm')) loadCols.push({ header: 'T. Prom', width: 10, getter: (_, s) => s?.loadResult?.tProm ?? '—' });
-      if (has('load.tMin')) loadCols.push({ header: 'T. Min', width: 10, getter: (_, s) => s?.loadResult?.tMin ?? '—' });
-      if (has('load.tMax')) loadCols.push({ header: 'T. Max', width: 10, getter: (_, s) => s?.loadResult?.tMax ?? '—' });
+      if (has('load.tProm')) loadCols.push({ header: 'T. Prom', width: 18, getter: (_, s) => formatResponse(s?.loadResult?.tProm, s?.loadResult?.tPromSecRaw, s?.loadResult?.responseTimeUnit) });
+      if (has('load.tMin')) loadCols.push({ header: 'T. Min', width: 18, getter: (_, s) => formatResponse(s?.loadResult?.tMin, s?.loadResult?.tMinSecRaw, s?.loadResult?.responseTimeUnit) });
+      if (has('load.tMax')) loadCols.push({ header: 'T. Max', width: 18, getter: (_, s) => formatResponse(s?.loadResult?.tMax, s?.loadResult?.tMaxSecRaw, s?.loadResult?.responseTimeUnit) });
       if (has('load.errorRate')) loadCols.push({ header: '% Error', width: 10, getter: (_, s) => s?.loadResult?.errorRate ?? '—' });
       if (has('load.errors')) loadCols.push({ header: 'Errores', width: 10, getter: (_, s) => s?.loadResult?.errors ?? '—' });
       if (has('load.tps')) loadCols.push({ header: 'TPS', width: 10, getter: (_, s) => s?.loadResult?.tps ?? '—' });
