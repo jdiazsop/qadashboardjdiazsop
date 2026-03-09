@@ -353,12 +353,12 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - errors: número de errores
    - errorRate: tasa de error (ej: "0.35%")
    - tps: transacciones por segundo
-   - response times (CRÍTICO):
-     - responseTimeUnit: "seconds" o "minutes" según el encabezado de la tabla (ej: "TIEMPO RESPUESTA (SEGUNDOS)" vs "TIEMPO RESPUESTA (MINUTOS)").
-     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto** tal como aparece en la tabla (en la unidad indicada por responseTimeUnit).
-     - NO conviertas aquí. NO redondees. NO rehagas cálculos.
-     - Nosotros convertiremos a minutos luego para comparar contra criterios.
-   - duration: duración (ej: "30 minutos")
+    - response times (CRÍTICO):
+      - responseTimeUnit: "seconds" o "minutes" según el encabezado de *ESA MISMA* tabla ASÍNCRONA (ej: "TIEMPO RESPUESTA (SEGUNDOS)" vs "TIEMPO RESPUESTA (MINUTOS)").
+      - Si el informe tiene también una tabla SÍNCRONA con otra unidad, NO reutilices esa unidad: toma la del encabezado de la tabla ASÍNCRONA.
+      - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto** tal como aparece en la tabla (en la unidad indicada por responseTimeUnit).
+      - NO conviertas aquí. NO redondees. NO rehagas cálculos.
+      - Nosotros convertiremos a minutos luego para comparar contra criterios.
    - date: fecha (DD/MM/YYYY)
    - status: estado (ej: "CONFORME")
 
