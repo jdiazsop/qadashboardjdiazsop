@@ -399,7 +399,27 @@ export function ExportPerformance({ atenciones }: Props) {
               const row = stepIdx === 0 ? baseRow : ws.addRow([]);
               row.height = 18;
 
-              const vals = [stepIdx + 1, step.uvc ?? '—', step.trx ?? '—', step.asegurados ?? '—', step.tProm ?? '—', step.tMin ?? '—', step.tMax ?? '—'];
+              const timeForExcel = (v: unknown) => {
+                const n = toNum(v);
+                if (!Number.isFinite(n)) return '—';
+                // Si el tiempo está en minutos y es < 1, exportamos en segundos para igualar el informe.
+                if (Math.abs(n) < 1) return Math.round((n * 60) * 100000) / 100000;
+                return Math.round(n * 1000) / 1000;
+              }; 
+
+              const vals = [
+                stepIdx + 1,
+                step.minutesRange ?? '—',
+                step.uvc ?? '—',
+                step.trx ?? '—',
+                step.errors ?? '—',
+                step.errorRate ?? '—',
+                timeForExcel(step.tProm),
+                timeForExcel(step.tMin),
+                timeForExcel(step.tMax),
+                step.tps ?? '—',
+                step.status ?? '—',
+              ];
               vals.forEach((v, vi) => {
                 const cell = ws.getCell(rowNum, stressStartCol + vi + 1);
                 cell.value = v;
