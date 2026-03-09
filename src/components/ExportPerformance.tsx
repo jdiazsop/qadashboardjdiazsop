@@ -293,7 +293,6 @@ export function ExportPerformance({ atenciones }: Props) {
         stressCols.push({ header: 'T. Min', width: 10, getter: () => '' });
         stressCols.push({ header: 'T. Max', width: 10, getter: () => '' });
         stressCols.push({ header: 'TPS', width: 10, getter: () => '' });
-        stressCols.push({ header: 'Estado', width: 12, getter: () => '' });
       }
       if (has('stressAnalysis') && anyHasStress) stressCols.push({ header: 'Análisis Estrés', width: 50, getter: (_, s) => s?.stressAnalysis ?? '—' });
       if (stressCols.length > 0) sections.push({ name: 'PRUEBAS DE ESTRÉS', color: 'FF5F1E3A', textColor: 'FFFFFFFF', cols: stressCols });
