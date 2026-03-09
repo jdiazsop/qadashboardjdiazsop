@@ -135,6 +135,42 @@ const normalizeTimeUnit = (value: unknown): 'seconds' | 'minutes' | undefined =>
   return undefined;
 };
 
+/**
+ * Gemini a veces confunde la unidad cuando el PDF trae tablas SÍNCRONAS (seg) y ASÍNCRONAS (min).
+ * Reconciliamos la unidad declarada contra el SLA (si existe) usando el valor RAW exacto.
+ */
+const reconcileUnitWithCriteria = (
+  declared: 'seconds' | 'minutes' | undefined,
+  rawCandidate: unknown,
+  criteriaMaxMin?: number,
+): 'seconds' | 'minutes' | undefined => {
+  const rawNum = toNumber(rawCandidate);
+  if (rawNum === undefined || criteriaMaxMin === undefined) return declared;
+
+  // Si no hay unidad, inferimos con la misma heurística usada para normalizar.
+  if (!declared) {
+    return rawNum > criteriaMaxMin * 3 && rawNum <= 600 ? 'seconds' : 'minutes';
+  }
+
+  // Caso típico del bug reportado: el PDF dice MINUTOS (asíncrono) pero el modelo marca seconds.
+  // Si dividir entre 60 vuelve el valor irrealmente pequeño vs el SLA, asumimos minutos.
+  if (declared === 'seconds') {
+    const asMin = rawNum / 60;
+    const likelyMinutes =
+      rawNum >= criteriaMaxMin * 0.25 &&
+      rawNum <= criteriaMaxMin * 5 &&
+      asMin <= criteriaMaxMin * 0.2;
+    if (likelyMinutes) return 'minutes';
+  }
+
+  // Inverso: si marca minutos pero el número es demasiado alto vs SLA, probablemente son segundos.
+  if (declared === 'minutes') {
+    if (rawNum > criteriaMaxMin * 3 && rawNum <= 600) return 'seconds';
+  }
+
+  return declared;
+};
+
 const applyResponseTimes = (obj: any, criteriaMaxMin?: number, unit?: 'seconds' | 'minutes') => {
   if (!obj || typeof obj !== 'object') return;
 
@@ -310,21 +346,23 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - trxHrPrdPico: transacciones por hora PRD pico
    - maxErrorRate: porcentaje máximo de error aceptado (número, ej: 1 para 1%)
 
-2. **Resultados de Carga** (resumen de la sección "Pruebas de carga"):
-   - process: "Asíncrono" o "Asíncrona"
-   - uvc: usuarios simulados (ej: en el texto "Usuarios simulados: hasta 10 usuarios" => uvc=10)
-   - trx: transacciones
-   - errors: número de errores
-   - errorRate: tasa de error (ej: "0.35%")
-   - tps: transacciones por segundo
-   - response times (CRÍTICO):
-     - responseTimeUnit: "seconds" o "minutes" según el encabezado de la tabla (ej: "TIEMPO RESPUESTA (SEGUNDOS)" vs "TIEMPO RESPUESTA (MINUTOS)").
-     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto** tal como aparece en la tabla (en la unidad indicada por responseTimeUnit).
-     - NO conviertas aquí. NO redondees. NO rehagas cálculos.
-     - Nosotros convertiremos a minutos luego para comparar contra criterios.
-   - duration: duración (ej: "30 minutos")
-   - date: fecha (DD/MM/YYYY)
-   - status: estado (ej: "CONFORME")
+ 2. **Resultados de Carga** (resumen de la sección "Pruebas de carga"):
+    - process: "Asíncrono" o "Asíncrona"
+    - uvc: usuarios simulados (ej: en el texto "Usuarios simulados: hasta 10 usuarios" => uvc=10)
+    - trx: transacciones
+    - asegurados: número de asegurados (si aplica)
+    - errors: número de errores
+    - errorRate: tasa de error (ej: "0.35%")
+    - tps: transacciones por segundo
+    - response times (CRÍTICO):
+      - responseTimeUnit: "seconds" o "minutes" según el encabezado de *ESA MISMA* tabla ASÍNCRONA (ej: "TIEMPO RESPUESTA (SEGUNDOS)" vs "TIEMPO RESPUESTA (MINUTOS)").
+      - Si el informe tiene también una tabla SÍNCRONA con otra unidad, NO reutilices esa unidad: toma la del encabezado de la tabla ASÍNCRONA.
+      - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto** tal como aparece en la tabla (en la unidad indicada por responseTimeUnit).
+      - NO conviertas aquí. NO redondees. NO rehagas cálculos.
+      - Nosotros convertiremos a minutos luego para comparar contra criterios.
+    - duration: duración (ej: "30 minutos")
+    - date: fecha (DD/MM/YYYY)
+    - status: estado (ej: "CONFORME")
 
 3. **Resultados de Estrés** (SOLO si existe sección explícita de estrés en el informe):
    - hasStressSection: true SOLO cuando el informe menciona explícitamente una sección tipo "Pruebas de Estrés", "Stress" o equivalente.
@@ -497,8 +535,12 @@ No incluyas explicaciones, solo el JSON.`;
 
       const criteriaMax = toNumber(svc?.criteria?.responseTimeMaxMin);
 
-      const loadUnit = normalizeTimeUnit(svc?.loadResult?.responseTimeUnit);
+      // ── LOAD: unidad + normalización de tiempos (siempre dejamos tProm/tMin/tMax en MINUTOS) ──
+      let loadUnit = normalizeTimeUnit(svc?.loadResult?.responseTimeUnit);
       if (svc.loadResult) {
+        const rawForUnit = svc.loadResult.tPromSecRaw ?? svc.loadResult.tMaxSecRaw ?? svc.loadResult.tMinSecRaw;
+        loadUnit = reconcileUnitWithCriteria(loadUnit, rawForUnit, criteriaMax);
+
         svc.loadResult.responseTimeUnit = loadUnit;
         applyResponseTimes(svc.loadResult, criteriaMax, loadUnit);
         svc.loadResult.uvc = toNumber(svc.loadResult.uvc);
@@ -508,7 +550,14 @@ No incluyas explicaciones, solo el JSON.`;
         svc.loadResult.tps = toNumber(svc.loadResult.tps);
       }
 
-      const stressUnit = normalizeTimeUnit(svc?.stressResponseTimeUnit);
+      // ── STRESS: unidad + normalización ──
+      let stressUnit = normalizeTimeUnit(svc?.stressResponseTimeUnit);
+      const stressRawForUnit = svc?.stressSummary?.tPromSecRaw
+        ?? svc?.stressSummary?.tMaxSecRaw
+        ?? svc?.stressSteps?.[0]?.tPromSecRaw
+        ?? svc?.stressSteps?.[0]?.tMaxSecRaw;
+      stressUnit = reconcileUnitWithCriteria(stressUnit, stressRawForUnit, criteriaMax);
+
       svc.stressResponseTimeUnit = stressUnit;
 
       svc.stressSteps = (svc.stressSteps ?? []).map((step: any) => {
