@@ -193,10 +193,17 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
   const cellClass = "py-1.5 px-2 text-[10px] text-foreground border-b border-border/30";
   const headerCellClass = "py-1.5 px-2 text-[8px] uppercase text-muted-foreground font-medium border-b border-border whitespace-nowrap";
 
-  const formatResponseMetric = (value: unknown): string => {
-    if (value == null || value === '') return '—';
-    const n = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
-    if (!Number.isFinite(n)) return String(value);
+  const formatResponseMetric = (minutesValue: unknown, secRaw?: unknown): string => {
+    const rawText = String(secRaw ?? '').trim();
+    // Preferimos el valor RAW en segundos (texto exacto del informe) para evitar pérdidas (p.ej. 7.40→7.38)
+    if (rawText && rawText !== 'N/D' && rawText !== '—') {
+      const cleaned = rawText.replace(',', '.');
+      return `${cleaned} seg`;
+    }
+
+    if (minutesValue == null || minutesValue === '') return '—';
+    const n = typeof minutesValue === 'number' ? minutesValue : Number(String(minutesValue).replace(',', '.'));
+    if (!Number.isFinite(n)) return String(minutesValue);
 
     // Guardamos en MINUTOS, pero el informe suele mostrarse en SEGUNDOS.
     // Si es < 1 minuto, mostramos en segundos con alta precisión.
@@ -250,6 +257,13 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
   const renderLoadTable = (svc: PerfServiceData) => {
     const r = svc.loadResult;
     if (!r) return <p className="text-[10px] text-muted-foreground italic">Sin resultados de carga</p>;
+
+    const getSecRaw = (key: 'tProm' | 'tMin' | 'tMax') => {
+      const k = `${key}SecRaw` as const;
+      const v = (r as any)?.[k];
+      return typeof v === 'string' ? v : undefined;
+    };
+
     const cols: { label: string; key: keyof PerfLoadResult; align?: string }[] = [
       { label: 'Proceso', key: 'process' },
       { label: 'Fecha', key: 'date' },
@@ -279,9 +293,10 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
               {cols.map(c => {
                 const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
                 const value = r[c.key];
+                const secRaw = isResponseMetric ? getSecRaw(c.key as any) : undefined;
                 return (
                   <td key={c.key} className={`${cellClass} ${c.align === 'right' ? 'text-right' : ''}`}>
-                    {isResponseMetric ? formatResponseMetric(value) : (value ?? '—')}
+                    {isResponseMetric ? formatResponseMetric(value, secRaw) : (value ?? '—')}
                   </td>
                 );
               })}
@@ -296,6 +311,7 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
   const renderStressTable = (svc: PerfServiceData) => {
     const steps = svc.stressSteps ?? [];
     if (steps.length === 0) return <p className="text-[10px] text-muted-foreground italic">Sin resultados de estrés</p>;
+
     const stressCols: { label: string; key: keyof PerfStressStep; align?: string }[] = [
       { label: 'Minutos', key: 'minutesRange', align: 'left' },
       { label: 'UVC', key: 'uvc', align: 'right' },
@@ -308,11 +324,17 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
       { label: 'TPS', key: 'tps', align: 'right' },
       { label: 'Estado', key: 'status', align: 'left' },
     ];
+
     const summary = svc.stressSummary;
     const hasSummaryData = summary && ['minutesRange', 'uvc', 'trx', 'errors', 'errorRate', 'tps', 'tProm', 'tMin', 'tMax', 'status'].some((k) => {
       const v = (summary as any)[k];
       return v !== undefined && v !== null && v !== '';
     });
+
+    const getSecRaw = (row: any, key: 'tProm' | 'tMin' | 'tMax') => {
+      const v = row?.[`${key}SecRaw`];
+      return typeof v === 'string' ? v : undefined;
+    };
 
     return (
       <div className="overflow-x-auto">
@@ -334,10 +356,11 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
               <tr key={stepIdx} className="hover:bg-surface-1/50">
                 {stressCols.map(c => {
                   const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
-                  const value = step[c.key];
+                  const value = (step as any)[c.key];
+                  const secRaw = isResponseMetric ? getSecRaw(step, c.key as any) : undefined;
                   return (
-                    <td key={String(c.key)} className={`${cellClass} ${c.align === 'right' ? 'text-right' : ''}`}> 
-                      {isResponseMetric ? formatResponseMetric(value) : (value ?? '—')}
+                    <td key={String(c.key)} className={`${cellClass} ${c.align === 'right' ? 'text-right' : ''}`}>
+                      {isResponseMetric ? formatResponseMetric(value, secRaw) : (value ?? '—')}
                     </td>
                   );
                 })}
@@ -349,9 +372,10 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
                   {stressCols.map(c => {
                     const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
                     const value = (summary as any)?.[c.key];
+                    const secRaw = isResponseMetric ? getSecRaw(summary, c.key as any) : undefined;
                     return (
                       <td key={String(c.key)} className={`py-1.5 px-2 text-[10px] text-primary ${c.align === 'right' ? 'text-right' : 'text-left'}`}>
-                        {isResponseMetric ? formatResponseMetric(value) : (value ?? '—')}
+                        {isResponseMetric ? formatResponseMetric(value, secRaw) : (value ?? '—')}
                       </td>
                     );
                   })}

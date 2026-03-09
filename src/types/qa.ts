@@ -408,9 +408,14 @@ export interface PerfLoadResult {
   uvc?: number;
   trx?: number;
   asegurados?: number;
+  /** Tiempos normalizados en MINUTOS (se usan para análisis/comparaciones). */
   tProm?: number;
   tMin?: number;
   tMax?: number;
+  /** Valores RAW del informe en SEGUNDOS (texto exacto, para mostrar sin pérdida). */
+  tPromSecRaw?: string;
+  tMinSecRaw?: string;
+  tMaxSecRaw?: string;
   errorRate?: string;
   errors?: number;
   tps?: number;
@@ -427,10 +432,14 @@ export interface PerfStressStep {
   errors?: number;
   errorRate?: string;
   tps?: number;
-  /** Tiempos en MINUTOS (convertidos desde segundos cuando aplique). */
+  /** Tiempos normalizados en MINUTOS (se usan para análisis/comparaciones). */
   tProm?: number;
   tMin?: number;
   tMax?: number;
+  /** Valores RAW del informe en SEGUNDOS (texto exacto, para mostrar sin pérdida). */
+  tPromSecRaw?: string;
+  tMinSecRaw?: string;
+  tMaxSecRaw?: string;
   status?: string;
   /** @deprecated (algunos reportes antiguos usan este campo) */
   asegurados?: number;

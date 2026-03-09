@@ -58,6 +58,7 @@ const extractMaxAsegurados = (responseTimeDesc: unknown): number | undefined => 
 const hasAnyStressMetric = (value: any): boolean => {
   if (!value || typeof value !== "object") return false;
   return [
+    "minutesRange",
     "uvc",
     "trx",
     "asegurados",
@@ -66,23 +67,34 @@ const hasAnyStressMetric = (value: any): boolean => {
     "tProm",
     "tMin",
     "tMax",
-  ].some((key) => toNumber(value?.[key]) !== undefined || typeof value?.[key] === "string");
+    "tPromSecRaw",
+    "tMinSecRaw",
+    "tMaxSecRaw",
+    "errorRate",
+    "status",
+  ].some((key) => {
+    const v = value?.[key];
+    return toNumber(v) !== undefined || (typeof v === "string" && v.trim() !== "");
+  });
 };
 
 const normalizeStressSummary = (value: any): any | undefined => {
   if (!hasAnyStressMetric(value)) return undefined;
   return {
-    minutesRange: typeof value?.minutesRange === "string" ? value.minutesRange : undefined,
+    minutesRange: typeof value?.minutesRange === "string" ? value.minutesRange.trim() : undefined,
     uvc: toNumber(value?.uvc),
     trx: toNumber(value?.trx),
     asegurados: toNumber(value?.asegurados),
     errors: toNumber(value?.errors),
-    errorRate: typeof value?.errorRate === "string" ? value.errorRate : undefined,
+    errorRate: typeof value?.errorRate === "string" ? value.errorRate.trim() : undefined,
     tps: toNumber(value?.tps),
     tProm: toNumber(value?.tProm),
     tMin: toNumber(value?.tMin),
     tMax: toNumber(value?.tMax),
-    status: typeof value?.status === "string" ? value.status : undefined,
+    tPromSecRaw: typeof value?.tPromSecRaw === "string" ? value.tPromSecRaw.trim() : undefined,
+    tMinSecRaw: typeof value?.tMinSecRaw === "string" ? value.tMinSecRaw.trim() : undefined,
+    tMaxSecRaw: typeof value?.tMaxSecRaw === "string" ? value.tMaxSecRaw.trim() : undefined,
+    status: typeof value?.status === "string" ? value.status.trim() : undefined,
   };
 };
 
@@ -100,7 +112,7 @@ const normalizeTimeMin = (
   const v = toNumber(raw);
   if (v === undefined) return undefined;
 
-  // Heurística: si el valor es muy alto frente al SLA (en minutos), probablemente viene en segundos.
+  // Heurística legacy: si el valor es muy alto frente al SLA (en minutos), probablemente viene en segundos.
   // Ej: SLA=1 min y v=6.18 (seg) => v/60.
   if (criteriaMaxMin !== undefined) {
     if (v > criteriaMaxMin * 3 && v <= 600) return v / 60;
@@ -110,6 +122,30 @@ const normalizeTimeMin = (
   // Sin SLA: asumimos segundos cuando parece un tiempo típico de tabla en segundos.
   if (v > 3 && v <= 600) return v / 60;
   return v;
+};
+
+const applyResponseTimes = (obj: any, criteriaMaxMin?: number) => {
+  if (!obj || typeof obj !== 'object') return;
+  (['tProm', 'tMin', 'tMax'] as const).forEach((k) => {
+    const rawKey = `${k}SecRaw`;
+    const rawText = typeof obj?.[rawKey] === 'string' ? String(obj[rawKey]).trim() : '';
+
+    // Preferimos el RAW exacto en segundos si viene del informe
+    if (rawText && rawText !== 'N/D' && rawText !== '—') {
+      const sec = toNumber(rawText);
+      if (sec !== undefined) {
+        obj[k] = sec / 60;
+      } else {
+        // Si no se puede parsear, dejamos el tiempo previo (si existe)
+        obj[k] = normalizeTimeMin(obj?.[k], criteriaMaxMin);
+      }
+      obj[rawKey] = rawText;
+      return;
+    }
+
+    // Fallback: valores existentes (minutos o segundos) + heurística
+    obj[k] = normalizeTimeMin(obj?.[k], criteriaMaxMin);
+  });
 };
 
 const looksLikeLoadPhasesInsteadOfStress = (svc: any): boolean => {
@@ -252,9 +288,10 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - errors: número de errores
    - errorRate: tasa de error (ej: "0.35%")
    - tps: transacciones por segundo
-   - tProm/tMin/tMax: tiempo de respuesta en **MINUTOS**.
-     - Si el informe muestra tiempos en SEGUNDOS, conviértelos a minutos dividiendo entre 60.
-     - NO redondees: conserva la máxima precisión del informe (usa 6+ decimales si aplica). Ej: 6.05192 seg => 0.1008653333 min.
+   - response times (MUY IMPORTANTE):
+     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto en SEGUNDOS** tal como aparece en la tabla (ej: "6.05192", "2.056", "21.288").
+     - NO conviertas aquí a minutos. NO redondees. NO rehagas cálculos.
+     - Nosotros convertiremos a minutos luego.
    - duration: duración (ej: "30 minutos")
    - date: fecha (DD/MM/YYYY)
    - status: estado (ej: "CONFORME")
@@ -266,20 +303,24 @@ Para CADA servicio/path asíncrono encontrado, extrae:
      - stressSteps: []
      - stressSummary: null
 
-   Para casos con hasStressSection=true, extrae TODOS los tramos (filas) del proceso asíncrono.
-   IMPORTANTE: Algunos informes tienen una columna "MINUTOS" (ej: "0 - 10", "11 - 30"). En ese caso:
-   - minutesRange: el texto exacto del rango
-   - uvc: usuarios simulados (ej: "Usuarios simulados: hasta 15 usuarios" => uvc=15) — si es constante, repítelo en cada fila
+   Para casos con hasStressSection=true, extrae TODOS los tramos (filas) del proceso asíncrono en la tabla de estrés.
+
+   IMPORTANTE (evitar errores de mapeo):
+   - La columna "MINUTOS" debe ir a minutesRange (ej: "0 - 10", "11 - 30").
+   - uvc NO sale de la columna MINUTOS. uvc sale del texto "Usuarios simulados: hasta X usuarios" y se repite en cada fila.
+   - No intercambies columnas (p.ej. no pongas "5.03" como uvc).
 
    Campos por cada tramo:
-   - minutesRange: string | null
+   - minutesRange: string | null (texto exacto)
    - uvc: number | null
    - trx: number
    - errors: number
    - errorRate: string (ej: "6.32%")
    - tps: number
    - status: string (ej: "CONFORME" o "-")
-   - tProm/tMin/tMax: tiempo de respuesta en MINUTOS (misma regla de conversión y precisión)
+   - response times (MUY IMPORTANTE):
+     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto en SEGUNDOS** tal como aparece en la tabla.
+     - NO conviertas a minutos. NO redondees.
 
    "stressSummary": extrae una fila Total/Resumen SOLO si existe explícitamente en el informe. Si no existe, null.
 
@@ -306,9 +347,9 @@ Responde SOLO con un JSON válido con esta estructura exacta:
         "uvc": number_or_null,
         "trx": number_or_null,
         "asegurados": number_or_null,
-        "tProm": number_or_null,
-        "tMin": number_or_null,
-        "tMax": number_or_null,
+        "tPromSecRaw": "string_or_null",
+        "tMinSecRaw": "string_or_null",
+        "tMaxSecRaw": "string_or_null",
         "errorRate": "string_or_null",
         "errors": number_or_null,
         "tps": number_or_null,
@@ -325,9 +366,9 @@ Responde SOLO con un JSON válido con esta estructura exacta:
           "errors": number_or_null,
           "errorRate": "string_or_null",
           "tps": number_or_null,
-          "tProm": number_or_null,
-          "tMin": number_or_null,
-          "tMax": number_or_null,
+          "tPromSecRaw": "string_or_null",
+          "tMinSecRaw": "string_or_null",
+          "tMaxSecRaw": "string_or_null",
           "status": "string_or_null"
         }
       ],
@@ -338,9 +379,9 @@ Responde SOLO con un JSON válido con esta estructura exacta:
         "errors": number_or_null,
         "errorRate": "string_or_null",
         "tps": number_or_null,
-        "tProm": number_or_null,
-        "tMin": number_or_null,
-        "tMax": number_or_null,
+        "tPromSecRaw": "string_or_null",
+        "tMinSecRaw": "string_or_null",
+        "tMaxSecRaw": "string_or_null",
         "status": "string_or_null"
       } | null,
       "loadAnalysis": "string",
@@ -360,7 +401,7 @@ No incluyas explicaciones, solo el JSON.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           {
             role: "user",
@@ -378,7 +419,7 @@ No incluyas explicaciones, solo el JSON.`;
             ],
           },
         ],
-        temperature: 0.1,
+        temperature: 0,
       }),
     });
 
@@ -422,29 +463,38 @@ No incluyas explicaciones, solo el JSON.`;
 
       const criteriaMax = toNumber(svc?.criteria?.responseTimeMaxMin);
 
-      // Normalize times (seconds->minutes when needed)
+      // Normalize times (prefer RAW seconds fields, fallback heuristics)
       if (svc.loadResult) {
-        svc.loadResult.tProm = normalizeTimeMin(svc.loadResult.tProm, criteriaMax);
-        svc.loadResult.tMin = normalizeTimeMin(svc.loadResult.tMin, criteriaMax);
-        svc.loadResult.tMax = normalizeTimeMin(svc.loadResult.tMax, criteriaMax);
+        applyResponseTimes(svc.loadResult, criteriaMax);
+        svc.loadResult.uvc = toNumber(svc.loadResult.uvc);
+        svc.loadResult.trx = toNumber(svc.loadResult.trx);
+        svc.loadResult.asegurados = toNumber(svc.loadResult.asegurados);
+        svc.loadResult.errors = toNumber(svc.loadResult.errors);
+        svc.loadResult.tps = toNumber(svc.loadResult.tps);
       }
 
-      svc.stressSteps = (svc.stressSteps ?? []).map((step: any) => ({
-        ...step,
-        tProm: normalizeTimeMin(step?.tProm, criteriaMax),
-        tMin: normalizeTimeMin(step?.tMin, criteriaMax),
-        tMax: normalizeTimeMin(step?.tMax, criteriaMax),
-        uvc: toNumber(step?.uvc),
-        trx: toNumber(step?.trx),
-        errors: toNumber(step?.errors),
-        tps: toNumber(step?.tps),
-      }));
+      svc.stressSteps = (svc.stressSteps ?? []).map((step: any) => {
+        const next = {
+          ...step,
+          minutesRange: typeof step?.minutesRange === 'string' ? step.minutesRange.trim() : step?.minutesRange,
+          errorRate: typeof step?.errorRate === 'string' ? step.errorRate.trim() : step?.errorRate,
+          status: typeof step?.status === 'string' ? step.status.trim() : step?.status,
+          uvc: toNumber(step?.uvc),
+          trx: toNumber(step?.trx),
+          errors: toNumber(step?.errors),
+          tps: toNumber(step?.tps),
+        };
+        applyResponseTimes(next, criteriaMax);
+        return next;
+      });
 
       svc.stressSummary = normalizeStressSummary(svc.stressSummary);
       if (svc.stressSummary) {
-        svc.stressSummary.tProm = normalizeTimeMin(svc.stressSummary.tProm, criteriaMax);
-        svc.stressSummary.tMin = normalizeTimeMin(svc.stressSummary.tMin, criteriaMax);
-        svc.stressSummary.tMax = normalizeTimeMin(svc.stressSummary.tMax, criteriaMax);
+        applyResponseTimes(svc.stressSummary, criteriaMax);
+        svc.stressSummary.uvc = toNumber(svc.stressSummary.uvc);
+        svc.stressSummary.trx = toNumber(svc.stressSummary.trx);
+        svc.stressSummary.errors = toNumber(svc.stressSummary.errors);
+        svc.stressSummary.tps = toNumber(svc.stressSummary.tps);
       }
 
       const stressDeclared = svc.hasStressSection === true;
