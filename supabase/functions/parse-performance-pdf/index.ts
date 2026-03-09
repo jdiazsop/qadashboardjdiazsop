@@ -124,26 +124,55 @@ const normalizeTimeMin = (
   return v;
 };
 
-const applyResponseTimes = (obj: any, criteriaMaxMin?: number) => {
+const normalizeTimeUnit = (value: unknown): 'seconds' | 'minutes' | undefined => {
+  const t = String(value ?? '').toLowerCase().trim();
+  if (!t) return undefined;
+  if (['seconds', 'second', 'segundos', 'segundo', 'sec', 'secs', 's'].includes(t)) return 'seconds';
+  if (['minutes', 'minute', 'minutos', 'minuto', 'min', 'mins', 'm'].includes(t)) return 'minutes';
+  // Sometimes comes embedded in a longer header
+  if (t.includes('seg')) return 'seconds';
+  if (t.includes('min')) return 'minutes';
+  return undefined;
+};
+
+const applyResponseTimes = (obj: any, criteriaMaxMin?: number, unit?: 'seconds' | 'minutes') => {
   if (!obj || typeof obj !== 'object') return;
+
+  const convertToMinutes = (val: number): number => (unit === 'seconds' ? (val / 60) : val);
+
   (['tProm', 'tMin', 'tMax'] as const).forEach((k) => {
     const rawKey = `${k}SecRaw`;
     const rawText = typeof obj?.[rawKey] === 'string' ? String(obj[rawKey]).trim() : '';
 
-    // Preferimos el RAW exacto en segundos si viene del informe
+    // Preferimos el RAW exacto del informe (en la unidad que indique el encabezado)
     if (rawText && rawText !== 'N/D' && rawText !== '—') {
-      const sec = toNumber(rawText);
-      if (sec !== undefined) {
-        obj[k] = sec / 60;
+      const rawNum = toNumber(rawText);
+      if (rawNum !== undefined) {
+        if (unit === 'seconds' || unit === 'minutes') {
+          obj[k] = convertToMinutes(rawNum);
+        } else {
+          // Sin unidad explícita: usamos heurística legacy
+          obj[k] = normalizeTimeMin(rawNum, criteriaMaxMin);
+        }
       } else {
-        // Si no se puede parsear, dejamos el tiempo previo (si existe)
         obj[k] = normalizeTimeMin(obj?.[k], criteriaMaxMin);
       }
       obj[rawKey] = rawText;
       return;
     }
 
-    // Fallback: valores existentes (minutos o segundos) + heurística
+    // Fallback: valores existentes + unidad si está disponible
+    if (unit === 'seconds') {
+      const n = toNumber(obj?.[k]);
+      obj[k] = n !== undefined ? (n / 60) : normalizeTimeMin(obj?.[k], criteriaMaxMin);
+      return;
+    }
+    if (unit === 'minutes') {
+      obj[k] = normalizeTimeMin(obj?.[k], criteriaMaxMin) ?? undefined;
+      return;
+    }
+
+    // Legacy heurística
     obj[k] = normalizeTimeMin(obj?.[k], criteriaMaxMin);
   });
 };
