@@ -58,6 +58,7 @@ const extractMaxAsegurados = (responseTimeDesc: unknown): number | undefined => 
 const hasAnyStressMetric = (value: any): boolean => {
   if (!value || typeof value !== "object") return false;
   return [
+    "minutesRange",
     "uvc",
     "trx",
     "asegurados",
@@ -66,23 +67,34 @@ const hasAnyStressMetric = (value: any): boolean => {
     "tProm",
     "tMin",
     "tMax",
-  ].some((key) => toNumber(value?.[key]) !== undefined || typeof value?.[key] === "string");
+    "tPromSecRaw",
+    "tMinSecRaw",
+    "tMaxSecRaw",
+    "errorRate",
+    "status",
+  ].some((key) => {
+    const v = value?.[key];
+    return toNumber(v) !== undefined || (typeof v === "string" && v.trim() !== "");
+  });
 };
 
 const normalizeStressSummary = (value: any): any | undefined => {
   if (!hasAnyStressMetric(value)) return undefined;
   return {
-    minutesRange: typeof value?.minutesRange === "string" ? value.minutesRange : undefined,
+    minutesRange: typeof value?.minutesRange === "string" ? value.minutesRange.trim() : undefined,
     uvc: toNumber(value?.uvc),
     trx: toNumber(value?.trx),
     asegurados: toNumber(value?.asegurados),
     errors: toNumber(value?.errors),
-    errorRate: typeof value?.errorRate === "string" ? value.errorRate : undefined,
+    errorRate: typeof value?.errorRate === "string" ? value.errorRate.trim() : undefined,
     tps: toNumber(value?.tps),
     tProm: toNumber(value?.tProm),
     tMin: toNumber(value?.tMin),
     tMax: toNumber(value?.tMax),
-    status: typeof value?.status === "string" ? value.status : undefined,
+    tPromSecRaw: typeof value?.tPromSecRaw === "string" ? value.tPromSecRaw.trim() : undefined,
+    tMinSecRaw: typeof value?.tMinSecRaw === "string" ? value.tMinSecRaw.trim() : undefined,
+    tMaxSecRaw: typeof value?.tMaxSecRaw === "string" ? value.tMaxSecRaw.trim() : undefined,
+    status: typeof value?.status === "string" ? value.status.trim() : undefined,
   };
 };
 
