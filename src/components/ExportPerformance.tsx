@@ -221,6 +221,45 @@ export function ExportPerformance({ atenciones }: Props) {
         return Number.isFinite(n) ? n : NaN;
       };
 
+      type TimeUnit = 'seconds' | 'minutes';
+      const normalizeTimeUnit = (v: unknown): TimeUnit | undefined => {
+        const t = String(v ?? '').toLowerCase().trim();
+        if (!t) return undefined;
+        if (['seconds', 'second', 'segundos', 'segundo', 'sec', 'secs', 's'].includes(t)) return 'seconds';
+        if (['minutes', 'minute', 'minutos', 'minuto', 'min', 'mins', 'm'].includes(t)) return 'minutes';
+        if (t.includes('seg')) return 'seconds';
+        if (t.includes('min')) return 'minutes';
+        return undefined;
+      };
+
+      const fmtFixed = (n: number, decimals: number) => n
+        .toFixed(decimals)
+        .replace(/\.0+$/, '')
+        .replace(/(\.\d*[1-9])0+$/, '$1');
+
+      const normalizeNumericText = (t: string) => t.trim().replace(',', '.');
+
+      const formatResponse = (minutesValue: unknown, rawTextValue: unknown, unitValue: unknown): string => {
+        const rawText = String(rawTextValue ?? '').trim();
+        const rawNorm = rawText ? normalizeNumericText(rawText) : '';
+        const unit = normalizeTimeUnit(unitValue);
+
+        const minutesNum = toNum(minutesValue);
+        const minutesOk = Number.isFinite(minutesNum);
+
+        if (unit === 'minutes') {
+          const base = rawNorm || (minutesOk ? fmtFixed(minutesNum, 3) : '—');
+          return base === '—' ? '—' : `${base} min`;
+        }
+
+        // default/seconds
+        const secNum = rawNorm ? Number(rawNorm) : (minutesOk ? minutesNum * 60 : NaN);
+        if (!Number.isFinite(secNum)) return '—';
+        const secText = rawNorm || fmtFixed(secNum, 5);
+        const minText = minutesOk ? fmtFixed(minutesNum, 3) : fmtFixed(secNum / 60, 3);
+        return `${secText} seg (${minText} min)`;
+      };
+
       // ── Define column groups with section colors ──
       type ColDef = { header: string; width: number; getter: (a: Atencion, svc?: PerfServiceData) => string | number | undefined };
       type Section = { name: string; color: string; textColor: string; cols: ColDef[] };
