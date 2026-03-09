@@ -456,7 +456,6 @@ export function ExportPerformance({ atenciones }: Props) {
                 timeForExcel(summary.tMin),
                 timeForExcel(summary.tMax),
                 (summary as any).tps ?? '—',
-                (summary as any).status ?? '—',
               ];
               sumVals.forEach((v, vi) => {
                 const cell = ws.getCell(sumRowNum, stressStartCol + vi + 1);
