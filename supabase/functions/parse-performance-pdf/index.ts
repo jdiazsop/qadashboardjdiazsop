@@ -451,29 +451,38 @@ No incluyas explicaciones, solo el JSON.`;
 
       const criteriaMax = toNumber(svc?.criteria?.responseTimeMaxMin);
 
-      // Normalize times (seconds->minutes when needed)
+      // Normalize times (prefer RAW seconds fields, fallback heuristics)
       if (svc.loadResult) {
-        svc.loadResult.tProm = normalizeTimeMin(svc.loadResult.tProm, criteriaMax);
-        svc.loadResult.tMin = normalizeTimeMin(svc.loadResult.tMin, criteriaMax);
-        svc.loadResult.tMax = normalizeTimeMin(svc.loadResult.tMax, criteriaMax);
+        applyResponseTimes(svc.loadResult, criteriaMax);
+        svc.loadResult.uvc = toNumber(svc.loadResult.uvc);
+        svc.loadResult.trx = toNumber(svc.loadResult.trx);
+        svc.loadResult.asegurados = toNumber(svc.loadResult.asegurados);
+        svc.loadResult.errors = toNumber(svc.loadResult.errors);
+        svc.loadResult.tps = toNumber(svc.loadResult.tps);
       }
 
-      svc.stressSteps = (svc.stressSteps ?? []).map((step: any) => ({
-        ...step,
-        tProm: normalizeTimeMin(step?.tProm, criteriaMax),
-        tMin: normalizeTimeMin(step?.tMin, criteriaMax),
-        tMax: normalizeTimeMin(step?.tMax, criteriaMax),
-        uvc: toNumber(step?.uvc),
-        trx: toNumber(step?.trx),
-        errors: toNumber(step?.errors),
-        tps: toNumber(step?.tps),
-      }));
+      svc.stressSteps = (svc.stressSteps ?? []).map((step: any) => {
+        const next = {
+          ...step,
+          minutesRange: typeof step?.minutesRange === 'string' ? step.minutesRange.trim() : step?.minutesRange,
+          errorRate: typeof step?.errorRate === 'string' ? step.errorRate.trim() : step?.errorRate,
+          status: typeof step?.status === 'string' ? step.status.trim() : step?.status,
+          uvc: toNumber(step?.uvc),
+          trx: toNumber(step?.trx),
+          errors: toNumber(step?.errors),
+          tps: toNumber(step?.tps),
+        };
+        applyResponseTimes(next, criteriaMax);
+        return next;
+      });
 
       svc.stressSummary = normalizeStressSummary(svc.stressSummary);
       if (svc.stressSummary) {
-        svc.stressSummary.tProm = normalizeTimeMin(svc.stressSummary.tProm, criteriaMax);
-        svc.stressSummary.tMin = normalizeTimeMin(svc.stressSummary.tMin, criteriaMax);
-        svc.stressSummary.tMax = normalizeTimeMin(svc.stressSummary.tMax, criteriaMax);
+        applyResponseTimes(svc.stressSummary, criteriaMax);
+        svc.stressSummary.uvc = toNumber(svc.stressSummary.uvc);
+        svc.stressSummary.trx = toNumber(svc.stressSummary.trx);
+        svc.stressSummary.errors = toNumber(svc.stressSummary.errors);
+        svc.stressSummary.tps = toNumber(svc.stressSummary.tps);
       }
 
       const stressDeclared = svc.hasStressSection === true;
