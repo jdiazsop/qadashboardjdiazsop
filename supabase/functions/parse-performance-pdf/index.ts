@@ -533,8 +533,12 @@ No incluyas explicaciones, solo el JSON.`;
 
       const criteriaMax = toNumber(svc?.criteria?.responseTimeMaxMin);
 
-      const loadUnit = normalizeTimeUnit(svc?.loadResult?.responseTimeUnit);
+      // ── LOAD: unidad + normalización de tiempos (siempre dejamos tProm/tMin/tMax en MINUTOS) ──
+      let loadUnit = normalizeTimeUnit(svc?.loadResult?.responseTimeUnit);
       if (svc.loadResult) {
+        const rawForUnit = svc.loadResult.tPromSecRaw ?? svc.loadResult.tMaxSecRaw ?? svc.loadResult.tMinSecRaw;
+        loadUnit = reconcileUnitWithCriteria(loadUnit, rawForUnit, criteriaMax);
+
         svc.loadResult.responseTimeUnit = loadUnit;
         applyResponseTimes(svc.loadResult, criteriaMax, loadUnit);
         svc.loadResult.uvc = toNumber(svc.loadResult.uvc);
@@ -544,7 +548,14 @@ No incluyas explicaciones, solo el JSON.`;
         svc.loadResult.tps = toNumber(svc.loadResult.tps);
       }
 
-      const stressUnit = normalizeTimeUnit(svc?.stressResponseTimeUnit);
+      // ── STRESS: unidad + normalización ──
+      let stressUnit = normalizeTimeUnit(svc?.stressResponseTimeUnit);
+      const stressRawForUnit = svc?.stressSummary?.tPromSecRaw
+        ?? svc?.stressSummary?.tMaxSecRaw
+        ?? svc?.stressSteps?.[0]?.tPromSecRaw
+        ?? svc?.stressSteps?.[0]?.tMaxSecRaw;
+      stressUnit = reconcileUnitWithCriteria(stressUnit, stressRawForUnit, criteriaMax);
+
       svc.stressResponseTimeUnit = stressUnit;
 
       svc.stressSteps = (svc.stressSteps ?? []).map((step: any) => {
