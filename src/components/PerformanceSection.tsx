@@ -257,6 +257,13 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
   const renderLoadTable = (svc: PerfServiceData) => {
     const r = svc.loadResult;
     if (!r) return <p className="text-[10px] text-muted-foreground italic">Sin resultados de carga</p>;
+
+    const getSecRaw = (key: 'tProm' | 'tMin' | 'tMax') => {
+      const k = `${key}SecRaw` as const;
+      const v = (r as any)?.[k];
+      return typeof v === 'string' ? v : undefined;
+    };
+
     const cols: { label: string; key: keyof PerfLoadResult; align?: string }[] = [
       { label: 'Proceso', key: 'process' },
       { label: 'Fecha', key: 'date' },
@@ -286,9 +293,10 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
               {cols.map(c => {
                 const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
                 const value = r[c.key];
+                const secRaw = isResponseMetric ? getSecRaw(c.key as any) : undefined;
                 return (
                   <td key={c.key} className={`${cellClass} ${c.align === 'right' ? 'text-right' : ''}`}>
-                    {isResponseMetric ? formatResponseMetric(value) : (value ?? '—')}
+                    {isResponseMetric ? formatResponseMetric(value, secRaw) : (value ?? '—')}
                   </td>
                 );
               })}
