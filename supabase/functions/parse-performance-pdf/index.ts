@@ -346,21 +346,23 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - trxHrPrdPico: transacciones por hora PRD pico
    - maxErrorRate: porcentaje máximo de error aceptado (número, ej: 1 para 1%)
 
-2. **Resultados de Carga** (resumen de la sección "Pruebas de carga"):
-   - process: "Asíncrono" o "Asíncrona"
-   - uvc: usuarios simulados (ej: en el texto "Usuarios simulados: hasta 10 usuarios" => uvc=10)
-   - trx: transacciones
-   - errors: número de errores
-   - errorRate: tasa de error (ej: "0.35%")
-   - tps: transacciones por segundo
+ 2. **Resultados de Carga** (resumen de la sección "Pruebas de carga"):
+    - process: "Asíncrono" o "Asíncrona"
+    - uvc: usuarios simulados (ej: en el texto "Usuarios simulados: hasta 10 usuarios" => uvc=10)
+    - trx: transacciones
+    - asegurados: número de asegurados (si aplica)
+    - errors: número de errores
+    - errorRate: tasa de error (ej: "0.35%")
+    - tps: transacciones por segundo
     - response times (CRÍTICO):
       - responseTimeUnit: "seconds" o "minutes" según el encabezado de *ESA MISMA* tabla ASÍNCRONA (ej: "TIEMPO RESPUESTA (SEGUNDOS)" vs "TIEMPO RESPUESTA (MINUTOS)").
       - Si el informe tiene también una tabla SÍNCRONA con otra unidad, NO reutilices esa unidad: toma la del encabezado de la tabla ASÍNCRONA.
       - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto** tal como aparece en la tabla (en la unidad indicada por responseTimeUnit).
       - NO conviertas aquí. NO redondees. NO rehagas cálculos.
       - Nosotros convertiremos a minutos luego para comparar contra criterios.
-   - date: fecha (DD/MM/YYYY)
-   - status: estado (ej: "CONFORME")
+    - duration: duración (ej: "30 minutos")
+    - date: fecha (DD/MM/YYYY)
+    - status: estado (ej: "CONFORME")
 
 3. **Resultados de Estrés** (SOLO si existe sección explícita de estrés en el informe):
    - hasStressSection: true SOLO cuando el informe menciona explícitamente una sección tipo "Pruebas de Estrés", "Stress" o equivalente.
