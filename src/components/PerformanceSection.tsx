@@ -394,6 +394,16 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
             {steps.map((step, stepIdx) => (
               <tr key={stepIdx} className="hover:bg-surface-1/50">
                 {stressCols.map(c => {
+                  if (c.key === '_process') {
+                    if (stepIdx === 0) {
+                      return (
+                        <td key="_process" rowSpan={steps.length} className={`${cellClass} align-middle`}>
+                          {processName}
+                        </td>
+                      );
+                    }
+                    return null;
+                  }
                   const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
                   const value = (step as any)[c.key];
                   const secRaw = isResponseMetric ? getSecRaw(step, c.key as any) : undefined;
@@ -401,7 +411,6 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
                     <td key={String(c.key)} className={`${cellClass} ${c.align === 'right' ? 'text-right' : ''}`}>
                       {isResponseMetric ? formatResponseMetric(value, secRaw, svc.stressResponseTimeUnit as any) : (value ?? '—')}
                     </td>
-
                   );
                 })}
               </tr>
