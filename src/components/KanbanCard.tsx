@@ -255,6 +255,15 @@ export function KanbanCard({ atencion, tags, checklistPhases, onUpdate, onDelete
                 />
               </div>
               <div className="col-span-2">
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Historia Relacionada</label>
+                <input
+                  value={atencion.historiaRelacionada || ''}
+                  onChange={e => onUpdate({ ...atencion, historiaRelacionada: e.target.value || undefined })}
+                  placeholder="Ej: HU-001..."
+                  className="w-full bg-surface-1 border border-border rounded px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="col-span-2">
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Ciclo Actual</label>
                 <div className="bg-surface-1 border border-border rounded px-2 py-1.5 text-sm text-foreground">
                   {(() => {
