@@ -293,7 +293,6 @@ export function ExportPerformance({ atenciones }: Props) {
         stressCols.push({ header: 'T. Min', width: 10, getter: () => '' });
         stressCols.push({ header: 'T. Max', width: 10, getter: () => '' });
         stressCols.push({ header: 'TPS', width: 10, getter: () => '' });
-        stressCols.push({ header: 'Estado', width: 12, getter: () => '' });
       }
       if (has('stressAnalysis') && anyHasStress) stressCols.push({ header: 'Análisis Estrés', width: 50, getter: (_, s) => s?.stressAnalysis ?? '—' });
       if (stressCols.length > 0) sections.push({ name: 'PRUEBAS DE ESTRÉS', color: 'FF5F1E3A', textColor: 'FFFFFFFF', cols: stressCols });
@@ -424,7 +423,6 @@ export function ExportPerformance({ atenciones }: Props) {
                 timeForExcel(step.tMin),
                 timeForExcel(step.tMax),
                 step.tps ?? '—',
-                step.status ?? '—',
               ];
               vals.forEach((v, vi) => {
                 const cell = ws.getCell(rowNum, stressStartCol + vi + 1);
@@ -458,7 +456,6 @@ export function ExportPerformance({ atenciones }: Props) {
                 timeForExcel(summary.tMin),
                 timeForExcel(summary.tMax),
                 (summary as any).tps ?? '—',
-                (summary as any).status ?? '—',
               ];
               sumVals.forEach((v, vi) => {
                 const cell = ws.getCell(sumRowNum, stressStartCol + vi + 1);

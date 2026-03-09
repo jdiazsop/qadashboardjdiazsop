@@ -322,11 +322,10 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
       { label: 'T. Min', key: 'tMin', align: 'right' },
       { label: 'T. Max', key: 'tMax', align: 'right' },
       { label: 'TPS', key: 'tps', align: 'right' },
-      { label: 'Estado', key: 'status', align: 'left' },
     ];
 
     const summary = svc.stressSummary;
-    const hasSummaryData = summary && ['minutesRange', 'uvc', 'trx', 'errors', 'errorRate', 'tps', 'tProm', 'tMin', 'tMax', 'status'].some((k) => {
+    const hasSummaryData = summary && ['minutesRange', 'uvc', 'trx', 'errors', 'errorRate', 'tps', 'tProm', 'tMin', 'tMax'].some((k) => {
       const v = (summary as any)[k];
       return v !== undefined && v !== null && v !== '';
     });
