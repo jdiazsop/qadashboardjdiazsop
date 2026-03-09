@@ -193,26 +193,61 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
   const cellClass = "py-1.5 px-2 text-[10px] text-foreground border-b border-border/30";
   const headerCellClass = "py-1.5 px-2 text-[8px] uppercase text-muted-foreground font-medium border-b border-border whitespace-nowrap";
 
-  const formatResponseMetric = (minutesValue: unknown, secRaw?: unknown): string => {
-    const rawText = String(secRaw ?? '').trim();
-    // Preferimos el valor RAW en segundos (texto exacto del informe) para evitar pérdidas (p.ej. 7.40→7.38)
-    if (rawText && rawText !== 'N/D' && rawText !== '—') {
-      const cleaned = rawText.replace(',', '.');
-      return `${cleaned} seg`;
+  type TimeUnit = 'seconds' | 'minutes';
+
+  const normalizeNumericText = (t: string) => t.trim().replace(',', '.');
+  const fmtFixed = (n: number, decimals: number) => n
+    .toFixed(decimals)
+    .replace(/\.0+$/, '')
+    .replace(/(\.\d*[1-9])0+$/, '$1');
+
+  const inferUnitFromRaw = (rawNum: number, minutesNum: number): TimeUnit | undefined => {
+    // ¿minutes ≈ raw/60? => raw es segundos
+    if (Math.abs(minutesNum - (rawNum / 60)) <= 0.0005) return 'seconds';
+    // ¿minutes ≈ raw? => raw es minutos
+    if (Math.abs(minutesNum - rawNum) <= 0.0005) return 'minutes';
+    return undefined;
+  };
+
+  const formatResponseMetric = (minutesValue: unknown, rawTextValue?: unknown, unit?: TimeUnit): string => {
+    const rawText = String(rawTextValue ?? '').trim();
+    const rawNorm = rawText ? normalizeNumericText(rawText) : '';
+
+    const minutesNum = minutesValue == null || minutesValue === ''
+      ? undefined
+      : (typeof minutesValue === 'number'
+        ? minutesValue
+        : Number(String(minutesValue).replace(',', '.')));
+
+    const rawNum = rawNorm ? Number(rawNorm) : undefined;
+
+    const effectiveUnit: TimeUnit = (
+      unit
+      ?? (rawNum !== undefined && Number.isFinite(rawNum) && minutesNum !== undefined && Number.isFinite(minutesNum)
+        ? inferUnitFromRaw(rawNum, minutesNum)
+        : undefined)
+      ?? (rawText ? 'seconds' : 'minutes')
+    );
+
+    if (effectiveUnit === 'minutes') {
+      const base = rawText
+        ? rawNorm
+        : (minutesNum !== undefined && Number.isFinite(minutesNum) ? fmtFixed(minutesNum, 3) : '—');
+      return base === '—' ? '—' : `${base} min`;
     }
 
-    if (minutesValue == null || minutesValue === '') return '—';
-    const n = typeof minutesValue === 'number' ? minutesValue : Number(String(minutesValue).replace(',', '.'));
-    if (!Number.isFinite(n)) return String(minutesValue);
+    // seconds
+    const secText = rawText
+      ? rawNorm
+      : (minutesNum !== undefined && Number.isFinite(minutesNum) ? fmtFixed(minutesNum * 60, 5) : '—');
 
-    // Guardamos en MINUTOS, pero el informe suele mostrarse en SEGUNDOS.
-    // Si es < 1 minuto, mostramos en segundos con alta precisión.
-    if (Math.abs(n) < 1) {
-      const sec = n * 60;
-      return `${sec.toFixed(5).replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} seg`;
-    }
+    if (secText === '—') return '—';
 
-    return `${n.toFixed(3).replace(/\.000$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} min`;
+    const minText = minutesNum !== undefined && Number.isFinite(minutesNum)
+      ? fmtFixed(minutesNum, 3)
+      : (rawNum !== undefined && Number.isFinite(rawNum) ? fmtFixed(rawNum / 60, 3) : '—');
+
+    return minText === '—' ? `${secText} seg` : `${secText} seg (${minText} min)`;
   };
 
   /* ── Criteria as compact table (read-only) ── */
