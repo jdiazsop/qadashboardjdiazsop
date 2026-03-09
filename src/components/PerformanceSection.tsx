@@ -319,7 +319,14 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
         <table className="w-full text-[10px]">
           <thead>
             <tr>
-              {stressCols.map(c => <th key={c.key} className={`${headerCellClass} text-right`}>{c.label}</th>)}
+              {stressCols.map(c => (
+                <th
+                  key={String(c.key)}
+                  className={`${headerCellClass} ${c.align === 'right' ? 'text-right' : 'text-left'}`}
+                >
+                  {c.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -329,7 +336,7 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
                   const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
                   const value = step[c.key];
                   return (
-                    <td key={c.key} className={`${cellClass} text-right`}>
+                    <td key={String(c.key)} className={`${cellClass} ${c.align === 'right' ? 'text-right' : ''}`}> 
                       {isResponseMetric ? formatResponseMetric(value) : (value ?? '—')}
                     </td>
                   );
@@ -341,9 +348,9 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
                 <tr className="border-t-2 border-primary/40 bg-primary/5 font-semibold">
                   {stressCols.map(c => {
                     const isResponseMetric = c.key === 'tProm' || c.key === 'tMin' || c.key === 'tMax';
-                    const value = summary?.[c.key];
+                    const value = (summary as any)?.[c.key];
                     return (
-                      <td key={c.key} className="py-1.5 px-2 text-[10px] text-primary text-right">
+                      <td key={String(c.key)} className={`py-1.5 px-2 text-[10px] text-primary ${c.align === 'right' ? 'text-right' : 'text-left'}`}>
                         {isResponseMetric ? formatResponseMetric(value) : (value ?? '—')}
                       </td>
                     );
