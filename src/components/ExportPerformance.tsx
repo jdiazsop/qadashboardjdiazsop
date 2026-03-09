@@ -215,6 +215,12 @@ export function ExportPerformance({ atenciones }: Props) {
 
       const pd = (a: Atencion) => a.performanceData ?? {};
 
+      const toNum = (v: unknown) => {
+        if (typeof v === 'number') return v;
+        const n = Number(String(v ?? '').replace(',', '.'));
+        return Number.isFinite(n) ? n : NaN;
+      };
+
       // ── Define column groups with section colors ──
       type ColDef = { header: string; width: number; getter: (a: Atencion, svc?: PerfServiceData) => string | number | undefined };
       type Section = { name: string; color: string; textColor: string; cols: ColDef[] };
