@@ -497,15 +497,19 @@ No incluyas explicaciones, solo el JSON.`;
 
       const criteriaMax = toNumber(svc?.criteria?.responseTimeMaxMin);
 
-      // Normalize times (prefer RAW seconds fields, fallback heuristics)
+      const loadUnit = normalizeTimeUnit(svc?.loadResult?.responseTimeUnit);
       if (svc.loadResult) {
-        applyResponseTimes(svc.loadResult, criteriaMax);
+        svc.loadResult.responseTimeUnit = loadUnit;
+        applyResponseTimes(svc.loadResult, criteriaMax, loadUnit);
         svc.loadResult.uvc = toNumber(svc.loadResult.uvc);
         svc.loadResult.trx = toNumber(svc.loadResult.trx);
         svc.loadResult.asegurados = toNumber(svc.loadResult.asegurados);
         svc.loadResult.errors = toNumber(svc.loadResult.errors);
         svc.loadResult.tps = toNumber(svc.loadResult.tps);
       }
+
+      const stressUnit = normalizeTimeUnit(svc?.stressResponseTimeUnit);
+      svc.stressResponseTimeUnit = stressUnit;
 
       svc.stressSteps = (svc.stressSteps ?? []).map((step: any) => {
         const next = {
@@ -518,13 +522,13 @@ No incluyas explicaciones, solo el JSON.`;
           errors: toNumber(step?.errors),
           tps: toNumber(step?.tps),
         };
-        applyResponseTimes(next, criteriaMax);
+        applyResponseTimes(next, criteriaMax, stressUnit);
         return next;
       });
 
       svc.stressSummary = normalizeStressSummary(svc.stressSummary);
       if (svc.stressSummary) {
-        applyResponseTimes(svc.stressSummary, criteriaMax);
+        applyResponseTimes(svc.stressSummary, criteriaMax, stressUnit);
         svc.stressSummary.uvc = toNumber(svc.stressSummary.uvc);
         svc.stressSummary.trx = toNumber(svc.stressSummary.trx);
         svc.stressSummary.errors = toNumber(svc.stressSummary.errors);
