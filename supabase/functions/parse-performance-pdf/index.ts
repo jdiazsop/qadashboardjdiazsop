@@ -317,18 +317,21 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - errors: número de errores
    - errorRate: tasa de error (ej: "0.35%")
    - tps: transacciones por segundo
-   - response times (MUY IMPORTANTE):
-     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto en SEGUNDOS** tal como aparece en la tabla (ej: "6.05192", "2.056", "21.288").
-     - NO conviertas aquí a minutos. NO redondees. NO rehagas cálculos.
-     - Nosotros convertiremos a minutos luego.
+   - response times (CRÍTICO):
+     - responseTimeUnit: "seconds" o "minutes" según el encabezado de la tabla (ej: "TIEMPO RESPUESTA (SEGUNDOS)" vs "TIEMPO RESPUESTA (MINUTOS)").
+     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto** tal como aparece en la tabla (en la unidad indicada por responseTimeUnit).
+     - NO conviertas aquí. NO redondees. NO rehagas cálculos.
+     - Nosotros convertiremos a minutos luego para comparar contra criterios.
    - duration: duración (ej: "30 minutos")
    - date: fecha (DD/MM/YYYY)
    - status: estado (ej: "CONFORME")
 
 3. **Resultados de Estrés** (SOLO si existe sección explícita de estrés en el informe):
    - hasStressSection: true SOLO cuando el informe menciona explícitamente una sección tipo "Pruebas de Estrés", "Stress" o equivalente.
+   - stressResponseTimeUnit: "seconds" o "minutes" según el encabezado de la tabla de estrés (si no hay estrés, null).
    - Si NO existe sección explícita de estrés, devuelve obligatoriamente:
      - hasStressSection: false
+     - stressResponseTimeUnit: null
      - stressSteps: []
      - stressSummary: null
 
@@ -347,9 +350,9 @@ Para CADA servicio/path asíncrono encontrado, extrae:
    - errorRate: string (ej: "6.32%")
    - tps: number
    - status: string (ej: "CONFORME" o "-")
-   - response times (MUY IMPORTANTE):
-     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto en SEGUNDOS** tal como aparece en la tabla.
-     - NO conviertas a minutos. NO redondees.
+   - response times (CRÍTICO):
+     - tPromSecRaw/tMinSecRaw/tMaxSecRaw: **texto exacto** tal como aparece en la tabla (en la unidad indicada por stressResponseTimeUnit).
+     - NO conviertas. NO redondees.
 
    "stressSummary": extrae una fila Total/Resumen SOLO si existe explícitamente en el informe. Si no existe, null.
 
@@ -376,6 +379,7 @@ Responde SOLO con un JSON válido con esta estructura exacta:
         "uvc": number_or_null,
         "trx": number_or_null,
         "asegurados": number_or_null,
+        "responseTimeUnit": "seconds"|"minutes"|null,
         "tPromSecRaw": "string_or_null",
         "tMinSecRaw": "string_or_null",
         "tMaxSecRaw": "string_or_null",
@@ -387,6 +391,7 @@ Responde SOLO con un JSON válido con esta estructura exacta:
         "status": "string_or_null"
       },
       "hasStressSection": boolean,
+      "stressResponseTimeUnit": "seconds"|"minutes"|null,
       "stressSteps": [
         {
           "minutesRange": "string_or_null",
