@@ -396,8 +396,9 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
                   const secRaw = isResponseMetric ? getSecRaw(step, c.key as any) : undefined;
                   return (
                     <td key={String(c.key)} className={`${cellClass} ${c.align === 'right' ? 'text-right' : ''}`}>
-                      {isResponseMetric ? formatResponseMetric(value, secRaw) : (value ?? '—')}
+                      {isResponseMetric ? formatResponseMetric(value, secRaw, svc.stressResponseTimeUnit as any) : (value ?? '—')}
                     </td>
+
                   );
                 })}
               </tr>
