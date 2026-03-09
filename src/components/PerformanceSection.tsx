@@ -198,9 +198,11 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
     const n = typeof value === 'number' ? value : Number(String(value).replace(',', '.'));
     if (!Number.isFinite(n)) return String(value);
 
+    // Guardamos en MINUTOS, pero el informe suele mostrarse en SEGUNDOS.
+    // Si es < 1 minuto, mostramos en segundos con alta precisión.
     if (Math.abs(n) < 1) {
       const sec = n * 60;
-      return `${sec.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} seg`;
+      return `${sec.toFixed(5).replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} seg`;
     }
 
     return `${n.toFixed(3).replace(/\.000$/, '').replace(/(\.\d*[1-9])0+$/, '$1')} min`;

@@ -278,12 +278,16 @@ export function ExportPerformance({ atenciones }: Props) {
       const stressCols: ColDef[] = [];
       if (has('stressSteps') && anyHasStress) {
         stressCols.push({ header: 'Tramo', width: 8, getter: () => '' });
+        stressCols.push({ header: 'Minutos', width: 10, getter: () => '' });
         stressCols.push({ header: 'UVC', width: 10, getter: () => '' });
         stressCols.push({ header: 'TRX', width: 10, getter: () => '' });
-        stressCols.push({ header: 'Asegurados', width: 12, getter: () => '' });
+        stressCols.push({ header: 'Errores', width: 10, getter: () => '' });
+        stressCols.push({ header: '% Error', width: 10, getter: () => '' });
         stressCols.push({ header: 'T. Prom', width: 10, getter: () => '' });
         stressCols.push({ header: 'T. Min', width: 10, getter: () => '' });
         stressCols.push({ header: 'T. Max', width: 10, getter: () => '' });
+        stressCols.push({ header: 'TPS', width: 10, getter: () => '' });
+        stressCols.push({ header: 'Estado', width: 12, getter: () => '' });
       }
       if (has('stressAnalysis') && anyHasStress) stressCols.push({ header: 'Análisis Estrés', width: 50, getter: (_, s) => s?.stressAnalysis ?? '—' });
       if (stressCols.length > 0) sections.push({ name: 'PRUEBAS DE ESTRÉS', color: 'FF5F1E3A', textColor: 'FFFFFFFF', cols: stressCols });

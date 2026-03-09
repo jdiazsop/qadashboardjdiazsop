@@ -57,18 +57,32 @@ const extractMaxAsegurados = (responseTimeDesc: unknown): number | undefined => 
 
 const hasAnyStressMetric = (value: any): boolean => {
   if (!value || typeof value !== "object") return false;
-  return ["uvc", "trx", "asegurados", "tProm", "tMin", "tMax"].some((key) => toNumber(value?.[key]) !== undefined);
+  return [
+    "uvc",
+    "trx",
+    "asegurados",
+    "errors",
+    "tps",
+    "tProm",
+    "tMin",
+    "tMax",
+  ].some((key) => toNumber(value?.[key]) !== undefined || typeof value?.[key] === "string");
 };
 
 const normalizeStressSummary = (value: any): any | undefined => {
   if (!hasAnyStressMetric(value)) return undefined;
   return {
+    minutesRange: typeof value?.minutesRange === "string" ? value.minutesRange : undefined,
     uvc: toNumber(value?.uvc),
     trx: toNumber(value?.trx),
     asegurados: toNumber(value?.asegurados),
+    errors: toNumber(value?.errors),
+    errorRate: typeof value?.errorRate === "string" ? value.errorRate : undefined,
+    tps: toNumber(value?.tps),
     tProm: toNumber(value?.tProm),
     tMin: toNumber(value?.tMin),
     tMax: toNumber(value?.tMax),
+    status: typeof value?.status === "string" ? value.status : undefined,
   };
 };
 
