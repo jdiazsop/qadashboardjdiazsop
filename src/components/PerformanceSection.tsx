@@ -349,7 +349,10 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
     const steps = svc.stressSteps ?? [];
     if (steps.length === 0) return <p className="text-[10px] text-muted-foreground italic">Sin resultados de estrés</p>;
 
-    const stressCols: { label: string; key: keyof PerfStressStep; align?: string }[] = [
+    const processName = svc.criteria?.process || svc.loadResult?.process || '—';
+
+    const stressCols: { label: string; key: keyof PerfStressStep | '_process'; align?: string }[] = [
+      { label: 'Proceso', key: '_process', align: 'left' },
       { label: 'Minutos', key: 'minutesRange', align: 'left' },
       { label: 'UVC', key: 'uvc', align: 'right' },
       { label: 'TRX', key: 'trx', align: 'right' },
