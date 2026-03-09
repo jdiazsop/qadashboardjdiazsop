@@ -458,9 +458,9 @@ export function ExportPerformance({ atenciones }: Props) {
                 step.trx ?? '—',
                 step.errors ?? '—',
                 step.errorRate ?? '—',
-                timeForExcel(step.tProm),
-                timeForExcel(step.tMin),
-                timeForExcel(step.tMax),
+                formatResponse(step.tProm, (step as any).tPromSecRaw, (svc as any)?.stressResponseTimeUnit),
+                formatResponse(step.tMin, (step as any).tMinSecRaw, (svc as any)?.stressResponseTimeUnit),
+                formatResponse(step.tMax, (step as any).tMaxSecRaw, (svc as any)?.stressResponseTimeUnit),
                 step.tps ?? '—',
               ];
               vals.forEach((v, vi) => {
