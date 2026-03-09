@@ -434,7 +434,26 @@ export function ExportPerformance({ atenciones }: Props) {
               const sumRowNum = ws.rowCount + 1;
               const sumRow = ws.addRow([]);
               sumRow.height = 20;
-              const sumVals = ['Total', summary.uvc ?? '—', summary.trx ?? '—', summary.asegurados ?? '—', summary.tProm ?? '—', summary.tMin ?? '—', summary.tMax ?? '—'];
+              const timeForExcel = (v: unknown) => {
+                const n = toNum(v);
+                if (!Number.isFinite(n)) return '—';
+                if (Math.abs(n) < 1) return Math.round((n * 60) * 100000) / 100000;
+                return Math.round(n * 1000) / 1000;
+              };
+
+              const sumVals = [
+                'Total',
+                (summary as any).minutesRange ?? '—',
+                summary.uvc ?? '—',
+                summary.trx ?? '—',
+                (summary as any).errors ?? '—',
+                (summary as any).errorRate ?? '—',
+                timeForExcel(summary.tProm),
+                timeForExcel(summary.tMin),
+                timeForExcel(summary.tMax),
+                (summary as any).tps ?? '—',
+                (summary as any).status ?? '—',
+              ];
               sumVals.forEach((v, vi) => {
                 const cell = ws.getCell(sumRowNum, stressStartCol + vi + 1);
                 cell.value = v;
