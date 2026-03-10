@@ -237,5 +237,13 @@ export async function parseEstimationExcel(file: File): Promise<EstimationTask[]
     });
   }
 
+  // Add any remaining unmatched phases (e.g. "Otros")
+  const knownLabels = new Set([...orderedLabels, ...postExecutionLabels]);
+  for (const p of phases) {
+    if (!knownLabels.has(p.label) && p.hours > 0) {
+      tasks.push({ id: `est-${idCounter++}`, label: p.label, hours: p.hours });
+    }
+  }
+
   return tasks;
 }
