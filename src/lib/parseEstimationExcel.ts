@@ -120,9 +120,9 @@ export async function parseEstimationExcel(file: File): Promise<EstimationTask[]
       continue;
     }
 
-    // Get hours
-    const factHours = parseFloat(String(row.getCell(factCol).value ?? '0')) || 0;
-    const noFactHours = parseFloat(String(row.getCell(noFactCol).value ?? '0')) || 0;
+    // Get hours – use cellNumber to handle formula cells correctly
+    const factHours = cellNumber(row.getCell(factCol));
+    const noFactHours = cellNumber(row.getCell(noFactCol));
     const totalHours = factHours + noFactHours;
 
     if (totalHours === 0 && !taskText) continue;
@@ -157,6 +157,26 @@ export async function parseEstimationExcel(file: File): Promise<EstimationTask[]
         existing.hours += totalHours;
       } else {
         phases.push({ label: currentPhase, hours: totalHours });
+      }
+    } else if (!currentPhase && totalHours > 0) {
+      // Rows before any phase header or under unrecognised headers –
+      // try to infer phase from the task text itself
+      let inferred = false;
+      for (const p of PHASE_PATTERNS) {
+        if (p.pattern.test(taskText.replace(/\s*-\s*.+$/, '').trim())) {
+          const lbl = p.label === '__EJECUCION__' ? 'Ejecución C1' : p.label;
+          const existing = phases.find(ph => ph.label === lbl);
+          if (existing) existing.hours += totalHours;
+          else phases.push({ label: lbl, hours: totalHours });
+          inferred = true;
+          break;
+        }
+      }
+      // If still unmatched, add to a generic bucket
+      if (!inferred) {
+        const existing = phases.find(p => p.label === 'Otros');
+        if (existing) existing.hours += totalHours;
+        else phases.push({ label: 'Otros', hours: totalHours });
       }
     }
   }
