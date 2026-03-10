@@ -776,7 +776,7 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
                       </h4>
                       {expandedCriteria ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
                     </button>
-                    {expandedCriteria && renderCriteriaTable(svc)}
+                    {expandedCriteria && renderCriteriaTable(svc, svcIdx)}
                   </div>
 
                   {/* Load Results (read-only table + editable analysis/comments) */}
