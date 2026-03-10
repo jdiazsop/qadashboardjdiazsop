@@ -1,6 +1,18 @@
 import ExcelJS from 'exceljs';
 import type { EstimationTask } from '@/types/qa';
 
+/** Safely extract a numeric value from an ExcelJS cell (handles formulas) */
+function cellNumber(cell: ExcelJS.Cell): number {
+  const v = cell.value;
+  if (v == null) return 0;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'object' && v !== null && 'result' in v) {
+    const r = (v as any).result;
+    return typeof r === 'number' ? r : (parseFloat(String(r)) || 0);
+  }
+  return parseFloat(String(v)) || 0;
+}
+
 /**
  * Phase header patterns mapped to estimation task labels.
  * EJECUCIÓN is handled specially — it gets split by cycle sub-sections.
@@ -94,7 +106,11 @@ export async function parseEstimationExcel(file: File): Promise<EstimationTask[]
 
   for (let r = startRow; r <= worksheet.rowCount; r++) {
     const row = worksheet.getRow(r);
-    const taskText = String(row.getCell(taskCol).value ?? '').trim();
+    // Resolve cell value (may be formula object)
+    const rawVal = row.getCell(taskCol).value;
+    const taskText = (typeof rawVal === 'object' && rawVal !== null && 'result' in rawVal
+      ? String((rawVal as any).result ?? '')
+      : String(rawVal ?? '')).trim();
     
     if (!taskText) continue;
 
@@ -108,9 +124,9 @@ export async function parseEstimationExcel(file: File): Promise<EstimationTask[]
       continue;
     }
 
-    // Get hours
-    const factHours = parseFloat(String(row.getCell(factCol).value ?? '0')) || 0;
-    const noFactHours = parseFloat(String(row.getCell(noFactCol).value ?? '0')) || 0;
+    // Get hours – use cellNumber to handle formula cells correctly
+    const factHours = cellNumber(row.getCell(factCol));
+    const noFactHours = cellNumber(row.getCell(noFactCol));
     const totalHours = factHours + noFactHours;
 
     if (totalHours === 0 && !taskText) continue;
@@ -145,6 +161,26 @@ export async function parseEstimationExcel(file: File): Promise<EstimationTask[]
         existing.hours += totalHours;
       } else {
         phases.push({ label: currentPhase, hours: totalHours });
+      }
+    } else if (!currentPhase && totalHours > 0) {
+      // Rows before any phase header or under unrecognised headers –
+      // try to infer phase from the task text itself
+      let inferred = false;
+      for (const p of PHASE_PATTERNS) {
+        if (p.pattern.test(taskText.replace(/\s*-\s*.+$/, '').trim())) {
+          const lbl = p.label === '__EJECUCION__' ? 'Ejecución C1' : p.label;
+          const existing = phases.find(ph => ph.label === lbl);
+          if (existing) existing.hours += totalHours;
+          else phases.push({ label: lbl, hours: totalHours });
+          inferred = true;
+          break;
+        }
+      }
+      // If still unmatched, add to a generic bucket
+      if (!inferred) {
+        const existing = phases.find(p => p.label === 'Otros');
+        if (existing) existing.hours += totalHours;
+        else phases.push({ label: 'Otros', hours: totalHours });
       }
     }
   }
@@ -199,6 +235,14 @@ export async function parseEstimationExcel(file: File): Promise<EstimationTask[]
       label,
       hours: found?.hours ?? 0,
     });
+  }
+
+  // Add any remaining unmatched phases (e.g. "Otros")
+  const knownLabels = new Set([...orderedLabels, ...postExecutionLabels]);
+  for (const p of phases) {
+    if (!knownLabels.has(p.label) && p.hours > 0) {
+      tasks.push({ id: `est-${idCounter++}`, label: p.label, hours: p.hours });
+    }
   }
 
   return tasks;
