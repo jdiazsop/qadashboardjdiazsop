@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { PerformanceData, PerfServiceData, PerfServiceCriteria, PerfLoadResult, PerfStressStep, Atencion } from '@/types/qa';
 import { detectChecklistOutcome } from '@/lib/parseChecklistLevel';
 import { supabase } from '@/integrations/supabase/client';
@@ -267,6 +267,16 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
 
     const numOrUndef = (v: string) => { const n = parseFloat(v.replace(',', '.')); return Number.isFinite(n) ? n : undefined; };
 
+    const NumInput = ({ field, value }: { field: keyof PerfServiceCriteria; value: number | undefined }) => {
+      const [local, setLocal] = React.useState(String(value ?? ''));
+      React.useEffect(() => { setLocal(String(value ?? '')); }, [value]);
+      return (
+        <input className={`${criteriaInputClass} text-right`} value={local} placeholder="—"
+          onChange={e => setLocal(e.target.value)}
+          onBlur={() => updateCriteria(svcIdx, { [field]: numOrUndef(local) } as any)} />
+      );
+    };
+
     return (
       <div className="overflow-x-auto">
         <table className="w-full text-[10px]">
@@ -297,26 +307,11 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
                 <input className={criteriaInputClass} value={c.responseTimeDesc ?? ''} placeholder="—"
                   onChange={e => updateCriteria(svcIdx, { responseTimeDesc: e.target.value })} />
               </td>
-              <td className={editableCellClass}>
-                <input className={`${criteriaInputClass} text-right`} value={c.responseTimeMaxMin ?? ''} placeholder="—"
-                  onChange={e => updateCriteria(svcIdx, { responseTimeMaxMin: numOrUndef(e.target.value) })} />
-              </td>
-              <td className={editableCellClass}>
-                <input className={`${criteriaInputClass} text-right`} value={c.userHrPrdNormal ?? ''} placeholder="—"
-                  onChange={e => updateCriteria(svcIdx, { userHrPrdNormal: numOrUndef(e.target.value) })} />
-              </td>
-              <td className={editableCellClass}>
-                <input className={`${criteriaInputClass} text-right`} value={c.trxDayPrdNormal ?? ''} placeholder="—"
-                  onChange={e => updateCriteria(svcIdx, { trxDayPrdNormal: numOrUndef(e.target.value) })} />
-              </td>
-              <td className={editableCellClass}>
-                <input className={`${criteriaInputClass} text-right`} value={c.trxHrPrdPico ?? ''} placeholder="—"
-                  onChange={e => updateCriteria(svcIdx, { trxHrPrdPico: numOrUndef(e.target.value) })} />
-              </td>
-              <td className={editableCellClass}>
-                <input className={`${criteriaInputClass} text-right`} value={c.maxErrorRate ?? ''} placeholder="—"
-                  onChange={e => updateCriteria(svcIdx, { maxErrorRate: numOrUndef(e.target.value) })} />
-              </td>
+              <td className={editableCellClass}><NumInput field="responseTimeMaxMin" value={c.responseTimeMaxMin} /></td>
+              <td className={editableCellClass}><NumInput field="userHrPrdNormal" value={c.userHrPrdNormal} /></td>
+              <td className={editableCellClass}><NumInput field="trxDayPrdNormal" value={c.trxDayPrdNormal} /></td>
+              <td className={editableCellClass}><NumInput field="trxHrPrdPico" value={c.trxHrPrdPico} /></td>
+              <td className={editableCellClass}><NumInput field="maxErrorRate" value={c.maxErrorRate} /></td>
               <td className={`${cellClass} text-right font-semibold text-primary`}>{uvc ?? '—'}</td>
             </tr>
           </tbody>
