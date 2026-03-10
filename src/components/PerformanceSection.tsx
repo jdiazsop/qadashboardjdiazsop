@@ -251,10 +251,22 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
     return minText === '—' ? `${secText} seg` : `${secText} seg (${minText} min)`;
   };
 
-  /* ── Criteria as compact table (read-only) ── */
-  const renderCriteriaTable = (svc: PerfServiceData) => {
+  /* ── Criteria as compact editable table ── */
+  const editableCellClass = "py-0.5 px-1 text-[10px] text-foreground border-b border-border/30";
+  const criteriaInputClass = "w-full bg-transparent border-none outline-none text-[10px] text-foreground placeholder:text-muted-foreground/50 focus:bg-muted/20 rounded px-1 py-0.5";
+
+  const updateCriteria = (svcIdx: number, partial: Partial<PerfServiceCriteria>) => {
+    const services = [...(d.services ?? [])];
+    services[svcIdx] = { ...services[svcIdx], criteria: { ...services[svcIdx].criteria, ...partial } };
+    update({ services });
+  };
+
+  const renderCriteriaTable = (svc: PerfServiceData, svcIdx: number) => {
     const c = svc.criteria;
     const uvc = computeUvc(c);
+
+    const numOrUndef = (v: string) => { const n = parseFloat(v.replace(',', '.')); return Number.isFinite(n) ? n : undefined; };
+
     return (
       <div className="overflow-x-auto">
         <table className="w-full text-[10px]">
@@ -273,14 +285,38 @@ export function PerformanceSection({ data, onChange, atencion }: Props) {
           </thead>
           <tbody>
             <tr>
-              <td className={cellClass}>{c.process ?? '—'}</td>
-              <td className={`${cellClass} font-mono text-[9px]`}>{c.path ?? '—'}</td>
-              <td className={`${cellClass} max-w-[200px]`}>{c.responseTimeDesc ?? '—'}</td>
-              <td className={`${cellClass} text-right`}>{c.responseTimeMaxMin ?? '—'}</td>
-              <td className={`${cellClass} text-right`}>{c.userHrPrdNormal ?? '—'}</td>
-              <td className={`${cellClass} text-right`}>{c.trxDayPrdNormal ?? '—'}</td>
-              <td className={`${cellClass} text-right`}>{c.trxHrPrdPico ?? '—'}</td>
-              <td className={`${cellClass} text-right`}>{c.maxErrorRate ?? '—'}</td>
+              <td className={editableCellClass}>
+                <input className={criteriaInputClass} value={c.process ?? ''} placeholder="—"
+                  onChange={e => updateCriteria(svcIdx, { process: e.target.value })} />
+              </td>
+              <td className={editableCellClass}>
+                <input className={`${criteriaInputClass} font-mono text-[9px]`} value={c.path ?? ''} placeholder="—"
+                  onChange={e => updateCriteria(svcIdx, { path: e.target.value })} />
+              </td>
+              <td className={`${editableCellClass} max-w-[200px]`}>
+                <input className={criteriaInputClass} value={c.responseTimeDesc ?? ''} placeholder="—"
+                  onChange={e => updateCriteria(svcIdx, { responseTimeDesc: e.target.value })} />
+              </td>
+              <td className={editableCellClass}>
+                <input className={`${criteriaInputClass} text-right`} value={c.responseTimeMaxMin ?? ''} placeholder="—"
+                  onChange={e => updateCriteria(svcIdx, { responseTimeMaxMin: numOrUndef(e.target.value) })} />
+              </td>
+              <td className={editableCellClass}>
+                <input className={`${criteriaInputClass} text-right`} value={c.userHrPrdNormal ?? ''} placeholder="—"
+                  onChange={e => updateCriteria(svcIdx, { userHrPrdNormal: numOrUndef(e.target.value) })} />
+              </td>
+              <td className={editableCellClass}>
+                <input className={`${criteriaInputClass} text-right`} value={c.trxDayPrdNormal ?? ''} placeholder="—"
+                  onChange={e => updateCriteria(svcIdx, { trxDayPrdNormal: numOrUndef(e.target.value) })} />
+              </td>
+              <td className={editableCellClass}>
+                <input className={`${criteriaInputClass} text-right`} value={c.trxHrPrdPico ?? ''} placeholder="—"
+                  onChange={e => updateCriteria(svcIdx, { trxHrPrdPico: numOrUndef(e.target.value) })} />
+              </td>
+              <td className={editableCellClass}>
+                <input className={`${criteriaInputClass} text-right`} value={c.maxErrorRate ?? ''} placeholder="—"
+                  onChange={e => updateCriteria(svcIdx, { maxErrorRate: numOrUndef(e.target.value) })} />
+              </td>
               <td className={`${cellClass} text-right font-semibold text-primary`}>{uvc ?? '—'}</td>
             </tr>
           </tbody>
