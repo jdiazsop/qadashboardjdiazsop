@@ -262,6 +262,9 @@ export function ExportPerformance({ atenciones }: Props) {
 
       // ── Define column groups with section colors ──
       type ColDef = { header: string; width: number; getter: (a: Atencion, svc?: PerfServiceData) => string | number | undefined };
+      /** Wraps a getter so it returns 'N/A' when the atencion doesn't apply performance tests */
+      const naIfNotApplies = (getter: ColDef['getter']): ColDef['getter'] => (a, s) =>
+        pd(a).appliesPerformanceTests === false ? 'N/A' : getter(a, s);
       type Section = { name: string; color: string; textColor: string; cols: ColDef[] };
 
       const sections: Section[] = [];
