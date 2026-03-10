@@ -262,6 +262,9 @@ export function ExportPerformance({ atenciones }: Props) {
 
       // ── Define column groups with section colors ──
       type ColDef = { header: string; width: number; getter: (a: Atencion, svc?: PerfServiceData) => string | number | undefined };
+      /** Wraps a getter so it returns 'N/A' when the atencion doesn't apply performance tests */
+      const naIfNotApplies = (getter: ColDef['getter']): ColDef['getter'] => (a, s) =>
+        pd(a).appliesPerformanceTests === false ? 'N/A' : getter(a, s);
       type Section = { name: string; color: string; textColor: string; cols: ColDef[] };
 
       const sections: Section[] = [];
@@ -284,34 +287,34 @@ export function ExportPerformance({ atenciones }: Props) {
 
       // Criteria
       const critCols: ColDef[] = [];
-      if (has('criteria.process')) critCols.push({ header: 'Proceso', width: 20, getter: (_, s) => s?.criteria.process ?? '—' });
-      if (has('criteria.path')) critCols.push({ header: 'Path', width: 35, getter: (_, s) => s?.criteria.path ?? '—' });
-      if (has('criteria.responseTimeDesc')) critCols.push({ header: 'Tiempo Respuesta', width: 30, getter: (_, s) => s?.criteria.responseTimeDesc ?? '—' });
-      if (has('criteria.responseTimeMaxMin')) critCols.push({ header: 'T. Rpta Max (min)', width: 16, getter: (_, s) => s?.criteria.responseTimeMaxMin ?? '—' });
-      if (has('criteria.userHrPrdNormal')) critCols.push({ header: 'User x hr PRD', width: 14, getter: (_, s) => s?.criteria.userHrPrdNormal ?? '—' });
-      if (has('criteria.trxDayPrdNormal')) critCols.push({ header: 'Trx x día PRD', width: 14, getter: (_, s) => s?.criteria.trxDayPrdNormal ?? '—' });
-      if (has('criteria.trxHrPrdPico')) critCols.push({ header: 'Trx x hr Pico', width: 14, getter: (_, s) => s?.criteria.trxHrPrdPico ?? '—' });
-      if (has('criteria.maxErrorRate')) critCols.push({ header: '% Error Máx', width: 12, getter: (_, s) => s?.criteria.maxErrorRate ?? '—' });
-      if (has('criteria.uvcEsperado')) critCols.push({ header: 'UVC Esperado', width: 14, getter: (_, s) => {
+      if (has('criteria.process')) critCols.push({ header: 'Proceso', width: 20, getter: naIfNotApplies((_, s) => s?.criteria.process ?? '—') });
+      if (has('criteria.path')) critCols.push({ header: 'Path', width: 35, getter: naIfNotApplies((_, s) => s?.criteria.path ?? '—') });
+      if (has('criteria.responseTimeDesc')) critCols.push({ header: 'Tiempo Respuesta', width: 30, getter: naIfNotApplies((_, s) => s?.criteria.responseTimeDesc ?? '—') });
+      if (has('criteria.responseTimeMaxMin')) critCols.push({ header: 'T. Rpta Max (min)', width: 16, getter: naIfNotApplies((_, s) => s?.criteria.responseTimeMaxMin ?? '—') });
+      if (has('criteria.userHrPrdNormal')) critCols.push({ header: 'User x hr PRD', width: 14, getter: naIfNotApplies((_, s) => s?.criteria.userHrPrdNormal ?? '—') });
+      if (has('criteria.trxDayPrdNormal')) critCols.push({ header: 'Trx x día PRD', width: 14, getter: naIfNotApplies((_, s) => s?.criteria.trxDayPrdNormal ?? '—') });
+      if (has('criteria.trxHrPrdPico')) critCols.push({ header: 'Trx x hr Pico', width: 14, getter: naIfNotApplies((_, s) => s?.criteria.trxHrPrdPico ?? '—') });
+      if (has('criteria.maxErrorRate')) critCols.push({ header: '% Error Máx', width: 12, getter: naIfNotApplies((_, s) => s?.criteria.maxErrorRate ?? '—') });
+      if (has('criteria.uvcEsperado')) critCols.push({ header: 'UVC Esperado', width: 14, getter: naIfNotApplies((_, s) => {
         const pico = s?.criteria.trxHrPrdPico;
         const tMax = s?.criteria.responseTimeMaxMin;
         if (pico != null && tMax != null) return Math.round((pico * tMax) / 60);
         return '—';
-      }});
+      })});
       if (critCols.length > 0) sections.push({ name: 'CRITERIOS DE ACEPTACIÓN', color: 'FF5F3A1E', textColor: 'FFFFFFFF', cols: critCols });
 
       // Load
       const loadCols: ColDef[] = [];
-      if (has('load.uvc')) loadCols.push({ header: 'UVC', width: 10, getter: (_, s) => s?.loadResult?.uvc ?? '—' });
-      if (has('load.trx')) loadCols.push({ header: 'TRX', width: 10, getter: (_, s) => s?.loadResult?.trx ?? '—' });
-      if (has('load.asegurados')) loadCols.push({ header: 'Asegurados', width: 12, getter: (_, s) => s?.loadResult?.asegurados ?? '—' });
-      if (has('load.tProm')) loadCols.push({ header: 'T. Prom', width: 18, getter: (_, s) => formatResponse(s?.loadResult?.tProm, s?.loadResult?.tPromSecRaw, s?.loadResult?.responseTimeUnit) });
-      if (has('load.tMin')) loadCols.push({ header: 'T. Min', width: 18, getter: (_, s) => formatResponse(s?.loadResult?.tMin, s?.loadResult?.tMinSecRaw, s?.loadResult?.responseTimeUnit) });
-      if (has('load.tMax')) loadCols.push({ header: 'T. Max', width: 18, getter: (_, s) => formatResponse(s?.loadResult?.tMax, s?.loadResult?.tMaxSecRaw, s?.loadResult?.responseTimeUnit) });
-      if (has('load.errorRate')) loadCols.push({ header: '% Error', width: 10, getter: (_, s) => s?.loadResult?.errorRate ?? '—' });
-      if (has('load.errors')) loadCols.push({ header: 'Errores', width: 10, getter: (_, s) => s?.loadResult?.errors ?? '—' });
-      if (has('load.tps')) loadCols.push({ header: 'TPS', width: 10, getter: (_, s) => s?.loadResult?.tps ?? '—' });
-      if (has('loadAnalysis')) loadCols.push({ header: 'Análisis Carga', width: 50, getter: (_, s) => s?.loadAnalysis ?? '—' });
+      if (has('load.uvc')) loadCols.push({ header: 'UVC', width: 10, getter: naIfNotApplies((_, s) => s?.loadResult?.uvc ?? '—') });
+      if (has('load.trx')) loadCols.push({ header: 'TRX', width: 10, getter: naIfNotApplies((_, s) => s?.loadResult?.trx ?? '—') });
+      if (has('load.asegurados')) loadCols.push({ header: 'Asegurados', width: 12, getter: naIfNotApplies((_, s) => s?.loadResult?.asegurados ?? '—') });
+      if (has('load.tProm')) loadCols.push({ header: 'T. Prom', width: 18, getter: naIfNotApplies((_, s) => formatResponse(s?.loadResult?.tProm, s?.loadResult?.tPromSecRaw, s?.loadResult?.responseTimeUnit)) });
+      if (has('load.tMin')) loadCols.push({ header: 'T. Min', width: 18, getter: naIfNotApplies((_, s) => formatResponse(s?.loadResult?.tMin, s?.loadResult?.tMinSecRaw, s?.loadResult?.responseTimeUnit)) });
+      if (has('load.tMax')) loadCols.push({ header: 'T. Max', width: 18, getter: naIfNotApplies((_, s) => formatResponse(s?.loadResult?.tMax, s?.loadResult?.tMaxSecRaw, s?.loadResult?.responseTimeUnit)) });
+      if (has('load.errorRate')) loadCols.push({ header: '% Error', width: 10, getter: naIfNotApplies((_, s) => s?.loadResult?.errorRate ?? '—') });
+      if (has('load.errors')) loadCols.push({ header: 'Errores', width: 10, getter: naIfNotApplies((_, s) => s?.loadResult?.errors ?? '—') });
+      if (has('load.tps')) loadCols.push({ header: 'TPS', width: 10, getter: naIfNotApplies((_, s) => s?.loadResult?.tps ?? '—') });
+      if (has('loadAnalysis')) loadCols.push({ header: 'Análisis Carga', width: 50, getter: naIfNotApplies((_, s) => s?.loadAnalysis ?? '—') });
       if (loadCols.length > 0) sections.push({ name: 'PRUEBAS DE CARGA', color: 'FF1E4D5F', textColor: 'FFFFFFFF', cols: loadCols });
 
       // Stress columns — only include if at least one chosen atencion has stress data real
@@ -322,18 +325,18 @@ export function ExportPerformance({ atenciones }: Props) {
 
       const stressCols: ColDef[] = [];
       if (has('stressSteps') && anyHasStress) {
-        stressCols.push({ header: 'Tramo', width: 8, getter: () => '' });
-        stressCols.push({ header: 'Minutos', width: 10, getter: () => '' });
-        stressCols.push({ header: 'UVC', width: 10, getter: () => '' });
-        stressCols.push({ header: 'TRX', width: 10, getter: () => '' });
-        stressCols.push({ header: 'Errores', width: 10, getter: () => '' });
-        stressCols.push({ header: '% Error', width: 10, getter: () => '' });
-        stressCols.push({ header: 'T. Prom', width: 10, getter: () => '' });
-        stressCols.push({ header: 'T. Min', width: 10, getter: () => '' });
-        stressCols.push({ header: 'T. Max', width: 10, getter: () => '' });
-        stressCols.push({ header: 'TPS', width: 10, getter: () => '' });
+        stressCols.push({ header: 'Tramo', width: 8, getter: naIfNotApplies(() => '') });
+        stressCols.push({ header: 'Minutos', width: 10, getter: naIfNotApplies(() => '') });
+        stressCols.push({ header: 'UVC', width: 10, getter: naIfNotApplies(() => '') });
+        stressCols.push({ header: 'TRX', width: 10, getter: naIfNotApplies(() => '') });
+        stressCols.push({ header: 'Errores', width: 10, getter: naIfNotApplies(() => '') });
+        stressCols.push({ header: '% Error', width: 10, getter: naIfNotApplies(() => '') });
+        stressCols.push({ header: 'T. Prom', width: 10, getter: naIfNotApplies(() => '') });
+        stressCols.push({ header: 'T. Min', width: 10, getter: naIfNotApplies(() => '') });
+        stressCols.push({ header: 'T. Max', width: 10, getter: naIfNotApplies(() => '') });
+        stressCols.push({ header: 'TPS', width: 10, getter: naIfNotApplies(() => '') });
       }
-      if (has('stressAnalysis') && anyHasStress) stressCols.push({ header: 'Análisis Estrés', width: 50, getter: (_, s) => s?.stressAnalysis ?? '—' });
+      if (has('stressAnalysis') && anyHasStress) stressCols.push({ header: 'Análisis Estrés', width: 50, getter: naIfNotApplies((_, s) => s?.stressAnalysis ?? '—') });
       if (stressCols.length > 0) sections.push({ name: 'PRUEBAS DE ESTRÉS', color: 'FF5F1E3A', textColor: 'FFFFFFFF', cols: stressCols });
 
       // Flatten all columns
