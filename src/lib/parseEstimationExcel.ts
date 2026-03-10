@@ -106,7 +106,11 @@ export async function parseEstimationExcel(file: File): Promise<EstimationTask[]
 
   for (let r = startRow; r <= worksheet.rowCount; r++) {
     const row = worksheet.getRow(r);
-    const taskText = String(row.getCell(taskCol).value ?? '').trim();
+    // Resolve cell value (may be formula object)
+    const rawVal = row.getCell(taskCol).value;
+    const taskText = (typeof rawVal === 'object' && rawVal !== null && 'result' in rawVal
+      ? String((rawVal as any).result ?? '')
+      : String(rawVal ?? '')).trim();
     
     if (!taskText) continue;
 
