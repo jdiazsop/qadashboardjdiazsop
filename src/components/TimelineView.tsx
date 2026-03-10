@@ -64,7 +64,13 @@ function getCycleStatuses(cycles: TestCycle[]): Map<string, 'completed' | 'activ
 }
 
 function isCompleted(a: Atencion): boolean {
-  return a.columnId.toLowerCase().includes('completado');
+  const colDone = a.columnId.toLowerCase().includes('completado');
+  const cycles = a.cycles ?? [];
+  if (cycles.length > 0) {
+    const allCyclesDone = cycles.every(c => c.completed);
+    return colDone && allCyclesDone;
+  }
+  return colDone;
 }
 
 function getBarColor(a: Atencion): string {
