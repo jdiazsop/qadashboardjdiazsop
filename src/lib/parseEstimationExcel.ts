@@ -1,6 +1,18 @@
 import ExcelJS from 'exceljs';
 import type { EstimationTask } from '@/types/qa';
 
+/** Safely extract a numeric value from an ExcelJS cell (handles formulas) */
+function cellNumber(cell: ExcelJS.Cell): number {
+  const v = cell.value;
+  if (v == null) return 0;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'object' && v !== null && 'result' in v) {
+    const r = (v as any).result;
+    return typeof r === 'number' ? r : (parseFloat(String(r)) || 0);
+  }
+  return parseFloat(String(v)) || 0;
+}
+
 /**
  * Phase header patterns mapped to estimation task labels.
  * EJECUCIÓN is handled specially — it gets split by cycle sub-sections.
